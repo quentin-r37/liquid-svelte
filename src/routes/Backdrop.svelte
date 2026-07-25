@@ -1,10 +1,12 @@
 <script module lang="ts">
-	export type BackdropKind = 'grid' | 'photos';
+	export type BackdropKind = 'grid' | 'photos' | 'gradient' | 'solid';
 
 	/** Option list for the `<select>` in each harness route, so both stay in sync. */
 	export const BACKDROP_KINDS: { value: BackdropKind; label: string }[] = [
-		{ value: 'grid', label: 'grid' },
-		{ value: 'photos', label: 'photos' }
+		{ value: 'grid', label: 'grid — moving lines' },
+		{ value: 'photos', label: 'photos — real detail' },
+		{ value: 'gradient', label: 'gradient — app surface' },
+		{ value: 'solid', label: 'solid — flat fill' }
 	];
 </script>
 
@@ -12,11 +14,14 @@
 	/**
 	 * Picks the backdrop the harness routes render behind the glass.
 	 *
-	 * Two different tests, not two skins: the grid shows *where* the refraction bends
-	 * (straight lines, analytic), the photo wall shows whether it survives real content
-	 * (high frequency, no structure). Keeping the switch in one component means `/demo`
-	 * and `/probe` can never drift apart on which backdrops exist.
+	 * Four different tests, not four skins. The grid shows *where* the refraction bends
+	 * (straight lines, analytic); the photo wall shows whether it survives real content
+	 * (high frequency, no structure); the gradient and the flat fill show what is left of
+	 * the material when the backdrop gives it almost nothing to work with, which is the
+	 * situation inside most actual applications. Keeping the switch in one component
+	 * means `/demo` and `/probe` can never drift apart on which backdrops exist.
 	 */
+	import AppSurface from './AppSurface.svelte';
 	import PhotoWall from './PhotoWall.svelte';
 	import ScrollingGrid from './ScrollingGrid.svelte';
 
@@ -37,6 +42,8 @@
 
 {#if kind === 'photos'}
 	<PhotoWall {scheme} {fixed} {speed} />
+{:else if kind === 'gradient' || kind === 'solid'}
+	<AppSurface variant={kind} {scheme} {fixed} />
 {:else}
 	<ScrollingGrid {scheme} {fixed} {speed} />
 {/if}
