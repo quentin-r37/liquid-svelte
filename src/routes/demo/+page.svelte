@@ -184,13 +184,14 @@
 		<section>
 			<h2>LiquidMenu</h2>
 			<p class="note">
-				The trigger <strong>becomes</strong> the panel. It starts as a copy of the button's own box —
-				measured, so the swap has nothing to give away — then spills sideways off it and rises 50ms behind,
-				with the refraction growing in as it deepens: a shallow puddle has no thickness to bend light
-				through. The button is not drawn while the panel is out, so what moves is one object changing
-				shape. Three transform channels, no size animation, so the displacement map is rasterised once
-				before the menu is ever opened. Arrows, Home/End, Escape, Tab and an outside press all behave;
-				pointing at an item moves focus to it, as a native menu does.
+				The trigger <strong>becomes</strong> the panel — and stays where it was. The panel opens from
+				the button's own measured box, on the button's own spot, spilling sideways first and rising 50ms
+				behind, with the refraction growing in as it deepens: a shallow puddle has no thickness to bend
+				light through. The button is not drawn for as long as the panel is out, so what moves is one object
+				changing shape rather than a menu emerging next to a button that is plainly still there. Two scale
+				channels, no size animation, so the displacement map is rasterised once before the menu is ever
+				opened. Arrows, Home/End, Escape, Tab and an outside press all behave; pointing at an item moves
+				focus to it, as a native menu does.
 			</p>
 			<div class="row">
 				<LiquidMenu items={menuItems} onselect={(id) => (lastMenuChoice = id)}>Actions</LiquidMenu>

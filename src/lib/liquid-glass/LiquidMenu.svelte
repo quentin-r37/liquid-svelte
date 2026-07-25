@@ -59,6 +59,11 @@
 		 * being taken from {@link MENU_PUDDLE}: it is a morph only if the shape that
 		 * appears is the shape that was already there.
 		 *
+		 * It also moves the panel *onto* the trigger rather than under it — the button's
+		 * place is the menu's place, and {@link MENU_GEOMETRY.gap} does not apply. A
+		 * panel that opened a gap away would be a panel that came out of a button which
+		 * is evidently still there.
+		 *
 		 * `false` restores the puddle-beside-the-trigger opening. Worth having for a
 		 * trigger that has to stay on screen — one that is also the only thing marking
 		 * its position in a bar, say, where losing it leaves a hole.
@@ -148,27 +153,28 @@
 	$effect(() => () => droplet.destroy());
 
 	/**
-	 * Where the panel comes from, expressed on the channels that open it: a scale per
-	 * axis and one vertical offset.
+	 * The shape the panel starts from and collapses back into, as scales on the two
+	 * reveal channels.
 	 *
 	 * Under `morph` that is the trigger's own box, and it has to be *measured* — the
-	 * two boxes are whatever their content made them. `transform-origin` already sits
-	 * on the corner the panel shares with the trigger (see the placement rules), and a
-	 * scale leaves its origin where it is, so aligning the two boxes needs no
-	 * horizontal travel at all: the shared corner is already in the right column. What
-	 * is left is the vertical gap between them — the trigger's height plus
-	 * {@link MENU_GEOMETRY.gap}, signed by which side the panel is on.
+	 * two boxes are whatever their content made them. Nothing has to be translated to
+	 * line them up: a morphing panel is anchored *on* the trigger rather than offset
+	 * below it (see the placement rules), so the two share a corner in layout, and a
+	 * scale leaves its `transform-origin` exactly where it is. The panel therefore
+	 * grows out of the trigger's footprint and settles over it — the button's place is
+	 * the menu's place, which is the whole point of a morph. It is also why the gap
+	 * disappears in this mode: there is no longer a trigger beside it to be separated
+	 * from.
 	 *
 	 * Read at the top of every opening rather than cached. The panel is measurable
 	 * while closed (`visibility: hidden` is laid out, which is half of why it stays
 	 * mounted), but a menu whose items or trigger changed in the meantime would
 	 * otherwise morph out of a box that no longer exists.
 	 *
-	 * Without `morph`, the declared puddle and no travel — the original opening,
-	 * unchanged.
+	 * Without `morph`, the declared puddle — the original opening, unchanged.
 	 */
-	function morphStart(): { scaleX: number; scaleY: number; offsetY: number } {
-		const puddle = { scaleX: MENU_PUDDLE.scaleX, scaleY: MENU_PUDDLE.scaleY, offsetY: 0 };
+	function morphStart(): { scaleX: number; scaleY: number } {
+		const puddle = { scaleX: MENU_PUDDLE.scaleX, scaleY: MENU_PUDDLE.scaleY };
 		if (!morph || !triggerElement || !panelElement) return puddle;
 
 		const panelWidth = panelElement.offsetWidth;
@@ -178,13 +184,9 @@
 		// not a state it can animate out of.
 		if (panelWidth === 0 || panelHeight === 0) return puddle;
 
-		const triggerHeight = triggerElement.offsetHeight;
-		const below = placement.startsWith('bottom');
-
 		return {
 			scaleX: triggerElement.offsetWidth / panelWidth,
-			scaleY: triggerHeight / panelHeight,
-			offsetY: (below ? -1 : 1) * (triggerHeight + MENU_GEOMETRY.gap)
+			scaleY: triggerElement.offsetHeight / panelHeight
 		};
 	}
 
@@ -213,14 +215,12 @@
 			const start = untrack(morphStart);
 			transform.revealX.set(start.scaleX);
 			transform.revealY.set(start.scaleY);
-			transform.y.set(start.offsetY);
 		}
 		panelTransform = transform;
 		return () => {
 			panelTransform = null;
 			transform.revealX.set(1);
 			transform.revealY.set(1);
-			transform.y.set(0);
 			transform.release();
 		};
 	});
@@ -235,12 +235,11 @@
 	 * whichever corner the trigger is on, and lives in CSS because Motion owns
 	 * `transform` but not its origin.
 	 *
-	 * A third channel under `morph`: the panel's travel from on top of the trigger to
-	 * its resting place beside it (see {@link morphStart}). It rides the *spread*
-	 * spring rather than the delayed rise, so the sheet steps off the trigger as it
-	 * spills — the alternative is a panel that widens while still sitting on the
-	 * button and then slides out from under itself. Off, `offsetY` is zero at both
-	 * ends and the animation is a formality.
+	 * Still two channels and nothing else under `morph`. The panel has no distance to
+	 * travel there — it is laid out on the trigger, so the corner they share is already
+	 * where it belongs and only the far one moves. What differs is where the scales
+	 * start: the trigger's measured box rather than the declared puddle (see
+	 * {@link morphStart}).
 	 *
 	 * Closing is neither sequenced nor sprung: both axes collapse together on a plain
 	 * monotone curve — see {@link MENU_COLLAPSE} for why an exit must not overshoot —
@@ -268,7 +267,6 @@
 			if (!untrack(() => present)) {
 				transform.revealX.set(start.scaleX);
 				transform.revealY.set(start.scaleY);
-				transform.y.set(start.offsetY);
 			}
 			present = true;
 
@@ -303,14 +301,8 @@
 			opening ? 1 : start.scaleY,
 			opening ? { ...springFor('rise', reduced), delay: reduced ? 0 : MENU_RISE_DELAY } : collapse
 		);
-		const glideY = animate(
-			transform.y,
-			opening ? 0 : start.offsetY,
-			opening ? springFor('spread', reduced) : collapse
-		);
-
 		let cancelled = false;
-		Promise.all([spreadX.finished, riseY.finished, glideY.finished])
+		Promise.all([spreadX.finished, riseY.finished])
 			.then(() => {
 				if (cancelled) return;
 				settle();
@@ -330,7 +322,6 @@
 			settle();
 			spreadX.stop();
 			riseY.stop();
-			glideY.stop();
 		};
 	});
 
@@ -477,6 +468,7 @@
 	style:--lg-menu-gap={`${MENU_GEOMETRY.gap}px`}
 	style:--lg-menu-min-width={`${MENU_GEOMETRY.minWidth}px`}
 	data-placement={placement}
+	data-morph={morph}
 	onkeydowncapture={onWrapperKeyDown}
 	onfocusout={onFocusOut}
 >
@@ -571,6 +563,23 @@
 	.lg-menu {
 		position: relative;
 		display: inline-block;
+
+		/*
+		 * How far the panel's anchored edge sits from the trigger's matching one, which
+		 * is the whole difference between the two openings.
+		 *
+		 * A panel *beside* the trigger clears its full height plus the gap. A morphing
+		 * one clears nothing: it is laid out directly on top of the trigger, same edge,
+		 * so the box it grows out of and the box it settles into share a corner and the
+		 * button's place becomes the menu's place. Anything else — even the 10px gap —
+		 * reads as a menu that came out of a button which is still sitting there, which
+		 * is exactly what a morph is not.
+		 */
+		--lg-menu-offset: calc(100% + var(--lg-menu-gap));
+	}
+
+	.lg-menu[data-morph='true'] {
+		--lg-menu-offset: 0px;
 	}
 
 	/*
@@ -633,25 +642,25 @@
 	 * on this element and nothing else may write it.
 	 */
 	.lg-menu[data-placement='bottom-start'] :global(.lg-menu-panel) {
-		top: calc(100% + var(--lg-menu-gap));
+		top: var(--lg-menu-offset);
 		left: 0;
 		transform-origin: top left;
 	}
 
 	.lg-menu[data-placement='bottom-end'] :global(.lg-menu-panel) {
-		top: calc(100% + var(--lg-menu-gap));
+		top: var(--lg-menu-offset);
 		right: 0;
 		transform-origin: top right;
 	}
 
 	.lg-menu[data-placement='top-start'] :global(.lg-menu-panel) {
-		bottom: calc(100% + var(--lg-menu-gap));
+		bottom: var(--lg-menu-offset);
 		left: 0;
 		transform-origin: bottom left;
 	}
 
 	.lg-menu[data-placement='top-end'] :global(.lg-menu-panel) {
-		bottom: calc(100% + var(--lg-menu-gap));
+		bottom: var(--lg-menu-offset);
 		right: 0;
 		transform-origin: bottom right;
 	}
