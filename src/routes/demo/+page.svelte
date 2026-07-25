@@ -4,6 +4,7 @@
 		LiquidButton,
 		LiquidGlass,
 		LiquidLens,
+		LiquidMenu,
 		LiquidSlider,
 		LiquidSwitch,
 		LiquidTabs,
@@ -11,11 +12,13 @@
 		reducedMotion,
 		setGlassModeOverride,
 		type GlassMode,
+		type LiquidMenuItem,
 		type LiquidTab
 	} from '$lib/liquid-glass/index.js';
-	import ScrollingGrid from '../ScrollingGrid.svelte';
+	import Backdrop, { BACKDROP_KINDS, type BackdropKind } from '../Backdrop.svelte';
 
 	let scheme = $state<'light' | 'dark'>('dark');
+	let backdrop = $state<BackdropKind>('grid');
 	let tierOverride = $state<GlassMode>('auto');
 
 	$effect(() => {
@@ -28,6 +31,15 @@
 	let volume = $state(64);
 	let temperature = $state(21.5);
 	let pressed = $state(0);
+
+	const menuItems: LiquidMenuItem[] = [
+		{ id: 'duplicate', label: 'Duplicate', hint: 'Copy with the same optics' },
+		{ id: 'rename', label: 'Rename' },
+		{ id: 'export', label: 'Export map…', hint: 'PNG, at map resolution' },
+		{ id: 'locked', label: 'Regenerate', hint: 'Unavailable on this tier', disabled: true },
+		{ id: 'delete', label: 'Delete', destructive: true, separated: true }
+	];
+	let lastMenuChoice = $state('—');
 
 	const tabs: LiquidTab[] = [
 		{ id: 'optics', label: 'Optics' },
@@ -53,7 +65,7 @@
 	<title>liquid-svelte — component gallery</title>
 </svelte:head>
 
-<ScrollingGrid {scheme} fixed />
+<Backdrop kind={backdrop} {scheme} fixed />
 
 <div class="page" data-scheme={scheme}>
 	<header>
@@ -77,6 +89,14 @@
 			</label>
 			<label>
 				<span>backdrop</span>
+				<select bind:value={backdrop}>
+					{#each BACKDROP_KINDS as option (option.value)}
+						<option value={option.value}>{option.label}</option>
+					{/each}
+				</select>
+			</label>
+			<label>
+				<span>scheme</span>
 				<select bind:value={scheme}>
 					<option value="dark">dark</option>
 					<option value="light">light</option>
@@ -120,6 +140,36 @@
 				<LiquidSwitch bind:checked={telemetry} size="sm">Anonymous telemetry</LiquidSwitch>
 				<LiquidSwitch checked disabled label="Locked setting">Locked</LiquidSwitch>
 			</div>
+		</section>
+
+		<section>
+			<h2>LiquidMenu</h2>
+			<p class="note">
+				The panel opens as a <strong>puddle</strong>: it spills sideways out of the trigger's corner
+				first, then rises 50ms behind, and the refraction grows in with it — a shallow puddle has no
+				thickness to bend light through. Two scale channels, no size animation, so the displacement
+				map is rasterised once before the menu is ever opened. Arrows, Home/End, Escape, Tab and an
+				outside press all behave; pointing at an item moves focus to it, as a native menu does.
+			</p>
+			<div class="row">
+				<LiquidMenu items={menuItems} onselect={(id) => (lastMenuChoice = id)}>Actions</LiquidMenu>
+				<LiquidMenu
+					items={menuItems}
+					placement="bottom-end"
+					onselect={(id) => (lastMenuChoice = id)}
+				>
+					End-aligned
+				</LiquidMenu>
+				<LiquidMenu
+					items={menuItems}
+					placement="top-start"
+					onselect={(id) => (lastMenuChoice = id)}
+				>
+					Upwards
+				</LiquidMenu>
+				<LiquidMenu items={menuItems} disabled>Disabled</LiquidMenu>
+			</div>
+			<p class="readout">selected: <strong>{lastMenuChoice}</strong></p>
 		</section>
 
 		<section>

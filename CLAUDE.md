@@ -32,7 +32,7 @@ Two things in one tree:
 ## Rendering architecture
 
 `LiquidGlass.svelte` is the primitive; every other component (`LiquidButton`, `LiquidSwitch`,
-`LiquidSlider`, `LiquidTabs`, `LiquidLens`) composes it. Understanding the pipeline requires reading four
+`LiquidSlider`, `LiquidTabs`, `LiquidLens`, `LiquidMenu`) composes it. Understanding the pipeline requires reading four
 files together: `LiquidGlass.svelte` → `displacement/createDisplacementMap.ts` → `displacement/surfaceProfiles.ts`
 → `LiquidGlassFilter.svelte`.
 
@@ -89,8 +89,9 @@ the `transform` written by Motion. Everything the library owns goes through `run
 re-add every property per frame). The consumer-supplied `style` prop is the documented exception.
 
 **One transform per element, many gestures.** `runtime/glassTransform.ts` owns `element.style.transform`.
-Hover, press, drag and velocity-stretch each animate their own Motion channel; one `transformValue` composes
-them and `styleEffect` flushes once per frame. If a gesture wrote `style.transform` directly the last writer
+Hover, press, drag, velocity-stretch and the per-axis reveal (`revealX`/`revealY`, used by `LiquidMenu`'s
+puddle spread) each animate their own Motion channel; one `transformValue` composes them and `styleEffect`
+flushes once per frame. If a gesture wrote `style.transform` directly the last writer
 would win. Channels are reference-counted per element (`acquireGlassTransform` / `release`), so acquisition
 belongs in its own `$effect` — re-acquiring on every state change tears the transform down mid-animation.
 `will-change: transform` is only set while a gesture is in flight.

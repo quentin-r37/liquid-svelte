@@ -33,6 +33,20 @@ export interface GlassTransform {
 	stretchX: MotionValue<number>;
 	stretchY: MotionValue<number>;
 	/**
+	 * Entrance and exit deformation, per axis, as multipliers around 1.
+	 *
+	 * Separate from the gesture channels because it is not a gesture: a surface that
+	 * spreads open on one axis before the other (see `LiquidMenu`) has to drive the
+	 * two independently, and it must be able to do so *while* hover or press are
+	 * live without either side clobbering the other.
+	 *
+	 * Two channels rather than reusing `stretchX`/`stretchY`, which belong to
+	 * `applyStretch` — a surface that both reveals itself and reacts to velocity
+	 * would otherwise have one animation cancel the other mid-flight.
+	 */
+	revealX: MotionValue<number>;
+	revealY: MotionValue<number>;
+	/**
 	 * Mark an interaction as in flight. `will-change: transform` is only set while
 	 * at least one gesture is active; leaving it on permanently keeps a
 	 * compositor layer alive for every glass surface on the page.
@@ -65,6 +79,8 @@ function createEntry(element: HTMLElement): Entry {
 	const dragScale = motionValue(1);
 	const stretchX = motionValue(1);
 	const stretchY = motionValue(1);
+	const revealX = motionValue(1);
+	const revealY = motionValue(1);
 
 	// Every channel must be read on the first invocation — that is how
 	// `transformValue` discovers what to subscribe to.
@@ -76,8 +92,8 @@ function createEntry(element: HTMLElement): Entry {
 	// duration of a gesture only.
 	const composed = transformValue(() => {
 		const scaleBase = hoverScale.get() * pressScale.get() * dragScale.get();
-		const sx = scaleBase * stretchX.get();
-		const sy = scaleBase * stretchY.get();
+		const sx = scaleBase * stretchX.get() * revealX.get();
+		const sy = scaleBase * stretchY.get() * revealY.get();
 		return `translate(${x.get()}px, ${y.get() + lift.get()}px) scale(${sx}, ${sy})`;
 	});
 
@@ -96,6 +112,8 @@ function createEntry(element: HTMLElement): Entry {
 			dragScale,
 			stretchX,
 			stretchY,
+			revealX,
+			revealY,
 
 			setActive(active) {
 				entry.activeCount = Math.max(0, entry.activeCount + (active ? 1 : -1));
@@ -107,7 +125,18 @@ function createEntry(element: HTMLElement): Entry {
 				if (entry.holders > 0) return;
 
 				entry.stopEffect();
-				for (const value of [x, y, lift, hoverScale, pressScale, dragScale, stretchX, stretchY]) {
+				for (const value of [
+					x,
+					y,
+					lift,
+					hoverScale,
+					pressScale,
+					dragScale,
+					stretchX,
+					stretchY,
+					revealX,
+					revealY
+				]) {
 					value.stop();
 					value.destroy();
 				}

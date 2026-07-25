@@ -26,7 +26,19 @@ export const SPRINGS = {
 	 * A knob melting into a droplet. Softer and slightly wobbly, so the surface
 	 * appears to liquefy rather than snap between two states.
 	 */
-	droplet: { type: 'spring', stiffness: 300, damping: 20, mass: 1 }
+	droplet: { type: 'spring', stiffness: 300, damping: 20, mass: 1 },
+	/**
+	 * A puddle spilling sideways — the first half of a menu opening. Loose enough to
+	 * overshoot slightly, which is what reads as liquid finding its edges rather than
+	 * a box being scaled up.
+	 */
+	spread: { type: 'spring', stiffness: 360, damping: 22, mass: 1 },
+	/**
+	 * The same puddle filling out on its other axis. Softer and heavier than
+	 * {@link SPRINGS.spread} on purpose: the two axes must not arrive together, or the
+	 * whole thing collapses back into a uniform scale-up.
+	 */
+	rise: { type: 'spring', stiffness: 240, damping: 19, mass: 1.1 }
 } as const;
 
 export type SpringName = keyof typeof SPRINGS;
@@ -99,6 +111,30 @@ export const DRAG_INERTIA_SECONDS = 0.06;
  * short; the point is to show the bound is real, not to make it stretchy.
  */
 export const DRAG_OVERSHOOT_DECAY = 36;
+
+/**
+ * The shape a menu panel is collapsed into when closed, as scale multipliers on
+ * the `revealX` / `revealY` channels.
+ *
+ * Wide and almost perfectly flat — a puddle, not a dot. Collapsing to a uniform
+ * small square and scaling up is the generic "popover zoom" every UI kit ships;
+ * starting from something that is already spread on one axis is what makes the
+ * opening read as liquid spilling out of the trigger and then rising.
+ *
+ * Not zero on either axis: `scale(0)` collapses the element to nothing, and a
+ * `backdrop-filter` on a zero-area box has no backdrop to sample, so the first
+ * frames of the spread would have no refraction to grow out of.
+ */
+export const MENU_PUDDLE = { scaleX: 0.44, scaleY: 0.06 } as const;
+
+/**
+ * How long the vertical rise waits behind the horizontal spill, in seconds.
+ *
+ * The entire effect lives in this offset. Two springs of different stiffness
+ * starting together still look like one scale; 50ms of lag is enough for the eye
+ * to read a sequence — spill, then rise — without the panel feeling slow.
+ */
+export const MENU_RISE_DELAY = 0.05;
 
 /** Arrow-key step for keyboard-driven dragging, in CSS pixels. */
 export const KEYBOARD_STEP = 12;

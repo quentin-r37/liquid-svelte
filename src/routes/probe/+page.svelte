@@ -11,7 +11,7 @@
 		type GlassQuality,
 		type SurfaceProfile
 	} from '$lib/liquid-glass/index.js';
-	import ScrollingGrid from '../ScrollingGrid.svelte';
+	import Backdrop, { BACKDROP_KINDS, type BackdropKind } from '../Backdrop.svelte';
 
 	/**
 	 * Validation harness for the LiquidGlass primitive (steps 1–3).
@@ -37,6 +37,7 @@
 	let quality = $state<GlassQuality>('high');
 	let modeOverride = $state<GlassMode>('auto');
 	let scheme = $state<'light' | 'dark'>('dark');
+	let backdrop = $state<BackdropKind>('grid');
 	let autoSize = $state(false);
 
 	const autoDisplacement = $derived(bezel * DISPLACEMENT_PER_BEZEL);
@@ -118,7 +119,7 @@
 
 <div class="probe" data-scheme={scheme}>
 	<div class="stage">
-		<ScrollingGrid {scheme} />
+		<Backdrop kind={backdrop} {scheme} />
 
 		<div
 			class="drag-wrap"
@@ -242,6 +243,15 @@
 
 			<label>
 				<span>backdrop</span>
+				<select bind:value={backdrop}>
+					{#each BACKDROP_KINDS as option (option.value)}
+						<option value={option.value}>{option.label}</option>
+					{/each}
+				</select>
+			</label>
+
+			<label>
+				<span>scheme</span>
 				<select bind:value={scheme}>
 					<option value="dark">dark</option>
 					<option value="light">light</option>

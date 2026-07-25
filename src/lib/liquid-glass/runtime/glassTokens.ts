@@ -113,6 +113,58 @@ export const DROPLET_ACTIVE: DropletVisual = {
 };
 
 /**
+ * A menu panel as a shallow puddle: milky, and with no lens at all.
+ *
+ * The same rest → liquid morph as the droplet, with endpoints suited to a large
+ * sheet instead of a knob. A puddle 6% of its final height has no meaningful
+ * thickness, so `displacementRatio: 0` is physical rather than decorative — the
+ * refraction *grows* as the liquid deepens, which is most of why the opening reads
+ * as a volume of liquid rather than a growing rectangle.
+ *
+ * `blur` again a hair above zero rather than at it, so `feGaussianBlur` never leaves
+ * and re-enters the filter chain mid-animation.
+ */
+export const MENU_GLASS_REST: DropletVisual = {
+	displacementRatio: 0,
+	opacity: 0.3,
+	saturation: 1,
+	blur: 0.05,
+	specularIntensity: 0.2,
+	scale: 1
+};
+
+/**
+ * The settled panel.
+ *
+ * Tinted and blurred more than any other surface in the library, and deliberately
+ * so: this is the only one that has small text sitting directly on it, and a menu
+ * that is *too* clear is unreadable over busy content. Still nowhere near frosted —
+ * `blur: 1` is a tenth of what the degraded tier uses.
+ */
+export const MENU_GLASS_OPEN: DropletVisual = {
+	displacementRatio: DISPLACEMENT_PER_BEZEL,
+	opacity: 0.12,
+	saturation: 1.7,
+	blur: 1,
+	specularIntensity: 0.9,
+	scale: 1
+};
+
+/**
+ * Menu panel geometry, in CSS pixels.
+ *
+ * The bezel is wide for the same reason the lens's is: refraction concentrated in a
+ * broad rim, with a clear flat centre for the items to sit on. `gap` is the distance
+ * from the trigger — enough for the panel's own shadow to separate the two.
+ */
+export const MENU_GEOMETRY = {
+	radius: 22,
+	bezel: 16,
+	gap: 10,
+	minWidth: 208
+} as const;
+
+/**
  * Slider knob geometry, in CSS pixels.
  *
  * The reference knob is not a circle: it is a wide capsule — 90×60 with a fully

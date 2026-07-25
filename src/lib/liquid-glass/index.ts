@@ -23,6 +23,8 @@ export { default as LiquidSlider } from './LiquidSlider.svelte';
 export { default as LiquidLens } from './LiquidLens.svelte';
 export { default as LiquidTabs } from './LiquidTabs.svelte';
 export type { LiquidTab } from './LiquidTabs.svelte';
+export { default as LiquidMenu } from './LiquidMenu.svelte';
+export type { LiquidMenuItem, MenuPlacement } from './LiquidMenu.svelte';
 
 export type {
 	DisplacementMapParams,
@@ -56,6 +58,8 @@ export {
 	DROPLET_ACTIVE,
 	DROPLET_REST,
 	GLASS_DEFAULTS,
+	MENU_GLASS_OPEN,
+	MENU_GLASS_REST,
 	QUALITY_PRESETS
 } from './runtime/glassTokens.js';
 export type { DropletVisual, QualityPreset } from './runtime/glassTokens.js';

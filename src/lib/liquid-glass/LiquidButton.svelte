@@ -17,6 +17,12 @@
 		quality?: GlassQuality;
 		mode?: GlassMode;
 		disabled?: boolean;
+		/**
+		 * Bindable reference to the host button. Forwarded from the primitive so a
+		 * composing component can focus it or measure it — `LiquidMenu` needs it to
+		 * return focus to its trigger on close.
+		 */
+		element?: HTMLElement | null;
 		class?: string;
 		style?: string;
 		children?: Snippet;
@@ -30,6 +36,7 @@
 		quality = GLASS_DEFAULTS.quality,
 		mode = 'auto',
 		disabled = false,
+		element = $bindable(null),
 		type = 'button',
 		class: className = '',
 		style = '',
@@ -63,7 +70,6 @@
 	/** Small buttons need a proportionally thinner bezel, or the refraction eats the label. */
 	const resolvedBezel = $derived(bezel ?? { sm: 10, md: 14, lg: 20 }[size]);
 
-	let element = $state<HTMLElement | null>(null);
 	let highlighted = $state(false);
 
 	/**
