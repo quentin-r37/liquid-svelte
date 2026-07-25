@@ -207,6 +207,7 @@
 	 * on source order.
 	 */
 	:global(.lg-button-circle.lg-button-sm) {
+		--lg-button-icon: 14px;
 		width: 30px;
 		height: 30px;
 		padding: 0;
@@ -215,6 +216,7 @@
 	}
 
 	:global(.lg-button-circle.lg-button-md) {
+		--lg-button-icon: 18px;
 		width: 38px;
 		height: 38px;
 		padding: 0;
@@ -223,6 +225,7 @@
 	}
 
 	:global(.lg-button-circle.lg-button-lg) {
+		--lg-button-icon: 22px;
 		width: 46px;
 		height: 46px;
 		padding: 0;
@@ -233,43 +236,50 @@
 	/*
 	 * Inline SVG content — a Lucide icon, or anything shaped like one.
 	 *
-	 * Sized in `em` rather than in pixels, which is what makes it come out right in
-	 * every one of the six size/shape combinations without a table of constants. The
-	 * font sizes above already sit at roughly 0.46 × the circle's diameter, and that
-	 * ratio is not arbitrary: {@link BUTTON_CIRCLE_BEZEL_RATIO} leaves a flat centre
-	 * of `d × 0.48`, so an icon at `1em` is the largest one that still lands entirely
-	 * on the clear middle instead of straddling the refracting rim. On a pill it
-	 * comes out at the cap height of the label beside it, which is where an inline
-	 * icon belongs.
+	 * A pill gets `1em`: it has no fixed box, so the icon simply matches the cap
+	 * height of the label beside it and there is nothing to align to.
 	 *
-	 * `--lg-icon-size` is the way out for a consumer who wants a different figure,
-	 * since these rules would otherwise beat Lucide's own `size` prop — it lands as a
-	 * presentation attribute, and any stylesheet outranks one.
+	 * ## A circle gets a literal, and its parity is the whole point
+	 *
+	 * The icon is centred by flex in a box of a known diameter, so the offset it
+	 * lands at is `(diameter − icon) / 2`. That has to come out whole. An odd
+	 * difference puts the glyph on a half CSS pixel, and while a static half pixel is
+	 * merely soft, an *animated* one is not: hover re-rasters the button at
+	 * scale 1.025 and shifted 2px, the inner half-pixel rounds the other way, and the
+	 * icon jumps a pixel against the button carrying it — the button rises and the
+	 * glyph appears to sink. It is invisible above 100% zoom, where the same half
+	 * pixel is a fifth of a device pixel rather than half of one, which is what makes
+	 * it look like a compositing fault rather than arithmetic.
+	 *
+	 * So each figure below is the largest *even* integer under `d × 0.48` — the flat
+	 * centre {@link BUTTON_CIRCLE_BEZEL_RATIO} leaves, beyond which the glyph would
+	 * straddle the refracting rim. The two constraints happen to agree on all three
+	 * sizes: 14, 18, 22.
+	 *
+	 * `--lg-icon-size` stays the consumer's override and is read *first*, so setting
+	 * it anywhere up the tree still wins — these rules would otherwise beat Lucide's
+	 * own `size` prop, which lands as a presentation attribute that any stylesheet
+	 * outranks.
 	 *
 	 * `display: block` is not redundant with the flex centring: it stops the SVG's
 	 * inline baseline from reserving descender space in any context where the content
 	 * box is not a flex container.
 	 *
-	 * ## No `filter` here, however tempting
-	 *
-	 * The label gets a `text-shadow` for separation from a busy backdrop, and the
-	 * obvious way to give a stroked path the same is `filter: drop-shadow()`. Do not.
-	 * A `filter` gives the element its own render surface, and this element is inside
-	 * one that Motion transforms on every hover and press. Composited separately, the
-	 * icon is free to be positioned a frame apart from the button carrying it: the
-	 * button lifts, the glyph appears to sink.
-	 *
-	 * It only shows where the surrounding layers are already compositor-driven — a
-	 * bar that is `position: sticky` inside a scrolling container, which is exactly
-	 * what `LiquidNavBar` is and exactly why the same button in ordinary flow looks
-	 * fine. `text-shadow` is safe because it paints into its element's own layer and
-	 * creates no surface, which is the whole difference.
+	 * No `filter` here, either. The label gets a `text-shadow` for separation from a
+	 * busy backdrop and the obvious way to give a stroked path the same is
+	 * `drop-shadow()`, but a filter earns the element its own render surface inside
+	 * one that Motion transforms on every hover and press, and there is no reason to
+	 * hand the compositor a second surface to keep in step with the first. That is a
+	 * precaution rather than a recorded bug — the misalignment this comment was first
+	 * written for turned out to be the half pixel above, and survived the filter's
+	 * removal. `text-shadow` raises no such question: it paints into its element's
+	 * own layer.
 	 */
 	:global(.lg-button .lg-content svg) {
 		display: block;
 		flex: 0 0 auto;
-		width: var(--lg-icon-size, 1em);
-		height: var(--lg-icon-size, 1em);
+		width: var(--lg-icon-size, var(--lg-button-icon, 1em));
+		height: var(--lg-icon-size, var(--lg-button-icon, 1em));
 	}
 
 	/* Only ever visible when a label sits beside an icon. */
