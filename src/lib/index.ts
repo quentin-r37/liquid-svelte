@@ -1,1 +1,2 @@
-// place files you want to import through the `$lib` alias in this folder.
+// Public entry point of the packaged library (`svelte-package` builds from here).
+export * from './liquid-glass/index.js';

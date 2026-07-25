@@ -1,0 +1,228 @@
+/*
+ * Liquid Glass — layer styles.
+ *
+ * Deliberately a plain, `lg-`-namespaced global stylesheet rather than Svelte
+ * scoped styles: the same layer classes are reused by every component in the
+ * library, and several of them are toggled through data attributes that Svelte's
+ * unused-selector analysis cannot see.
+ *
+ * ## The one rule that must not be broken
+ *
+ * `backdrop-filter` only sees down to its nearest *backdrop root*. Per the
+ * Filter Effects spec, an ancestor creates one as soon as it has `filter`,
+ * `opacity < 1`, `mask`, `clip-path`, `mix-blend-mode`, `isolation: isolate`, or
+ * a `will-change` naming any of those. So `.lg` itself must carry none of them,
+ * or the refraction layer would filter an empty backdrop and the glass would
+ * vanish. Tint opacity is therefore baked into colour alphas instead of the
+ * `opacity` property, and blending / masking happens only on layers painted
+ * *above* the refraction.
+ *
+ * ## Custom properties
+ *
+ * Set by the component:
+ *   --lg-radius, --lg-bezel, --lg-blur, --lg-tint, --lg-saturation,
+ *   --lg-specular, --lg-shadow, --lg-elevation
+ * Set by pointer tracking (see runtime/pointerTracking.ts):
+ *   --pointer-x, --pointer-y, --velocity-x, --velocity-y,
+ *   --highlight-x, --highlight-y, --pointer-inside
+ */
+
+.lg {
+	--lg-radius: 28px;
+	--lg-bezel: 16px;
+	--lg-blur: 3px;
+	--lg-tint: 0.12;
+	--lg-saturation: 1.5;
+	--lg-specular: 0.6;
+	--lg-shadow: 0.5;
+	--lg-elevation: 4px;
+	--lg-border-width: 1px;
+	--lg-light-angle: 145deg;
+
+	/* Scheme-agnostic base: a low-alpha white sheet plus soft dark inner shading
+	   reads correctly on light and dark backdrops alike. */
+	--lg-tint-top: 255 255 255;
+	--lg-tint-bottom: 255 255 255;
+	--lg-tint-boost: 1;
+	--lg-rim: 255 255 255;
+	--lg-shade: 0 0 0;
+
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	border-radius: var(--lg-radius);
+	background: transparent;
+	-webkit-tap-highlight-color: transparent;
+
+	box-shadow:
+		0 1px 2px rgb(var(--lg-shade) / calc(0.06 * var(--lg-shadow))),
+		0 var(--lg-elevation) calc(var(--lg-elevation) * 3)
+			rgb(var(--lg-shade) / calc(0.14 * var(--lg-shadow))),
+		0 calc(var(--lg-elevation) * 2) calc(var(--lg-elevation) * 7)
+			rgb(var(--lg-shade) / calc(0.1 * var(--lg-shadow)));
+}
+
+@media (prefers-color-scheme: dark) {
+	.lg {
+		--lg-tint-boost: 1.35;
+		--lg-shadow: 0.75;
+	}
+}
+
+/* Explicit override, useful when a section forces a scheme. */
+.lg[data-scheme='light'] {
+	--lg-tint-boost: 1;
+}
+.lg[data-scheme='dark'] {
+	--lg-tint-boost: 1.35;
+}
+
+.lg[data-disabled='true'] {
+	--lg-specular: 0.15;
+	--lg-shadow: 0.15;
+	cursor: not-allowed;
+}
+
+/* Reset native chrome when the host element is a button or an input label. */
+.lg:is(button, label, a) {
+	appearance: none;
+	border: 0;
+	margin: 0;
+	font: inherit;
+	color: inherit;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.lg:is(button)[data-disabled='true'] {
+	cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------- layers --- */
+
+.lg-layer {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+/* 1. Refraction — the only layer that touches the backdrop. */
+.lg-refraction {
+	/* `filter: url()` in backdrop-filter is Chromium-only; the SVG chain already
+	   contains the blur and saturation for this tier. */
+	backdrop-filter: var(--lg-backdrop);
+	-webkit-backdrop-filter: var(--lg-backdrop);
+}
+
+/* 2. Tint — a faint, slightly warm sheet. Never an opaque white slab. */
+.lg-tint {
+	background: linear-gradient(
+		var(--lg-light-angle),
+		rgb(var(--lg-tint-top) / calc(var(--lg-tint) * var(--lg-tint-boost) * 1.15)) 0%,
+		rgb(var(--lg-tint-top) / calc(var(--lg-tint) * var(--lg-tint-boost) * 0.55)) 45%,
+		rgb(var(--lg-tint-bottom) / calc(var(--lg-tint) * var(--lg-tint-boost) * 0.9)) 100%
+	);
+}
+
+.lg[data-tier='flat'] .lg-tint {
+	/* Without any backdrop filtering the tint has to carry legibility on its own. */
+	--lg-tint-boost: 3.2;
+}
+
+/* 3 & 4. Luminous rim border, and soft inner shadows. */
+.lg-edge::before,
+.lg-edge::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+.lg-edge::before {
+	padding: var(--lg-border-width);
+	background: linear-gradient(
+		var(--lg-light-angle),
+		rgb(var(--lg-rim) / 0.75) 0%,
+		rgb(var(--lg-rim) / 0.18) 28%,
+		rgb(var(--lg-rim) / 0.06) 52%,
+		rgb(var(--lg-rim) / 0.2) 74%,
+		rgb(var(--lg-rim) / 0.5) 100%
+	);
+	/* A 1px gradient ring: paint the whole box, then punch out the content box. */
+	-webkit-mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+}
+
+.lg-edge::after {
+	box-shadow:
+		inset 0 1px 1px rgb(var(--lg-rim) / 0.32),
+		inset 0 -1px 1px rgb(var(--lg-rim) / 0.14),
+		inset 0 calc(var(--lg-bezel) * -0.3) calc(var(--lg-bezel) * 0.75) rgb(var(--lg-shade) / 0.12),
+		inset 0 calc(var(--lg-bezel) * 0.22) calc(var(--lg-bezel) * 0.6) rgb(var(--lg-shade) / 0.07);
+}
+
+/* 6. Specular highlight — pointer-driven glow plus a static rim light. */
+.lg-specular {
+	overflow: hidden;
+	background: radial-gradient(
+		circle at var(--highlight-x, 50%) var(--highlight-y, 50%),
+		rgb(var(--lg-rim) / 0.5) 0%,
+		rgb(var(--lg-rim) / 0.12) 34%,
+		rgb(var(--lg-rim) / 0) 66%
+	);
+	mix-blend-mode: screen;
+	/* Dim at rest, full strength while the pointer is over the surface. This is a
+	   purely decorative fade, so a CSS transition is appropriate here. */
+	opacity: calc(var(--lg-specular) * (0.4 + 0.6 * var(--pointer-inside, 0)));
+	transition: opacity 240ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.lg-specular::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	padding: calc(var(--lg-bezel) * 0.45);
+	background: linear-gradient(
+		var(--lg-light-angle),
+		rgb(var(--lg-rim) / 0.42) 0%,
+		rgb(var(--lg-rim) / 0) 36%,
+		rgb(var(--lg-rim) / 0) 64%,
+		rgb(var(--lg-rim) / 0.2) 100%
+	);
+	-webkit-mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+	filter: blur(calc(var(--lg-bezel) * 0.18));
+}
+
+/* 7. Content. */
+.lg-content {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.lg-specular {
+		transition-duration: 0ms;
+	}
+}
