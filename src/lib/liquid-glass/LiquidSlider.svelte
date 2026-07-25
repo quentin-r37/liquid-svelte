@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { animate } from 'motion';
+	import { animate, cancelFrame, frame } from 'motion';
 	import LiquidGlass from './LiquidGlass.svelte';
 	import type { GlassMode, GlassQuality } from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { DropletMorph } from './runtime/dropletMorph.svelte.js';
 	import {
 		acquireGlassTransform,
-		applyStretch,
+		stepStretch,
 		type GlassTransform
 	} from './runtime/glassMotion.js';
 	import { SLIDER_RAIL_HEIGHT, SLIDER_THUMB } from './runtime/glassTokens.js';
@@ -109,6 +109,8 @@
 	 * Home/End and programmatic changes — and a stiff enough spring is
 	 * indistinguishable from direct tracking while dragging.
 	 */
+	let arrived = false;
+
 	$effect(() => {
 		const transform = thumbTransform;
 		if (!transform) return;
@@ -118,36 +120,60 @@
 			fraction * travel,
 			springFor('track', reducedMotion.current)
 		);
-		return () => animation.stop();
+		// Any change of target means the thumb is about to move, whatever caused it.
+		// Idempotent — the frame loop queues processes in a set — so re-arming on every
+		// value change costs nothing, and `deform` disarms itself once the thumb settles.
+		//
+		// Except on the first run, which is not the thumb moving but the thumb arriving:
+		// `x` starts at 0 and springs to wherever the initial value sits, which on a
+		// half-way slider is half the track's width of travel. Deformation answers motion
+		// the user caused, so a page full of sliders must not squash itself on load.
+		if (arrived) frame.update(deform, true);
+		arrived = true;
+
+		return () => {
+			animation.stop();
+			cancelFrame(deform);
+		};
 	});
 
-	/** Squash the thumb along its travel when the value is moving fast. */
-	let lastPosition = 0;
-	let lastTime = 0;
-
-	function updateStretch() {
+	/**
+	 * Squash the thumb along its travel when it is moving fast.
+	 *
+	 * Read off the thumb's *own* animated velocity, once a frame, rather than measured
+	 * between consecutive `input` events — which is what this used to do, and which was
+	 * wrong three ways at once.
+	 *
+	 * It divided by the raw gap between two events with no floor on it. A stepped slider
+	 * moves the thumb a whole step at a time (3px on a 300px track over 0–100), and a
+	 * 1000Hz pointer can deliver two `input` events a fraction of a millisecond apart, so
+	 * the reading was routinely thousands of px/s while the knob crawled — saturating the
+	 * deformation cap outright.
+	 *
+	 * It also stopped dead whenever the value did. `input` only fires on a *change*, so a
+	 * finger resting mid-drag, or held between two steps, emitted nothing and the
+	 * deformation froze at whatever the last burst produced instead of decaying.
+	 *
+	 * And it sprang towards each new target with `applyStretch`, once per event, in an
+	 * unbroken run — the divergence documented on {@link stepStretch}, which needs only
+	 * two calls close together to leave for the float32 ceiling.
+	 *
+	 * The thumb's `x` is animated by the `track` spring, so `getVelocity()` is real here
+	 * (unlike a dragged surface, whose position is `set`) and it already describes what
+	 * the eye actually sees moving — including keyboard steps and programmatic changes,
+	 * which all arrive through that same spring.
+	 */
+	function deform({ delta }: { delta: number }) {
 		const transform = thumbTransform;
-		if (!transform) return;
+		if (!transform) return cancelFrame(deform);
 
-		const now = performance.now();
-		const position = fraction * travel;
-		const elapsed = now - lastTime;
-
-		if (lastTime > 0 && elapsed > 0) {
-			applyStretch(
-				transform,
-				((position - lastPosition) / elapsed) * 1000,
-				0,
-				reducedMotion.current
-			);
+		if (!stepStretch(transform, transform.x.getVelocity(), 0, delta, reducedMotion.current)) {
+			cancelFrame(deform);
 		}
-		lastPosition = position;
-		lastTime = now;
 	}
 
 	function onInput(event: Event & { currentTarget: HTMLInputElement }) {
 		value = event.currentTarget.valueAsNumber;
-		updateStretch();
 		oninput?.(value);
 	}
 
@@ -194,9 +220,10 @@
 		const transform = thumbTransform;
 		if (!transform) return;
 
-		lastTime = 0;
-		applyStretch(transform, 0, 0, reducedMotion.current);
-
+		// Nothing to unwind here. `deform` carries the deformation back to rest on its
+		// own as the thumb's velocity decays, and springing it home from this side would
+		// put an animation and the frame tick on the same two channels, each overwriting
+		// the other once a frame for the length of the spring's tail.
 		if (!engaged) return;
 		engaged = false;
 		droplet.release();

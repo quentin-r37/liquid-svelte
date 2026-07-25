@@ -168,9 +168,10 @@ function stretchTargets(
  * unbounded version of this reads as cartoon rubber rather than a dense object
  * with momentum.
  *
- * For callers driven by discrete events — a slider reacting to `input`, a release
- * returning to rest. A caller running every frame wants {@link stretchTargets} and an
- * approach, not this.
+ * For one-off transitions only — a release returning to rest. Anything driven
+ * repeatedly, whether by a frame loop or by a stream of events, wants
+ * {@link stepStretch}: `animate()` restarts a spring, and a spring restarted in an
+ * unbroken run diverges. See {@link stepStretch} for the mechanism.
  */
 export function applyStretch(
 	transform: GlassTransform,
@@ -183,6 +184,65 @@ export function applyStretch(
 
 	animate(transform.stretchX, target.x, spring);
 	animate(transform.stretchY, target.y, spring);
+}
+
+/**
+ * Move a channel a fraction of the way to a target, and land on it exactly once the
+ * remainder stops mattering.
+ *
+ * The snap is not cosmetic: an exponential only approaches, so without it a channel
+ * left near 1 would keep writing an ever-smaller difference forever, and the rest test
+ * in {@link stepStretch} would never come true.
+ */
+function approach(channel: MotionValue<number>, target: number, alpha: number): void {
+	const current = channel.get();
+	const next = current + (target - current) * alpha;
+	channel.set(Math.abs(target - next) < STRETCH_REST_EPSILON ? target : next);
+}
+
+/**
+ * One frame's worth of {@link applyStretch}, for callers that already run per frame.
+ * Returns `false` once the velocity is under the floor *and* both channels have landed,
+ * so a self-terminating frame callback knows when to cancel itself.
+ *
+ * The difference from {@link applyStretch} is that this approaches its target rather
+ * than springing towards it, and that difference is not a refinement — it is the only
+ * safe way to drive these channels repeatedly. `animate()` restarts a spring, and a
+ * spring restarted is not the same spring continued: each restart re-seeds it from
+ * `getVelocity()`, a backward difference taken over the interval since the previous
+ * write. Two writes landing in the same millisecond make that interval ~0 and the
+ * seeded velocity astronomical, and the spring then leaves for infinity. Measured on a
+ * dragged lens: scaleX 0.981 on one frame, 54118 on the next, 94638 two frames later,
+ * clamped by the compositor at the float32 ceiling.
+ *
+ * That is not a rare race. It needs only two calls close together in time, which any
+ * frame loop or any 1000Hz input device supplies. An exponential approach has no stored
+ * velocity to re-seed and cannot overshoot, and nothing is lost by it: the target is
+ * already a velocity averaged over a window, and {@link STRETCH_SMOOTHING} takes the
+ * corners off what is left.
+ */
+export function stepStretch(
+	transform: GlassTransform,
+	velocityX: number,
+	velocityY: number,
+	delta: number,
+	reduced: boolean
+): boolean {
+	// Nothing to say and nothing left to settle. Skipping is not just an optimisation —
+	// writing a channel wakes the composed transform and costs a style flush, and most
+	// of the frames in a careful placement are frames like this.
+	const moving = Math.hypot(velocityX, velocityY) >= STRETCH_VELOCITY_FLOOR;
+	const deformed =
+		Math.abs(transform.stretchX.get() - 1) > STRETCH_REST_EPSILON ||
+		Math.abs(transform.stretchY.get() - 1) > STRETCH_REST_EPSILON;
+	if (!moving && !deformed) return false;
+
+	const target = stretchTargets(velocityX, velocityY, reduced);
+	const alpha = 1 - Math.exp(-delta / STRETCH_SMOOTHING);
+
+	approach(transform.stretchX, target.x, alpha);
+	approach(transform.stretchY, target.y, alpha);
+	return true;
 }
 
 // ------------------------------------------------------------------- drag ---
@@ -243,20 +303,6 @@ export interface DragOptions extends SharedOptions {
 
 function clamp(value: number, min: number, max: number): number {
 	return Math.min(max, Math.max(min, value));
-}
-
-/**
- * Move a channel a fraction of the way to a target, and land on it exactly once the
- * remainder stops mattering.
- *
- * The snap is not cosmetic: an exponential only approaches, so without it a channel
- * left near 1 would keep writing an ever-smaller difference every frame forever, and
- * the `deformed` test that lets the tick go quiet would never come true.
- */
-function approach(channel: MotionValue<number>, target: number, alpha: number): void {
-	const current = channel.get();
-	const next = current + (target - current) * alpha;
-	channel.set(Math.abs(target - next) < STRETCH_REST_EPSILON ? target : next);
 }
 
 /**
@@ -354,45 +400,21 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 	 * identical positions and the reading decays to zero across {@link VELOCITY_WINDOW}
 	 * rather than being frozen mid-burst.
 	 *
-	 * The deformation is then written *directly* onto the channels, which is the one
-	 * place in this file that does not spring towards its target — and the reason the
-	 * tick could not simply call `applyStretch`. `animate()` restarts a spring, and a
-	 * spring restarted every frame is not the same spring continued: each restart
-	 * re-seeds it from `getVelocity()`, a backward difference taken over the last frame,
-	 * and an oscillator re-seeded from its own discrete velocity in an unbroken run
-	 * compounds rather than settles. It does not wobble, it diverges — measured at
-	 * scaleX 94638 within a fifth of a second, i.e. the surface swallowing the viewport
-	 * before the compositor clamps it at the float32 ceiling. The event-driven version
-	 * survived only because the pauses in a drag broke the chain and let each spring
-	 * finish; removing the pauses removed the thing that was hiding it.
-	 *
-	 * Nothing is lost. A spring's job is to carry momentum into a single transition to a
-	 * known target, which is what a *release* is — `finish` still springs the channels
-	 * home. During the drag the target is continuous, already averaged over
-	 * {@link VELOCITY_WINDOW}, and {@link STRETCH_SMOOTHING} takes the corners off what
-	 * is left; an exponential approach cannot overshoot and has no state to compound.
+	 * The deformation then goes through {@link stepStretch} rather than
+	 * {@link applyStretch} — mandatory, not stylistic. Restarting a spring once a frame
+	 * makes it diverge; the event-driven version survived only because the pauses in a
+	 * drag broke the chain and let each spring finish, so removing the pauses removed
+	 * the thing that was hiding it. Springs return in `finish`, where a release is a
+	 * single transition to a known target and they are exactly right.
 	 *
 	 * Runs in Motion's `update` step, ahead of the `render` step that `styleEffect`
 	 * flushes in, so a reading taken this frame is drawn this frame.
 	 */
 	function sampleFrame({ delta, timestamp }: { delta: number; timestamp: number }) {
 		sampleVelocity(transform.x.get(), transform.y.get(), timestamp);
-
-		// A hand that has come to rest has nothing left to say: the reading is under the
-		// floor and both channels are already back at 1. Skipping is not just an
-		// optimisation — writing a channel wakes the composed transform and costs a
-		// style flush, and most of a careful placement is made of frames like this.
-		const moving = Math.hypot(velocityX, velocityY) >= STRETCH_VELOCITY_FLOOR;
-		const deformed =
-			Math.abs(transform.stretchX.get() - 1) > STRETCH_REST_EPSILON ||
-			Math.abs(transform.stretchY.get() - 1) > STRETCH_REST_EPSILON;
-		if (!moving && !deformed) return;
-
-		const target = stretchTargets(velocityX, velocityY, reduced);
-		const alpha = 1 - Math.exp(-delta / STRETCH_SMOOTHING);
-
-		approach(transform.stretchX, target.x, alpha);
-		approach(transform.stretchY, target.y, alpha);
+		// The return value is ignored: this tick's life is the gesture's, not the
+		// deformation's, because the next frame may well have something to say again.
+		stepStretch(transform, velocityX, velocityY, delta, reduced);
 	}
 
 	/**

@@ -77,6 +77,7 @@ export {
 	applyHover,
 	applyPress,
 	applyStretch,
+	stepStretch,
 	draggable,
 	hoverable,
 	pressable
