@@ -37,6 +37,7 @@
 		interactive = false,
 		disabled = false,
 		tag = 'div',
+		type,
 		element = $bindable(null),
 		class: className = '',
 		style = '',
@@ -174,6 +175,7 @@
 	data-tier={tier}
 	data-disabled={disabled ? 'true' : undefined}
 	disabled={tag === 'button' && disabled ? true : undefined}
+	type={tag === 'button' ? (type ?? 'button') : type}
 	{@attach applyGlassStyle(glassStyle)}
 	{@attach trackPointer(trackingOptions)}
 	{...rest}

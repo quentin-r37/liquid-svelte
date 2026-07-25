@@ -8,8 +8,8 @@
 <main>
 	<h1>liquid-svelte</h1>
 	<p>
-		Liquid Glass components for Svelte 5 — SVG displacement refraction, specular highlights and
-		Motion-driven springs.
+		Liquid Glass components for Svelte 5 — SVG displacement refraction, a generated specular rim and
+		Motion springs.
 	</p>
 
 	<p class="tier">
@@ -18,8 +18,12 @@
 
 	<ul>
 		<li>
-			<a href={resolve('/probe')}>LiquidGlass probe</a> — the primitive on a hostile backdrop, with every
-			prop exposed and live cache counters.
+			<a href={resolve('/demo')}>Component gallery</a> — every component on a saturated backdrop, with
+			a tier switch to compare full, degraded and flat rendering.
+		</li>
+		<li>
+			<a href={resolve('/probe')}>Optics probe</a> — the primitive with every prop exposed and live map-cache
+			counters.
 		</li>
 	</ul>
 </main>
@@ -56,5 +60,9 @@
 
 	ul {
 		padding-left: 1.15rem;
+	}
+
+	li {
+		margin-bottom: 0.6rem;
 	}
 </style>

@@ -211,14 +211,17 @@
 }
 
 .lg-specular {
+	/* `--lg-specular-boost` is written by the hover gesture (see glassMotion.ts). */
+	--lg-glow: calc(var(--lg-specular) + var(--lg-specular-boost, 0));
+
 	overflow: hidden;
 	/* Gated on `--pointer-inside` inside the colour rather than via the layer's
 	   opacity: at rest the SVG rim *is* the highlight, and a static blob layered on
 	   top of it just looks foggy. */
 	background: radial-gradient(
 		circle at var(--highlight-x, 50%) var(--highlight-y, 50%),
-		rgb(var(--lg-rim) / calc(0.3 * var(--lg-specular) * var(--pointer-inside, 0))) 0%,
-		rgb(var(--lg-rim) / calc(0.08 * var(--lg-specular) * var(--pointer-inside, 0))) 38%,
+		rgb(var(--lg-rim) / calc(0.3 * var(--lg-glow) * var(--pointer-inside, 0))) 0%,
+		rgb(var(--lg-rim) / calc(0.08 * var(--lg-glow) * var(--pointer-inside, 0))) 38%,
 		rgb(var(--lg-rim) / 0) 68%
 	);
 	mix-blend-mode: screen;

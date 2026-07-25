@@ -112,6 +112,12 @@ export interface LiquidGlassProps extends Omit<HTMLAttributes<HTMLElement>, 'sty
 	disabled?: boolean;
 	/** Host element tag — `button`, `label`, … so wrappers keep native semantics. */
 	tag?: keyof HTMLElementTagNameMap;
+	/**
+	 * Forwarded to the host element. Declared explicitly because the base type is
+	 * `HTMLAttributes<HTMLElement>`, which has no `type` — and a glass surface
+	 * rendered with `tag="button"` needs one to avoid defaulting to `submit`.
+	 */
+	type?: 'button' | 'submit' | 'reset';
 	/** Bindable reference to the host element. */
 	element?: HTMLElement | null;
 	class?: string;

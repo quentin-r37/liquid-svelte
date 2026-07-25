@@ -17,6 +17,12 @@
 
 export { default as LiquidGlass } from './LiquidGlass.svelte';
 export { default as LiquidGlassFilter } from './LiquidGlassFilter.svelte';
+export { default as LiquidButton } from './LiquidButton.svelte';
+export { default as LiquidSwitch } from './LiquidSwitch.svelte';
+export { default as LiquidSlider } from './LiquidSlider.svelte';
+export { default as LiquidLens } from './LiquidLens.svelte';
+export { default as LiquidTabs } from './LiquidTabs.svelte';
+export type { LiquidTab } from './LiquidTabs.svelte';
 
 export type {
 	DisplacementMapParams,
@@ -52,3 +58,29 @@ export { applyGlassStyle } from './runtime/applyGlassStyle.js';
 export { trackPointer } from './runtime/pointerTracking.js';
 export type { PointerTrackingOptions } from './runtime/pointerTracking.js';
 export { observeSize } from './runtime/sharedResizeObserver.js';
+
+export {
+	acquireGlassTransform,
+	applyDrag,
+	applyHover,
+	applyPress,
+	applyStretch,
+	draggable,
+	hoverable,
+	pressable
+} from './runtime/glassMotion.js';
+export type {
+	DragBounds,
+	DragOptions,
+	GlassTransform,
+	HoverOptions,
+	PressOptions
+} from './runtime/glassMotion.js';
+
+export {
+	REDUCED_MOTION_TRANSITION,
+	SPRINGS,
+	springFor,
+	MAX_STRETCH
+} from './runtime/motionTokens.js';
+export type { SpringName } from './runtime/motionTokens.js';
