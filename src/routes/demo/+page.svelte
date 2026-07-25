@@ -184,13 +184,18 @@
 		<section>
 			<h2>LiquidMenu</h2>
 			<p class="note">
-				The trigger <strong>becomes</strong> the panel. On the press it leaves its place and travels to
-				the centre of the box the menu is about to fill — a patch of glass the size of the button, measured
-				from it — and 70ms later, still moving, it spills sideways and rises 50ms behind that, with the
-				refraction growing in as it deepens: a shallow puddle has no thickness to bend light through.
-				The button is not drawn for as long as the panel is out, so what moves is one object rather than
-				a menu appearing beside a button that is plainly still there. Two scale channels and a translation,
-				no size animation, so the displacement map is rasterised once before the menu is ever opened.
+				The trigger <strong>becomes</strong> the panel, and the button is not drawn for as long as
+				the panel is out — so what moves is one object changing shape, not a menu appearing beside a
+				button that is plainly still there. It leaves its place as a patch of glass the button's
+				exact size, travels to the centre of the box the menu will fill, and on the way
+				<strong>gathers</strong>: narrower, and taller for it, the way liquid draws in before it
+				spreads. Three frames later it spills sideways — flattening as it goes, because the volume
+				has to be somewhere — and then rises into its own shape, the refraction growing in as it
+				deepens, since a shallow puddle has no thickness to bend light through. Its corner is driven
+				<em>against</em> the scale throughout: as round as the box allows while it is small, easing to
+				the panel's own radius only as it settles, which is the difference between liquid finding its
+				edges and a rectangle being enlarged. Two scale channels, two deformation channels and a translation
+				— no size animation, so the displacement map is rasterised once before the menu is ever opened.
 				Arrows, Home/End, Escape, Tab and an outside press all behave; pointing at an item moves focus
 				to it, as a native menu does.
 			</p>

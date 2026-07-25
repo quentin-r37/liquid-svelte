@@ -277,6 +277,54 @@ export const MENU_MORPH_LEAD = 0.045;
 export const MENU_MORPH_GATHER = { scale: 0.45, release: 0.26 } as const;
 
 /**
+ * How much rounder than its settled corner an opening panel is allowed to be, as a
+ * multiplier on the panel's own radius.
+ *
+ * This is the single thing that decides whether the reveal reads as liquid. A shape
+ * scaled between two sizes keeps its corner in proportion, so a panel at half size is a
+ * rectangle with a 22px corner — and a rectangle with a 22px corner is a *rectangle*.
+ * It can grow; it cannot spread. Liquid has no such corner: its edge curvature is set
+ * by how much of it there is, so a small volume is a lozenge, a larger one a blob, and
+ * only a volume that has found its container takes the container's shape.
+ *
+ * So the corner is driven the other way round — as round as the current box allows
+ * while the panel is small, easing to exactly the panel's radius as the reveal
+ * completes. CSS's own clamp does the "as round as allows" half for free (a radius past
+ * half the box is reduced to half the box, which is a pill), so this only says how long
+ * to keep *asking* for more roundness than the panel has. At 3.2 the shape is a full
+ * lozenge through the first half of the opening, a blob through the third quarter, and
+ * square-shouldered only as it settles.
+ *
+ * Higher reads wetter and holds the blob longer, at the cost of the panel's own
+ * silhouette arriving late — which matters, because the items are fading in over it.
+ */
+export const MENU_PUDDLE_ROUNDNESS = 3.2;
+
+/**
+ * The volume a spreading puddle has to put somewhere, as multipliers on the panel's
+ * height, and when it does so, in seconds measured from the end of the lead.
+ *
+ * Liquid does not change how much of itself there is. It is the cue that separates
+ * spreading from scaling, and it is entirely absent from a pair of independent springs:
+ * ours widened and heightened as though the two had nothing to do with each other. So
+ * the height answers what the width is doing. It `swell`s while the gather draws the
+ * patch narrow — the same liquid in a thinner column has to go somewhere — and
+ * `flatten`s as that column spills sideways, before coming back to square as the panel
+ * rises into its own shape.
+ *
+ * `dip` is when the flattening bottoms out: after the spill starts and before the rise
+ * does, so the sequence the eye is given is gather → spill flat → fill. `release` is how
+ * long from the end of the lead back to square, and it outlives the spread deliberately,
+ * so the recovery is the thing the rise is climbing out of rather than something that
+ * finished before it began.
+ *
+ * Both figures are large for a deformation — velocity stretch is capped at 12% — because
+ * this is not a surface reacting to being moved, it is the surface changing shape, and
+ * where it bites the panel is a 38px-tall patch on which 16% is six pixels.
+ */
+export const MENU_MORPH_VOLUME = { swell: 1.1, flatten: 0.84, dip: 0.06, release: 0.3 } as const;
+
+/**
  * The collapse, on both axes at once. The one animation in this library that is not
  * a spring, deliberately.
  *

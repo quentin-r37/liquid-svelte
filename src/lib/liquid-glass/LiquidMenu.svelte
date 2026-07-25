@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { animate } from 'motion';
+	import { animate, type MotionValue } from 'motion';
 	import { untrack, type Snippet } from 'svelte';
 	import LiquidButton, { type ButtonShape } from './LiquidButton.svelte';
 	import LiquidGlass from './LiquidGlass.svelte';
@@ -12,7 +12,9 @@
 		MENU_COLLAPSE,
 		MENU_MORPH_GATHER,
 		MENU_MORPH_LEAD,
+		MENU_MORPH_VOLUME,
 		MENU_PUDDLE,
+		MENU_PUDDLE_ROUNDNESS,
 		MENU_RISE_DELAY,
 		REDUCED_MOTION_TRANSITION,
 		springFor
@@ -262,6 +264,7 @@
 			transform.x.set(start.x);
 			transform.y.set(start.y);
 			transform.stretchX.set(1);
+			transform.stretchY.set(1);
 		}
 		panelTransform = transform;
 		return () => {
@@ -271,28 +274,44 @@
 			transform.x.set(0);
 			transform.y.set(0);
 			transform.stretchX.set(1);
+			transform.stretchY.set(1);
 			transform.release();
 		};
 	});
 
 	/**
-	 * The corner, held still while the panel is being scaled.
+	 * The corner, driven against the scale rather than by it — which is most of what
+	 * makes the reveal read as a puddle finding its edges instead of a box being
+	 * enlarged.
 	 *
-	 * A transform scales the border radius with everything else, and this one scales
-	 * hard and unevenly: a panel opening out of its trigger is a sixth of its final
-	 * height for the first frames, where a 22px corner is drawn as a 3px one. The
-	 * surface that replaces a pill therefore arrived with square corners — the one
-	 * moment the swap has to be invisible. Dividing the radius by the scale it is about
-	 * to be multiplied by cancels that exactly, and CSS's own clamp (no radius past
-	 * half the box) turns the saturated case into a pill of precisely the trigger's
-	 * corner, whatever size that trigger is. See the note in `liquidGlass.css`.
+	 * Two problems, one mechanism. A transform scales the border radius along with
+	 * everything else, and this one scales hard and unevenly: the patch that replaces
+	 * the trigger is a sixth of the panel's height, where a 22px corner is drawn as a
+	 * 3px one, so the surface standing in for a pill arrived square-cornered at the one
+	 * moment the swap has to be invisible. And a panel that merely *keeps* its 22px
+	 * corner through the spread is a rectangle throughout — see
+	 * {@link MENU_PUDDLE_ROUNDNESS} for why liquid cannot be.
+	 *
+	 * So the radius asked for is the panel's own, multiplied by a roundness that starts
+	 * high and eases to 1 as the reveal completes, and then divided by the scale it is
+	 * about to be multiplied by. The division cancels the transform exactly; the
+	 * roundness is the shape. What comes out the other side is a rendered corner that
+	 * is a pill while the patch is a lozenge, a blob while it spreads, and precisely
+	 * {@link MENU_GEOMETRY.radius} once it settles — with CSS's own clamp, no radius
+	 * past half the box, supplying the pill end of that range for free and for any
+	 * trigger size.
+	 *
+	 * `revealY` alone measures the progress, not the composed scale: the deformation
+	 * channels are a wobble on top of the reveal, not part of how far along it is, and
+	 * feeding them back in here would make the corner flutter with the volume.
 	 *
 	 * Written per frame with `setProperty`, in the same manner and for the same reasons
 	 * as everything else this library owns inline — never through the `style` attribute
 	 * (which Svelte rewrites wholesale) and never through a prop, which would put the
 	 * radius back in the displacement map's cache key and rasterise a PNG per frame.
 	 * These are CSS custom properties feeding one declaration; the map, built for the
-	 * settled corner, is never consulted about it.
+	 * settled corner, is never consulted about it. The cost is a repaint of a surface
+	 * that is already repainting, every frame of an animation that already moves it.
 	 *
 	 * Only the channels this component actually drives are composed. Hover, press and
 	 * drag do not touch a menu panel.
@@ -304,24 +323,21 @@
 
 		const write = () => {
 			const scaleX = transform.revealX.get() * transform.stretchX.get();
-			const scaleY = transform.revealY.get();
+			const scaleY = transform.revealY.get() * transform.stretchY.get();
+			const settled = Math.min(1, Math.max(0, transform.revealY.get()));
+			const radius = MENU_GEOMETRY.radius * (1 + (MENU_PUDDLE_ROUNDNESS - 1) * (1 - settled));
 			// Guarding the divisor, not the result: a channel at zero would otherwise
 			// write `Infinity px`, which is not a length and drops the declaration.
-			panel.style.setProperty(
-				'--lg-radius-x',
-				`${MENU_GEOMETRY.radius / Math.max(scaleX, 0.01)}px`
-			);
-			panel.style.setProperty(
-				'--lg-radius-y',
-				`${MENU_GEOMETRY.radius / Math.max(scaleY, 0.01)}px`
-			);
+			panel.style.setProperty('--lg-radius-x', `${radius / Math.max(scaleX, 0.01)}px`);
+			panel.style.setProperty('--lg-radius-y', `${radius / Math.max(scaleY, 0.01)}px`);
 		};
 
 		write();
 		const unsubscribe = [
 			transform.revealX.on('change', write),
 			transform.revealY.on('change', write),
-			transform.stretchX.on('change', write)
+			transform.stretchX.on('change', write),
+			transform.stretchY.on('change', write)
 		];
 
 		return () => {
@@ -382,10 +398,11 @@
 				transform.revealY.set(start.scaleY);
 				transform.x.set(start.x);
 				transform.y.set(start.y);
-				// The pinch is a deformation the opening applies and takes back; parking it
-				// at square is what guarantees the patch is the trigger's box exactly, on
-				// the frame the trigger stops being drawn.
+				// The deformation is something the opening applies and takes back; parking
+				// both channels at square is what guarantees the patch is the trigger's box
+				// exactly, on the frame the trigger stops being drawn.
 				transform.stretchX.set(1);
+				transform.stretchY.set(1);
 			}
 			present = true;
 
@@ -441,40 +458,57 @@
 		const animations = [travelX, travelY, spreadX, riseY];
 
 		/*
-		 * The gather (see {@link MENU_MORPH_GATHER}), and the one animation here that is
-		 * neither a spring nor part of the panel's geometry.
+		 * The deformation: the gather on the width ({@link MENU_MORPH_GATHER}) and the
+		 * volume it displaces on the height ({@link MENU_MORPH_VOLUME}). The only
+		 * animations here that are neither springs nor part of the panel's geometry.
 		 *
-		 * It rides `stretchX` rather than `revealX` because the composed transform
-		 * multiplies the two: the spread keeps its spring to itself and the pinch
-		 * composes on top, instead of one animation having to describe a departure and a
-		 * return at once. Which is also why it is keyframed — a spring goes to a value
-		 * and stays there, and this leaves 1 only to come back to it. The first keyframe
-		 * is read off the channel rather than assumed, so an opening interrupted
-		 * mid-pinch resumes from where the width actually stood.
+		 * They ride the stretch channels rather than the reveal ones because the composed
+		 * transform multiplies the two: the spread and the rise keep their springs to
+		 * themselves and the deformation composes on top, instead of one animation having
+		 * to describe a departure and a return at once. Which is also why these are
+		 * keyframed — a spring goes to a value and stays there, and both of these leave 1
+		 * only to come back to it. The first keyframe is read off the channel rather than
+		 * assumed, so an opening interrupted mid-deformation resumes from where the
+		 * surface actually stood.
 		 *
-		 * `easeInOut` across both segments on purpose: the slow start of the second one
-		 * holds the surface at its narrowest for a few frames after the spread has begun,
-		 * which is the beat that makes the spill read as a release rather than as a
-		 * scale. Reduced motion skips the whole thing — anticipation is precisely the
-		 * kind of extra movement that setting asks not to be shown — and the `else`
-		 * branch is what returns a half-pinched panel to square on close.
+		 * `easeInOut` throughout on purpose: the slow start of each segment after the
+		 * first holds the surface at its extreme for a few frames, which is the beat that
+		 * makes the spill read as a release rather than as a scale.
+		 *
+		 * Reduced motion skips them entirely — squash, stretch and anticipation are
+		 * precisely the extra movement that setting asks not to be shown, and the reveal
+		 * without them is still a legible open — while the `else` branch is what returns a
+		 * half-deformed panel to square on close.
 		 */
-		const gathering = opening && !reduced && start.gather < 1;
-		if (gathering || transform.stretchX.get() !== 1) {
+		const deforming = opening && !reduced && start.gather < 1;
+
+		/** One deformation channel: keyframed away from square and back, or sent home. */
+		function deform(channel: MotionValue<number>, keyframes: number[], times: number[]) {
+			if (!deforming) {
+				if (channel.get() !== 1) animations.push(animate(channel, 1, collapse));
+				return;
+			}
+
+			const duration = times[times.length - 1];
 			animations.push(
-				animate(
-					transform.stretchX,
-					gathering ? [transform.stretchX.get(), start.gather, 1] : 1,
-					gathering
-						? {
-								duration: start.lead + MENU_MORPH_GATHER.release,
-								times: [0, start.lead / (start.lead + MENU_MORPH_GATHER.release), 1],
-								ease: 'easeInOut'
-							}
-						: collapse
-				)
+				animate(channel, [channel.get(), ...keyframes], {
+					duration,
+					times: [0, ...times.map((time) => time / duration)],
+					ease: 'easeInOut'
+				})
 			);
 		}
+
+		deform(
+			transform.stretchX,
+			[start.gather, 1],
+			[start.lead, start.lead + MENU_MORPH_GATHER.release]
+		);
+		deform(
+			transform.stretchY,
+			[MENU_MORPH_VOLUME.swell, MENU_MORPH_VOLUME.flatten, 1],
+			[start.lead, start.lead + MENU_MORPH_VOLUME.dip, start.lead + MENU_MORPH_VOLUME.release]
+		);
 
 		let cancelled = false;
 		Promise.all(animations.map((animation) => animation.finished))
