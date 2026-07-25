@@ -13,7 +13,7 @@
 		type GlassMode,
 		type LiquidTab
 	} from '$lib/liquid-glass/index.js';
-	import DemoBackdrop from './DemoBackdrop.svelte';
+	import ScrollingGrid from '../ScrollingGrid.svelte';
 
 	let scheme = $state<'light' | 'dark'>('dark');
 	let tierOverride = $state<GlassMode>('auto');
@@ -53,7 +53,7 @@
 	<title>liquid-svelte — component gallery</title>
 </svelte:head>
 
-<DemoBackdrop {scheme} />
+<ScrollingGrid {scheme} fixed />
 
 <div class="page" data-scheme={scheme}>
 	<header>

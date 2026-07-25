@@ -11,7 +11,7 @@
 		type GlassQuality,
 		type SurfaceProfile
 	} from '$lib/liquid-glass/index.js';
-	import RichBackdrop from './RichBackdrop.svelte';
+	import ScrollingGrid from '../ScrollingGrid.svelte';
 
 	/**
 	 * Validation harness for the LiquidGlass primitive (steps 1–3).
@@ -118,7 +118,7 @@
 
 <div class="probe" data-scheme={scheme}>
 	<div class="stage">
-		<RichBackdrop {scheme} />
+		<ScrollingGrid {scheme} />
 
 		<div
 			class="drag-wrap"
