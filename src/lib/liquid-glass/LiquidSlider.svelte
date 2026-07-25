@@ -9,7 +9,7 @@
 		applyStretch,
 		type GlassTransform
 	} from './runtime/glassMotion.js';
-	import { DROPLET_ACTIVE } from './runtime/glassTokens.js';
+	import { SLIDER_RAIL_HEIGHT, SLIDER_THUMB } from './runtime/glassTokens.js';
 	import { springFor } from './runtime/motionTokens.js';
 	import { observeSize } from './runtime/sharedResizeObserver.js';
 
@@ -52,7 +52,19 @@
 		onchange
 	}: Props = $props();
 
-	const THUMB_SIZE = 30;
+	/**
+	 * The knob idles smaller than it is laid out (see {@link SLIDER_THUMB}), so every
+	 * position in this component is expressed against its *idle* footprint: that is
+	 * the box the user sees sliding along the rail, and the box the native range
+	 * input's own thumb has to match for the drag to track the pointer exactly.
+	 *
+	 * The element is therefore pulled left by half the difference, so at value = min
+	 * its visible left edge sits on the rail's left edge rather than inset by the
+	 * slack. When it swells it grows past both ends of its travel — which is exactly
+	 * the reference behaviour, and why nothing here may clip.
+	 */
+	const REST_WIDTH = SLIDER_THUMB.width * SLIDER_THUMB.restScale;
+	const REST_INSET = -(SLIDER_THUMB.width - REST_WIDTH) / 2;
 
 	let trackElement = $state<HTMLElement | null>(null);
 	let trackWidth = $state(0);
@@ -60,7 +72,7 @@
 	let thumbTransform = $state<GlassTransform | null>(null);
 
 	const fraction = $derived(max === min ? 0 : (value - min) / (max - min));
-	const travel = $derived(Math.max(0, trackWidth - THUMB_SIZE));
+	const travel = $derived(Math.max(0, trackWidth - REST_WIDTH));
 
 	$effect(() => {
 		if (!trackElement) return;
@@ -73,12 +85,20 @@
 		});
 	});
 
+	/**
+	 * `pressScale` carries the whole rest ↔ droplet swell, so it starts at the idle
+	 * scale rather than at 1. It is set imperatively rather than animated because
+	 * this is a static state, not a gesture — animating it here would make the knob
+	 * shrink into place on mount.
+	 */
 	$effect(() => {
 		if (!thumbElement) return;
 		const transform = acquireGlassTransform(thumbElement);
+		transform.pressScale.set(SLIDER_THUMB.restScale);
 		thumbTransform = transform;
 		return () => {
 			thumbTransform = null;
+			transform.pressScale.set(1);
 			transform.release();
 		};
 	});
@@ -164,7 +184,7 @@
 		if (transform) {
 			animate(
 				transform.pressScale,
-				DROPLET_ACTIVE.scale,
+				SLIDER_THUMB.activeScale,
 				springFor('droplet', reducedMotion.current)
 			);
 		}
@@ -180,7 +200,11 @@
 		if (!engaged) return;
 		engaged = false;
 		droplet.release();
-		animate(transform.pressScale, 1, springFor('settle', reducedMotion.current));
+		animate(
+			transform.pressScale,
+			SLIDER_THUMB.restScale,
+			springFor('settle', reducedMotion.current)
+		);
 		transform.setActive(false);
 	}
 </script>
@@ -192,17 +216,34 @@
 	would have to reimplement, usually incompletely.
 -->
 <div class={`lg-slider ${className}`} {style} data-disabled={disabled ? 'true' : undefined}>
-	<div class="lg-slider-track" bind:this={trackElement}>
+	<div
+		class="lg-slider-track"
+		bind:this={trackElement}
+		style:--lg-slider-rail={`${SLIDER_RAIL_HEIGHT}px`}
+		style:--lg-slider-row={`${SLIDER_THUMB.height}px`}
+		style:--lg-slider-knob={`${REST_WIDTH}px`}
+		style:--lg-slider-inset={`${REST_INSET}px`}
+	>
 		<span class="lg-slider-rail"></span>
-		<span class="lg-slider-fill" style:width={`${fraction * 100}%`}></span>
+		<!--
+			The fill stops under the knob's centre, not at a plain percentage of the
+			rail: the knob's centre travels from half its own width to the rail's width
+			minus that same half, so a percentage would drift away from it at both ends.
+			Expressed in `calc` rather than from the measured width so it is already
+			correct on the server, before any ResizeObserver has fired.
+		-->
+		<span
+			class="lg-slider-fill"
+			style:width={`calc(${fraction} * (100% - var(--lg-slider-knob)) + var(--lg-slider-knob) / 2)`}
+		></span>
 
 		<LiquidGlass
 			bind:element={thumbElement}
-			width={THUMB_SIZE}
-			height={THUMB_SIZE}
-			borderRadius={THUMB_SIZE / 2}
-			bezel={THUMB_SIZE / 2}
-			displacement={(THUMB_SIZE / 2) * droplet.visual.displacementRatio}
+			width={SLIDER_THUMB.width}
+			height={SLIDER_THUMB.height}
+			borderRadius={SLIDER_THUMB.height / 2}
+			bezel={SLIDER_THUMB.bezel}
+			displacement={SLIDER_THUMB.bezel * droplet.visual.displacementRatio}
 			opacity={droplet.visual.opacity}
 			saturation={droplet.visual.saturation}
 			blur={droplet.visual.blur}
@@ -251,11 +292,15 @@
 		width: 100%;
 	}
 
+	/*
+	 * The row is as tall as the knob's *full* geometry, not its idle size, so the
+	 * swell on grab has somewhere to go without shifting the layout around it.
+	 */
 	.lg-slider-track {
 		position: relative;
 		flex: 1;
 		min-width: 0;
-		height: 30px;
+		height: var(--lg-slider-row);
 		display: flex;
 		align-items: center;
 	}
@@ -264,8 +309,8 @@
 	.lg-slider-fill {
 		position: absolute;
 		left: 0;
-		height: 10px;
-		border-radius: 5px;
+		height: var(--lg-slider-rail);
+		border-radius: calc(var(--lg-slider-rail) / 2);
 		pointer-events: none;
 	}
 
@@ -283,12 +328,13 @@
 	}
 
 	/*
-	 * The thumb is positioned at the left edge and moved entirely by Motion's
-	 * transform channel, so nothing here competes with the animation.
+	 * The thumb is parked at the left edge and moved entirely by Motion's transform
+	 * channel, so nothing here competes with the animation. The negative offset is
+	 * the layout/idle size difference — see REST_INSET.
 	 */
 	.lg-slider-track :global(.lg-slider-thumb) {
 		position: absolute;
-		left: 0;
+		left: var(--lg-slider-inset);
 		pointer-events: none;
 	}
 
@@ -316,17 +362,23 @@
 		cursor: not-allowed;
 	}
 
+	/*
+	 * The invisible native thumb is sized to the *idle* knob, and that width is load
+	 * bearing rather than cosmetic: the browser maps a pointer position to a value by
+	 * treating the thumb's own width as the slack at each end. Leave it at some other
+	 * size and the glass knob drifts away from the pointer towards the extremes.
+	 */
 	input[type='range']::-webkit-slider-thumb {
 		appearance: none;
-		width: 30px;
-		height: 30px;
+		width: var(--lg-slider-knob);
+		height: var(--lg-slider-row);
 		border-radius: 50%;
 		background: transparent;
 	}
 
 	input[type='range']::-moz-range-thumb {
-		width: 30px;
-		height: 30px;
+		width: var(--lg-slider-knob);
+		height: var(--lg-slider-row);
 		border: 0;
 		border-radius: 50%;
 		background: transparent;

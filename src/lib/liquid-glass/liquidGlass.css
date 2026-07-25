@@ -12,10 +12,22 @@
  * Filter Effects spec, an ancestor creates one as soon as it has `filter`,
  * `opacity < 1`, `mask`, `clip-path`, `mix-blend-mode`, `isolation: isolate`, or
  * a `will-change` naming any of those. So `.lg` itself must carry none of them,
- * or the refraction layer would filter an empty backdrop and the glass would
- * vanish. Tint opacity is therefore baked into colour alphas instead of the
- * `opacity` property, and blending / masking happens only on layers painted
- * *above* the refraction.
+ * or the refraction would filter an empty backdrop and the glass would vanish.
+ * Tint opacity is therefore baked into colour alphas instead of the `opacity`
+ * property, and blending / masking happens only on layers painted *above* the
+ * refraction.
+ *
+ * Chromium adds one more, off-spec: a **transformed ancestor** kills it too
+ * (crbug 1194050). That is not a rule the stylesheet can obey on its own,
+ * because `glassTransform.ts` puts a live `transform` on `.lg` for every hover,
+ * press and drag. So the refraction is not a child layer — it is
+ * `backdrop-filter` on `.lg` itself, which is the one place a transform and a
+ * backdrop filter provably coexist. Painting it on a `.lg-refraction` child
+ * instead is what silently limits the refraction to surfaces that never move:
+ * disabled ones, which are exactly the ones that never acquire a transform.
+ *
+ * Consumers own the corollary: a glass surface inside a transformed wrapper
+ * loses its refraction, and nothing in here can rescue it.
  *
  * ## Where the look comes from
  *
@@ -60,6 +72,19 @@
 	border-radius: var(--lg-radius);
 	background: transparent;
 	-webkit-tap-highlight-color: transparent;
+
+	/*
+	 * Layer 1, the refraction — the only thing here that touches the backdrop, and
+	 * the reason this declaration is on the host rather than on a child layer (see
+	 * the header). `url()` in backdrop-filter is Chromium-only; the SVG chain
+	 * carries the blur, saturation and specular for that tier, and `--lg-backdrop`
+	 * resolves to `none` on the flat tier, so the tier switch needs no extra rule.
+	 *
+	 * It paints beneath the host's own background and every child, which is exactly
+	 * where the child layer used to sit — so the stack below is unchanged.
+	 */
+	backdrop-filter: var(--lg-backdrop);
+	-webkit-backdrop-filter: var(--lg-backdrop);
 
 	box-shadow:
 		0 1px 2px rgb(var(--lg-shade) / calc(0.05 * var(--lg-shadow))),
@@ -114,13 +139,7 @@
 	pointer-events: none;
 }
 
-/* 1. Refraction — the only layer that touches the backdrop. */
-.lg-refraction {
-	/* `url()` in backdrop-filter is Chromium-only; the SVG chain carries the blur,
-	   saturation and specular for that tier. */
-	backdrop-filter: var(--lg-backdrop);
-	-webkit-backdrop-filter: var(--lg-backdrop);
-}
+/* (1. Refraction is `backdrop-filter` on `.lg` itself — see above.) */
 
 /* 2. Tint — barely there. Never an opaque white slab. */
 .lg-tint {

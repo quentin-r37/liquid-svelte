@@ -42,7 +42,7 @@ files together: `LiquidGlass.svelte` → `displacement/createDisplacementMap.ts`
 - `degraded` — plain CSS `blur() saturate()`. Also the SSR tier, so server and client markup agree.
 - `flat` — no backdrop filtering; a denser tint carries legibility.
 
-`runtime/capabilities.svelte.ts` decides. It is a *heuristic*, not a feature test — Firefox and WebKit
+`runtime/capabilities.svelte.ts` decides. It is a _heuristic_, not a feature test — Firefox and WebKit
 report `CSS.supports('backdrop-filter', 'url(#x)') === true` and then paint nothing, and no web API can read
 back composited pixels. So detection = syntax check + Chromium engine check, with escape hatches (`mode`
 prop per component, `setGlassModeOverride()` globally). Detection runs in an `$effect` so first client render
@@ -72,13 +72,20 @@ thrashes. `sharedResizeObserver.ts` gives the whole page one `ResizeObserver`.
 one the moment it has `filter`, `opacity < 1`, `mask`, `clip-path`, `mix-blend-mode`, `isolation: isolate`,
 or a `will-change` naming any of those. `.lg` must carry **none** of them or the glass vanishes. Hence: tint
 opacity baked into colour alphas rather than the `opacity` property; blending and masking only on layers
-painted *above* the refraction layer. Nested `backdrop-filter` also does not compose — the inner one only
+painted _above_ the refraction. Nested `backdrop-filter` also does not compose — the inner one only
 sees the outer one's output — which is why switch/slider tracks are plain translucent CSS, not glass.
+
+Chromium adds an off-spec one: a **transformed ancestor** kills it too (crbug 1194050). Since
+`glassTransform.ts` puts a live `transform` on `.lg` for every hover, press and drag, the refraction cannot
+live on a child layer — `backdrop-filter` is declared on `.lg` itself, so the transform and the filter share
+one element. Moving it back onto a `.lg-refraction` child silently limits refraction to surfaces that never
+move. The same trap applies to consumers: glass inside a transformed wrapper loses its refraction, and the
+library cannot fix that from the inside.
 
 **Never bind the `style` attribute for library-owned inline properties.** Svelte rewrites `element.style.cssText`
 wholesale when the attribute changes, wiping the `--pointer-*` properties written by `pointerTracking.ts` and
 the `transform` written by Motion. Everything the library owns goes through `runtime/applyGlassStyle.ts`
-(`setProperty`, called from an `$effect` — deliberately *not* an attachment, since attachments tear down and
+(`setProperty`, called from an `$effect` — deliberately _not_ an attachment, since attachments tear down and
 re-add every property per frame). The consumer-supplied `style` prop is the documented exception.
 
 **One transform per element, many gestures.** `runtime/glassTransform.ts` owns `element.style.transform`.
@@ -90,7 +97,7 @@ belongs in its own `$effect` — re-acquiring on every state change tears the tr
 
 **Constants live in the token files, not in components.** `runtime/glassTokens.ts` (optics, geometry, cache
 limits, droplet endpoints) and `runtime/motionTokens.ts` (named springs, gesture magnitudes). Both are
-heavily commented with *why* each value is what it is — several look wrong until you read the comment
+heavily commented with _why_ each value is what it is — several look wrong until you read the comment
 (`DISPLACEMENT_PER_BEZEL = 4` yields a ~96px peak offset for a 24px bezel and is correct;
 `DROPLET_REST.blur = 0.05` rather than `0` keeps the filter chain structurally stable across the morph).
 Read the comment before changing a number.
@@ -102,9 +109,9 @@ Read the comment before changing a number.
   `dropletMorph.svelte.ts`).
 - **Relative imports carry `.js` extensions** (`./glassTokens.js` from a `.ts` file) — required for the
   packaged output. Match this in new files.
-- Peer deps are `svelte ^5.20` and `motion ^12`. Motion is used through its *vanilla* APIs (`animate`,
+- Peer deps are `svelte ^5.20` and `motion ^12`. Motion is used through its _vanilla_ APIs (`animate`,
   `hover`, `press`, `motionValue`, `styleEffect`, `frame`), never a Svelte wrapper.
 - `$props.id()` supplies per-instance ids so SVG filter ids stay unique and SSR-stable.
 - Prettier: tabs, single quotes, no trailing commas, 100 columns.
-- Comments in this codebase explain *why*, at length, and assume the reader knows what the code does. Match
+- Comments in this codebase explain _why_, at length, and assume the reader knows what the code does. Match
   that register — it is the main thing preserving the reasoning behind the optics.

@@ -200,9 +200,11 @@
 		/>
 	{/if}
 
-	{#if tier !== 'flat'}
-		<div class="lg-layer lg-refraction"></div>
-	{/if}
+	<!--
+		No refraction layer: `backdrop-filter` is on the host element, because a
+		transformed ancestor kills it in Chromium and the host is what every gesture
+		transforms. See the header of liquidGlass.css.
+	-->
 	<div class="lg-layer lg-tint"></div>
 	<div class="lg-layer lg-edge"></div>
 	<div class="lg-layer lg-specular"></div>

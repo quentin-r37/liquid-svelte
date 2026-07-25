@@ -37,8 +37,10 @@ export interface GlassTransform {
 	 * at least one gesture is active; leaving it on permanently keeps a
 	 * compositor layer alive for every glass surface on the page.
 	 *
-	 * `transform` is not one of the properties that creates a backdrop root, so
-	 * promoting the layer here does not break the refraction underneath.
+	 * Safe for the refraction only because the element being transformed is the
+	 * element carrying the `backdrop-filter`. Chromium drops the effect when a
+	 * transform sits on an *ancestor* of it (crbug 1194050) — which is why the
+	 * refraction is not a child layer. See the header of liquidGlass.css.
 	 */
 	setActive(active: boolean): void;
 	/** Drop this holder's reference. The channels are torn down at zero. */
@@ -66,11 +68,17 @@ function createEntry(element: HTMLElement): Entry {
 
 	// Every channel must be read on the first invocation — that is how
 	// `transformValue` discovers what to subscribe to.
+	//
+	// Deliberately 2-D. `translate3d(…, 0)` would promote a compositor layer for
+	// every glass surface permanently, which is the exact thing `setActive` exists
+	// to avoid, and a 3-D transform is the shakier of the two footings to stand a
+	// `backdrop-filter` on in Chromium. Promotion is `will-change`'s job, for the
+	// duration of a gesture only.
 	const composed = transformValue(() => {
 		const scaleBase = hoverScale.get() * pressScale.get() * dragScale.get();
 		const sx = scaleBase * stretchX.get();
 		const sy = scaleBase * stretchY.get();
-		return `translate3d(${x.get()}px, ${y.get() + lift.get()}px, 0) scale(${sx}, ${sy})`;
+		return `translate(${x.get()}px, ${y.get() + lift.get()}px) scale(${sx}, ${sy})`;
 	});
 
 	const stopEffect = styleEffect(element, { transform: composed });

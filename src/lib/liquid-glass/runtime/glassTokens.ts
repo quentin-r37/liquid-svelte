@@ -112,6 +112,57 @@ export const DROPLET_ACTIVE: DropletVisual = {
 	scale: 1.18
 };
 
+/**
+ * Slider knob geometry, in CSS pixels.
+ *
+ * The reference knob is not a circle: it is a wide capsule — 90×60 with a fully
+ * rounded end — laid out at that size but drawn at scale 0.6 while idle, swelling
+ * to its full geometry the instant it is grabbed. Those two facts carry most of
+ * the effect's identity. A round knob that grows 18% reads as an ordinary slider
+ * dot; a pill that visibly inflates under the finger reads as a droplet forming.
+ * The numbers below are the reference's proportions (3:2, ×0.6) scaled down so the
+ * default control still sits in an ordinary form row.
+ *
+ * The element is always *laid out* at full size and shrunk by the transform, never
+ * resized: width and height are part of the displacement-map cache key, so
+ * animating them would rasterise a fresh PNG every frame. Scaling is free.
+ */
+export const SLIDER_THUMB = {
+	width: 60,
+	height: 40,
+	/**
+	 * Idle scale. The knob spends nearly all of its life here, so 36×24 — not the
+	 * 60×40 geometry — is the size the control actually reads as.
+	 */
+	restScale: 0.6,
+	/**
+	 * Grabbed. Exactly 1, because the swell is expressed as "up to the element's
+	 * real size": going beyond it would magnify a displacement map rasterised for a
+	 * smaller box and visibly soften the rim.
+	 */
+	activeScale: 1,
+	/**
+	 * Refracting band, measured inwards from the rim.
+	 *
+	 * Deliberately a quarter of the height rather than half. Half would make the
+	 * whole capsule bezel — unavoidable for a circular knob, which is what the
+	 * previous round thumb did — and the knob then refracts everywhere and reads as
+	 * a smudge. The reference leaves a flat, clear centre (16px of bezel on a 60px
+	 * knob) and it is that clear middle, ringed by a thin band of strong
+	 * distortion, that reads as a lens.
+	 */
+	bezel: 10
+} as const;
+
+/**
+ * Rail thickness, in CSS pixels.
+ *
+ * Sized against the knob rather than chosen on its own: the reference rail is half
+ * the knob's idle height, which is what makes the knob read as sitting *on* the
+ * track instead of *in* it.
+ */
+export const SLIDER_RAIL_HEIGHT = 12;
+
 /** Samples in the 1-D magnitude LUT. 128 keeps a smooth gradient at 8-bit depth. */
 export const LUT_SAMPLES = 128;
 
