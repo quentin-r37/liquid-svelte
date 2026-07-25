@@ -368,18 +368,37 @@ export const SLIDER_RAIL_HEIGHT = 12;
  * shrunk by the transform, never resized — width and height are part of the
  * displacement-map cache key, so animating them would rasterise a fresh PNG every
  * frame, whereas scaling is free. The active end is therefore pinned at exactly 1
- * so no map is ever magnified past the size it was rasterised for, and the
- * reference's 0.65 → 0.9 is expressed as 0.72 → 1: the same 1.39× swell,
- * renormalised.
+ * so no map is ever magnified past the size it was rasterised for, which leaves the
+ * whole swell living in how far below 1 the idle scale sits.
+ *
+ * That makes the choice of idle scale the choice of the bulge — and the bulge has to
+ * be measured against the *track*, not against the knob's own idle size. Copying the
+ * reference's 1.39× straight across (0.72 → 1) reads as nothing here, because our idle
+ * knob starts smaller relative to its track than the reference's does: it is inset by
+ * the track padding at 0.78 of the track height, where the reference's sits at 0.89.
+ * The same ratio from a smaller starting point lands the grabbed knob at 1.08× the
+ * track height against the reference's 1.24× — a 1.5px lip on a 36px track, which is
+ * not a droplet bulging out of its groove, it is a rounding error.
  */
 export const SWITCH_THUMB = {
 	/** Capsule width ÷ height. The reference's 146:92. */
 	aspect: 1.59,
 	/**
 	 * Idle scale. The knob spends nearly all its life here, so this — not the
-	 * laid-out geometry — is the size the control reads as.
+	 * laid-out geometry — is the size the control reads as, and that idle size is
+	 * held fixed by the track: this number only decides how much larger the laid-out
+	 * box behind it is, i.e. how far it swells.
+	 *
+	 * 0.62 puts the grabbed knob at 1.25× the track height, which is the reference's
+	 * bulge, at the price of a 1.6× swell from an idle knob that starts smaller than
+	 * the reference's. Between matching the reference's ratio and matching what it
+	 * looks like, this matches what it looks like.
+	 *
+	 * The track is unaffected: its width is derived from the knob's idle *width*
+	 * (`thumbWidth × restScale`), which rounding keeps at 44.6px either way — so the
+	 * default switch is still 78px wide with the same 25px of travel.
 	 */
-	restScale: 0.72,
+	restScale: 0.50,
 	/** Grabbed. See above for why this is exactly 1. */
 	activeScale: 1,
 	/**
@@ -401,7 +420,21 @@ export const SWITCH_THUMB = {
 	 * The reference allows a comparable few pixels; see {@link DRAG_OVERSHOOT_DECAY}
 	 * for why a bound needs *some* give rather than a hard stop.
 	 */
-	overshootRatio: 0.14
+	overshootRatio: 0.14,
+	/**
+	 * Floor on how long the droplet is held at full swell, in milliseconds.
+	 *
+	 * A click is over in about 80ms, and the droplet spring (ζ ≈ 0.58, ζω₀ = 10) is
+	 * only two thirds of the way up by then — so the ordinary way this control is
+	 * used saw roughly half the swell it was built for, and the knob looked like it
+	 * had barely reacted. Only a *drag*, which holds the gesture open for as long as
+	 * the finger is down, ever showed the whole thing.
+	 *
+	 * Holding the melt a beat past the release lets the spring arrive before the
+	 * settle pulls it back. 180ms is where it reaches its target; longer and the knob
+	 * starts to read as sticky rather than liquid.
+	 */
+	meltFloorMs: 180
 } as const;
 
 /**

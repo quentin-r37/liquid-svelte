@@ -106,7 +106,16 @@
 
 	const droplet = new DropletMorph();
 	$effect(() => droplet.setReduced(reducedMotion.current));
-	$effect(() => () => droplet.destroy());
+	$effect(() => () => {
+		droplet.destroy();
+		if (meltTimer !== null) clearTimeout(meltTimer);
+	});
+
+	/** Whether the knob is currently melted, so repeat engagements are no-ops. */
+	let melted = false;
+	let meltedAt = 0;
+	/** Set while a release is waiting out {@link SWITCH_THUMB.meltFloorMs}. */
+	let meltTimer: ReturnType<typeof setTimeout> | null = null;
 
 	/**
 	 * Melting the knob into a droplet, and swelling it from its idle scale up to its
@@ -116,18 +125,55 @@
 	 * variable on the `style` attribute: Svelte rewrites that attribute wholesale
 	 * when it changes, which would wipe Motion's `transform` and the pointer
 	 * properties once per frame.
+	 *
+	 * Idempotent in both directions, because the same gesture reaches this from more
+	 * than one place — a press on the knob melts it from the drag's `onStart` *and*
+	 * from the button's own pointer handler, and a held key repeats `keydown`. Left
+	 * unguarded each of those restarts the spring from wherever it had got to, which
+	 * re-seeds it with the velocity it had at that instant and stretches the rise out
+	 * over as many restarts as arrive.
+	 *
+	 * The release is floored at {@link SWITCH_THUMB.meltFloorMs} — see there for why
+	 * a click otherwise only ever showed part of the swell. Not floored under reduced
+	 * motion: the springs are instant there, so the delay would be the only thing
+	 * left of the animation.
 	 */
 	function melt(active: boolean) {
-		if (active) droplet.engage();
-		else droplet.release();
+		if (active) {
+			if (meltTimer !== null) {
+				clearTimeout(meltTimer);
+				meltTimer = null;
+			}
+			if (melted) return;
+			melted = true;
+			meltedAt = performance.now();
+			droplet.engage();
+			swell(SWITCH_THUMB.activeScale, 'droplet');
+			return;
+		}
 
+		// A release already waiting out the floor stays queued; re-arming it here
+		// would push the knob's return back by a fresh floor on every stray pointerup.
+		if (!melted || meltTimer !== null) return;
+
+		const remaining = SWITCH_THUMB.meltFloorMs - (performance.now() - meltedAt);
+		if (remaining > 0 && !reducedMotion.current) {
+			meltTimer = setTimeout(() => {
+				meltTimer = null;
+				melt(false);
+			}, remaining);
+			return;
+		}
+
+		melted = false;
+		droplet.release();
+		swell(SWITCH_THUMB.restScale, 'settle');
+	}
+
+	function swell(scale: number, spring: 'droplet' | 'settle') {
 		const transform = thumbTransform;
 		if (!transform) return;
-		animate(
-			transform.pressScale,
-			active ? SWITCH_THUMB.activeScale : SWITCH_THUMB.restScale,
-			springFor(active ? 'droplet' : 'settle', reducedMotion.current)
-		);
+		animate(transform.pressScale, scale, springFor(spring, reducedMotion.current));
 	}
 
 	/*
@@ -284,6 +330,33 @@
 		return applyHover(thumbElement, { reduced: reducedMotion.current, disabled, lift: 0 });
 	});
 
+	/**
+	 * A press anywhere on the control melts the knob, not just a press on the knob
+	 * itself.
+	 *
+	 * `applyDrag` is attached to the knob and only knows about gestures that start on
+	 * it, but the track is the larger target and most clicks land there — and those
+	 * used to slide the knob across without it ever melting, which is the one moment
+	 * the droplet is supposed to be visible. This runs alongside the drag rather than
+	 * instead of it: a press on the knob reaches both, and `melt` is idempotent.
+	 *
+	 * The release listener goes on the window because the gesture does not have to end
+	 * on the button — a press that slides off, or a drag whose pointer capture ends
+	 * elsewhere, still has to let the droplet go.
+	 */
+	function onPointerDown(event: PointerEvent) {
+		if (disabled || event.button !== 0) return;
+		melt(true);
+
+		const release = () => {
+			melt(false);
+			window.removeEventListener('pointerup', release);
+			window.removeEventListener('pointercancel', release);
+		};
+		window.addEventListener('pointerup', release);
+		window.addEventListener('pointercancel', release);
+	}
+
 	function onClick() {
 		// A completed drag ends with a click on the button; swallow that one.
 		if (suppressClick) {
@@ -323,6 +396,7 @@
 		style:border-radius={`${geometry.height / 2}px`}
 		style:--lg-switch-inset={`${geometry.inset}px`}
 		style:--lg-switch-rise={`${-geometry.thumbHeight / 2}px`}
+		onpointerdown={onPointerDown}
 		onclick={onClick}
 		onkeydown={onKeyDown}
 		onkeyup={() => melt(false)}
