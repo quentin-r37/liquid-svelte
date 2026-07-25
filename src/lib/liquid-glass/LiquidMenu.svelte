@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { animate } from 'motion';
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import LiquidButton from './LiquidButton.svelte';
 	import LiquidGlass from './LiquidGlass.svelte';
 	import type { GlassMode, GlassQuality } from './liquidGlass.types.js';
@@ -102,22 +102,38 @@
 	 * refraction, tint and rim all grow with the spread rather than being switched on
 	 * at the end. Every one of those is a live filter attribute, so none of it touches
 	 * the displacement map — it is rasterised once, while the panel is still hidden.
+	 *
+	 * The drop shadow rides the same progress (see the panel's `shadowIntensity`): a
+	 * puddle lying on the page has almost no elevation to cast one, and letting it grow
+	 * in is what makes the panel look like it lifts off as it fills rather than sliding
+	 * out already floating.
 	 */
 	const droplet = new DropletMorph({ rest: MENU_GLASS_REST, active: MENU_GLASS_OPEN });
 	$effect(() => droplet.setReduced(reducedMotion.current));
 	$effect(() => () => droplet.destroy());
 
 	/*
-	 * Acquisition is separate from the reveal animation, so a toggle never tears the
-	 * shared transform down mid-flight.
+	 * Acquisition, in its own effect and depending on nothing but the element.
 	 *
-	 * A closed panel is parked at the puddle imperatively rather than animated into
-	 * it: this is its initial state, and animating would play a collapse on mount.
+	 * `open` must never be *tracked* here, and this is not a style preference. Reading
+	 * it makes the effect depend on it, so every single toggle runs the cleanup first:
+	 * `release()` drops the last holder, the channels are destroyed and
+	 * `element.style.transform` is cleared — the panel jumps to full size within the
+	 * click's own frame. A fresh set of channels is then created at identity (1, 1),
+	 * and the reveal effect below dutifully animates from 1 to 1. The result is a menu
+	 * that appears instantly no matter what the springs say, which is exactly what it
+	 * did until this comment existed.
+	 *
+	 * Hence `untrack`: the initial state is genuinely wanted, the dependency is not.
+	 *
+	 * A closed panel is parked at the puddle imperatively rather than animated into it:
+	 * that is its initial state, not a transition, and animating would play a collapse
+	 * on mount.
 	 */
 	$effect(() => {
 		if (!panelElement) return;
 		const transform = acquireGlassTransform(panelElement);
-		if (!open) {
+		if (!untrack(() => open)) {
 			transform.revealX.set(MENU_PUDDLE.scaleX);
 			transform.revealY.set(MENU_PUDDLE.scaleY);
 		}
@@ -383,7 +399,7 @@
 		saturation={droplet.visual.saturation}
 		blur={droplet.visual.blur}
 		specularIntensity={droplet.visual.specularIntensity}
-		shadowIntensity={0.9}
+		shadowIntensity={0.2 + 0.7 * droplet.progress}
 		{quality}
 		{mode}
 		class={`lg-menu-panel ${present ? 'is-present' : ''} ${open ? 'is-open' : ''}`}

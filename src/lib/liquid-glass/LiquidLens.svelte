@@ -74,6 +74,16 @@
 		};
 	}
 
+	/*
+	 * `onmove` is called through a wrapper rather than passed by reference, so this
+	 * effect never *reads* the prop and never depends on it.
+	 *
+	 * Passing it directly is a trap: a consumer supplying an inline closure gives a new
+	 * identity on every parent render — including the renders their own `onmove` handler
+	 * causes — which re-runs this effect, and its teardown releases the shared transform
+	 * mid-drag. The channels are destroyed, `style.transform` is cleared and the lens
+	 * jumps back to its layout position in the middle of the gesture.
+	 */
 	$effect(() => {
 		if (!element) return;
 		return applyDrag(element, {
@@ -81,7 +91,7 @@
 			disabled,
 			bounds,
 			keyboard: true,
-			onMove: onmove
+			onMove: (x, y) => onmove?.(x, y)
 		});
 	});
 </script>

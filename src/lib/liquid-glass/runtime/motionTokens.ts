@@ -28,17 +28,25 @@ export const SPRINGS = {
 	 */
 	droplet: { type: 'spring', stiffness: 300, damping: 20, mass: 1 },
 	/**
-	 * A puddle spilling sideways — the first half of a menu opening. Loose enough to
-	 * overshoot slightly, which is what reads as liquid finding its edges rather than
-	 * a box being scaled up.
+	 * A puddle spilling sideways — the first half of a menu opening.
+	 *
+	 * Damped at ζ ≈ 0.79, which overshoots its target by under 2%. That is the whole
+	 * budget: liquid spreading into a shape settles *into* its edges, and a panel that
+	 * balloons past its final width and springs back reads as rubber. The looser
+	 * ζ ≈ 0.58 this started at overshot by 6% — 12px on a default panel, plainly
+	 * visible, and visible underneath text that is fading in at the same moment.
 	 */
-	spread: { type: 'spring', stiffness: 360, damping: 22, mass: 1 },
+	spread: { type: 'spring', stiffness: 360, damping: 30, mass: 1 },
 	/**
 	 * The same puddle filling out on its other axis. Softer and heavier than
 	 * {@link SPRINGS.spread} on purpose: the two axes must not arrive together, or the
 	 * whole thing collapses back into a uniform scale-up.
+	 *
+	 * Left slightly looser than `spread` (ζ ≈ 0.74, ~3% overshoot) because this is the
+	 * axis that arrives last, and a single small settle at the end of the sequence is
+	 * what reads as liquid coming to rest rather than a box stopping.
 	 */
-	rise: { type: 'spring', stiffness: 240, damping: 19, mass: 1.1 }
+	rise: { type: 'spring', stiffness: 240, damping: 24, mass: 1.1 }
 } as const;
 
 export type SpringName = keyof typeof SPRINGS;
