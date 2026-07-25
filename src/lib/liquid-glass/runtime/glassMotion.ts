@@ -1,4 +1,4 @@
-import { animate, hover, press } from 'motion';
+import { animate, cancelFrame, frame, hover, press, type MotionValue } from 'motion';
 import type { Attachment } from 'svelte/attachments';
 import { acquireGlassTransform, type GlassTransform } from './glassTransform.js';
 import {
@@ -14,6 +14,8 @@ import {
 	MAX_STRETCH,
 	PRESS_SCALE,
 	STRETCH_CROSS_RATIO,
+	STRETCH_REST_EPSILON,
+	STRETCH_SMOOTHING,
 	STRETCH_VELOCITY_FLOOR,
 	STRETCH_VELOCITY_REFERENCE,
 	VELOCITY_MIN_SPAN,
@@ -127,32 +129,21 @@ export function applyPress(element: HTMLElement, options: PressOptions = {}): ()
 // ------------------------------------------------------- velocity stretch ---
 
 /**
- * Deform along the axis of travel: stretch on it, compress across it.
+ * The deformation a given velocity calls for, as multipliers around 1.
  *
- * Bounded hard by {@link MAX_STRETCH}. The cap is the whole point — an
- * unbounded version of this reads as cartoon rubber rather than a dense object
- * with momentum.
+ * Split out of {@link applyStretch} because a caller that already runs once a frame
+ * must *not* spring towards these — see the frame tick in `applyDrag` for what happens
+ * when it does — and needs the bare targets to approach directly.
  */
-export function applyStretch(
-	transform: GlassTransform,
+function stretchTargets(
 	velocityX: number,
 	velocityY: number,
 	reduced: boolean
-): void {
-	const spring = springFor('settle', reduced);
-
-	if (reduced) {
-		animate(transform.stretchX, 1, spring);
-		animate(transform.stretchY, 1, spring);
-		return;
-	}
+): { x: number; y: number } {
+	if (reduced) return { x: 1, y: 1 };
 
 	const speed = Math.hypot(velocityX, velocityY);
-	if (speed < STRETCH_VELOCITY_FLOOR) {
-		animate(transform.stretchX, 1, spring);
-		animate(transform.stretchY, 1, spring);
-		return;
-	}
+	if (speed < STRETCH_VELOCITY_FLOOR) return { x: 1, y: 1 };
 
 	// Normalise *then* scale. Clamping `speed / REFERENCE` against `MAX_STRETCH`
 	// directly — which is what this used to do — makes the two constants multiply:
@@ -164,8 +155,34 @@ export function applyStretch(
 	const unitX = Math.abs(velocityX / speed);
 	const unitY = Math.abs(velocityY / speed);
 
-	animate(transform.stretchX, 1 + amount * unitX - amount * STRETCH_CROSS_RATIO * unitY, spring);
-	animate(transform.stretchY, 1 + amount * unitY - amount * STRETCH_CROSS_RATIO * unitX, spring);
+	return {
+		x: 1 + amount * unitX - amount * STRETCH_CROSS_RATIO * unitY,
+		y: 1 + amount * unitY - amount * STRETCH_CROSS_RATIO * unitX
+	};
+}
+
+/**
+ * Deform along the axis of travel: stretch on it, compress across it.
+ *
+ * Bounded hard by {@link MAX_STRETCH}. The cap is the whole point — an
+ * unbounded version of this reads as cartoon rubber rather than a dense object
+ * with momentum.
+ *
+ * For callers driven by discrete events — a slider reacting to `input`, a release
+ * returning to rest. A caller running every frame wants {@link stretchTargets} and an
+ * approach, not this.
+ */
+export function applyStretch(
+	transform: GlassTransform,
+	velocityX: number,
+	velocityY: number,
+	reduced: boolean
+): void {
+	const spring = springFor('settle', reduced);
+	const target = stretchTargets(velocityX, velocityY, reduced);
+
+	animate(transform.stretchX, target.x, spring);
+	animate(transform.stretchY, target.y, spring);
 }
 
 // ------------------------------------------------------------------- drag ---
@@ -229,6 +246,20 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
+ * Move a channel a fraction of the way to a target, and land on it exactly once the
+ * remainder stops mattering.
+ *
+ * The snap is not cosmetic: an exponential only approaches, so without it a channel
+ * left near 1 would keep writing an ever-smaller difference every frame forever, and
+ * the `deformed` test that lets the tick go quiet would never come true.
+ */
+function approach(channel: MotionValue<number>, target: number, alpha: number): void {
+	const current = channel.get();
+	const next = current + (target - current) * alpha;
+	channel.set(Math.abs(target - next) < STRETCH_REST_EPSILON ? target : next);
+}
+
+/**
  * Pointer, touch, stylus and keyboard dragging.
  *
  * `setPointerCapture` is essential here rather than optional: the element being
@@ -275,7 +306,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 	 * Manual velocity tracking: the values are `set` during a drag, not animated,
 	 * so `motionValue.getVelocity()` would report zero.
 	 *
-	 * Measured over a trailing window rather than between consecutive events — see
+	 * Measured over a trailing window rather than between consecutive readings — see
 	 * {@link VELOCITY_WINDOW} for why the naive version makes a slowly dragged
 	 * surface jump. Positions sampled here are the *surface's*, already clamped, so
 	 * a surface held against a bound correctly reports no velocity.
@@ -283,7 +314,6 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 	const samples: { x: number; y: number; time: number }[] = [];
 	let velocityX = 0;
 	let velocityY = 0;
-	let lastStretchTime = 0;
 
 	function sampleVelocity(x: number, y: number, time: number) {
 		samples.push({ x, y, time });
@@ -291,7 +321,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		// Drop a sample only while the one behind it is still older than the window,
 		// so exactly one sample survives on the far side of it. Pruning everything
 		// older than the window instead would let the span collapse back to the gap
-		// between the last two events — the very thing this exists to avoid.
+		// between the last two readings — the very thing this exists to avoid.
 		while (samples.length > 2 && time - samples[1].time >= VELOCITY_WINDOW) samples.shift();
 
 		const oldest = samples[0];
@@ -300,6 +330,69 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 
 		velocityX = ((x - oldest.x) / elapsed) * 1000;
 		velocityY = ((y - oldest.y) / elapsed) * 1000;
+	}
+
+	/**
+	 * The velocity window is filled from the frame loop, not from `pointermove`.
+	 *
+	 * Sampling on the event is what made a slow drag jump. Pointer events only exist
+	 * while the pointer is *moving*, and a hand placing something carefully does not
+	 * move continuously — it goes a few pixels, pauses for the better part of a tenth
+	 * of a second, goes again. Nothing feeds the window during those pauses and nothing
+	 * re-runs `applyStretch`, so the last reading — taken mid-burst, at the fastest
+	 * moment of it — survives the pause, and the deformation springs settle onto it and
+	 * *hold* there. The next burst re-targets them back towards rest. The target flips
+	 * between deformed and undeformed at the cadence of the hand, the springs inherit
+	 * their velocity across each flip and therefore overshoot well past what
+	 * {@link MAX_STRETCH} can produce on its own, and the surface visibly gains and
+	 * loses height or width while it is being positioned — which is exactly when it
+	 * must not. A fast drag never stops feeding the sampler, which is why the symptom
+	 * only ever appeared at low speed.
+	 *
+	 * A frame tick has no such gap: it pushes the current position into the window
+	 * whether or not anything moved, so a stationary pointer fills the window with
+	 * identical positions and the reading decays to zero across {@link VELOCITY_WINDOW}
+	 * rather than being frozen mid-burst.
+	 *
+	 * The deformation is then written *directly* onto the channels, which is the one
+	 * place in this file that does not spring towards its target — and the reason the
+	 * tick could not simply call `applyStretch`. `animate()` restarts a spring, and a
+	 * spring restarted every frame is not the same spring continued: each restart
+	 * re-seeds it from `getVelocity()`, a backward difference taken over the last frame,
+	 * and an oscillator re-seeded from its own discrete velocity in an unbroken run
+	 * compounds rather than settles. It does not wobble, it diverges — measured at
+	 * scaleX 94638 within a fifth of a second, i.e. the surface swallowing the viewport
+	 * before the compositor clamps it at the float32 ceiling. The event-driven version
+	 * survived only because the pauses in a drag broke the chain and let each spring
+	 * finish; removing the pauses removed the thing that was hiding it.
+	 *
+	 * Nothing is lost. A spring's job is to carry momentum into a single transition to a
+	 * known target, which is what a *release* is — `finish` still springs the channels
+	 * home. During the drag the target is continuous, already averaged over
+	 * {@link VELOCITY_WINDOW}, and {@link STRETCH_SMOOTHING} takes the corners off what
+	 * is left; an exponential approach cannot overshoot and has no state to compound.
+	 *
+	 * Runs in Motion's `update` step, ahead of the `render` step that `styleEffect`
+	 * flushes in, so a reading taken this frame is drawn this frame.
+	 */
+	function sampleFrame({ delta, timestamp }: { delta: number; timestamp: number }) {
+		sampleVelocity(transform.x.get(), transform.y.get(), timestamp);
+
+		// A hand that has come to rest has nothing left to say: the reading is under the
+		// floor and both channels are already back at 1. Skipping is not just an
+		// optimisation — writing a channel wakes the composed transform and costs a
+		// style flush, and most of a careful placement is made of frames like this.
+		const moving = Math.hypot(velocityX, velocityY) >= STRETCH_VELOCITY_FLOOR;
+		const deformed =
+			Math.abs(transform.stretchX.get() - 1) > STRETCH_REST_EPSILON ||
+			Math.abs(transform.stretchY.get() - 1) > STRETCH_REST_EPSILON;
+		if (!moving && !deformed) return;
+
+		const target = stretchTargets(velocityX, velocityY, reduced);
+		const alpha = 1 - Math.exp(-delta / STRETCH_SMOOTHING);
+
+		approach(transform.stretchX, target.x, alpha);
+		approach(transform.stretchY, target.y, alpha);
 	}
 
 	/**
@@ -342,14 +435,25 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		// exactly the origin the drag should start from.
 		transform.x.stop();
 		transform.y.stop();
+		// Same reasoning for the deformation channels, which the tick `set`s rather than
+		// animates: a settle spring still running from the previous release would write
+		// over every value the tick puts there, once per frame, for as long as its tail
+		// lasts — and a spring's tail is long.
+		transform.stretchX.stop();
+		transform.stretchY.stop();
 
 		originX = transform.x.get();
 		originY = transform.y.get();
 		samples.length = 0;
-		samples.push({ x: originX, y: originY, time: event.timeStamp });
-		lastStretchTime = event.timeStamp;
+		// `performance.now()` rather than `event.timeStamp` throughout, so the whole
+		// window shares one clock with the frame loop that fills it. A pointer event's
+		// timestamp is the moment the *hardware* reported it, which can sit most of a
+		// frame behind the frame that delivers it; mixing the two skews every span that
+		// straddles them.
+		samples.push({ x: originX, y: originY, time: performance.now() });
 		velocityX = 0;
 		velocityY = 0;
+		frame.update(sampleFrame, true);
 
 		window.addEventListener('keydown', onWindowKeyDown);
 		transform.setActive(true);
@@ -363,29 +467,23 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		pointerX = event.clientX;
 		pointerY = event.clientY;
 
-		const { x, y } = positionAt(
+		// Position only. Velocity and deformation are the frame loop's job — see
+		// `sampleFrame` for why they cannot be driven from here.
+		positionAt(
 			originX + (event.clientX - startPointerX),
 			originY + (event.clientY - startPointerY)
 		);
-
-		sampleVelocity(x, y, event.timeStamp);
-
-		// At most one deformation update per frame: a 1000Hz mouse would otherwise
-		// restart both stretch springs a thousand times a second for a result the
-		// display cannot show.
-		if (event.timeStamp - lastStretchTime >= VELOCITY_MIN_SPAN) {
-			lastStretchTime = event.timeStamp;
-			applyStretch(transform, velocityX, velocityY, reduced);
-		}
 	}
 
-	function finish(restore: boolean, time: number) {
+	function finish(restore: boolean) {
 		if (activePointer === null) return;
 
-		// Re-sample at the moment of release: a finger that stops dead and then lifts
-		// emits no further move events, so the last *reading* would otherwise survive
-		// the pause and glide the surface away from where it was let go.
-		sampleVelocity(transform.x.get(), transform.y.get(), time);
+		cancelFrame(sampleFrame);
+		// One last reading at the moment of release, which can be up to a frame after
+		// the final tick. The frame loop has already taken care of a finger that stopped
+		// dead before lifting — by then the window is full of the position it stopped
+		// at — so this only sharpens a release that came mid-movement.
+		sampleVelocity(transform.x.get(), transform.y.get(), performance.now());
 
 		if (element.hasPointerCapture(activePointer)) {
 			element.releasePointerCapture(activePointer);
@@ -436,7 +534,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 
 	function onPointerUp(event: PointerEvent) {
 		if (event.pointerId !== activePointer) return;
-		finish(false, event.timeStamp);
+		finish(false);
 	}
 
 	/**
@@ -449,7 +547,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 	function onWindowKeyDown(event: KeyboardEvent) {
 		if (event.key !== 'Escape' || activePointer === null) return;
 		event.preventDefault();
-		finish(true, event.timeStamp);
+		finish(true);
 	}
 
 	function onKeyDown(event: KeyboardEvent) {
@@ -487,6 +585,10 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 	element.addEventListener('keydown', onKeyDown);
 
 	return () => {
+		// Unconditionally: `frame.update(…, true)` keeps a callback alive until it is
+		// cancelled, so a component torn down mid-drag would otherwise leave it running
+		// against a released transform for the life of the page.
+		cancelFrame(sampleFrame);
 		if (activePointer !== null && element.hasPointerCapture(activePointer)) {
 			element.releasePointerCapture(activePointer);
 		}

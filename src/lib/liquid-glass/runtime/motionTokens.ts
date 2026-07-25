@@ -112,9 +112,35 @@ export const STRETCH_CROSS_RATIO = 0.5;
 export const STRETCH_VELOCITY_FLOOR = 50;
 
 /**
- * Trailing window, in milliseconds, over which pointer velocity is measured.
+ * How far a stretch channel may sit from 1 and still count as undeformed.
  *
- * Not the gap between two consecutive events, which is meaningless at low speed:
+ * Only used to decide whether a drag that has stopped moving still has springs worth
+ * running. Small enough to be sub-pixel on any surface this library is used at, and a
+ * spring that has actually finished lands on 1 exactly, so it is never a floor the
+ * deformation can get stuck above.
+ */
+export const STRETCH_REST_EPSILON = 0.001;
+
+/**
+ * Time constant, in milliseconds, of the exponential the deformation follows while a
+ * drag is in flight. ~63% of the way to the target in this long.
+ *
+ * Deliberately not a spring. A spring restarted every frame re-seeds itself from its
+ * own discrete velocity and diverges rather than settles — see the frame tick in
+ * `applyDrag`. An exponential has no stored velocity to compound and cannot overshoot,
+ * which is what is wanted of something re-aimed 120 times a second.
+ *
+ * Short, because the target it follows is already a velocity averaged over
+ * {@link VELOCITY_WINDOW}: this is only there to take the corners off, and every
+ * millisecond added here lands on top of that window's own lag. Release inertia reads
+ * the raw velocity, so a flick still throws the surface exactly as far as before.
+ */
+export const STRETCH_SMOOTHING = 30;
+
+/**
+ * Trailing window, in milliseconds, over which drag velocity is measured.
+ *
+ * Not the gap between two consecutive readings, which is meaningless at low speed:
  * pointers report whole CSS pixels and a high-polling mouse fires every 1–2ms, so
  * a slow drag arrives as a burst of zero-delta events punctuated by a single 1px
  * one. Divided by that 1ms it reads as 1000px/s — enough to saturate
@@ -124,18 +150,18 @@ export const STRETCH_VELOCITY_FLOOR = 50;
  * 50ms is roughly three frames: long enough that pixel quantisation averages out,
  * short enough that a flick still registers as one. The deformation it feeds is
  * spring-damped anyway, so the small lag it adds is not perceptible.
+ *
+ * It is also the time a stationary pointer takes to decay the reading to zero, since
+ * the window is filled per frame regardless of movement — see `sampleFrame`.
  */
 export const VELOCITY_WINDOW = 50;
 
 /**
- * Shortest span, in milliseconds, that counts as a velocity reading — and the
- * minimum interval between deformation updates.
+ * Shortest span, in milliseconds, that counts as a velocity reading.
  *
  * At the very start of a gesture the window has not filled yet, and the first two
  * samples are as untrustworthy as any other pair; below this the previous reading
- * is kept rather than a spike invented. One frame at 60Hz, which doubles as the
- * throttle: pointers fire several times faster than the display refreshes, and
- * every update restarts two springs.
+ * is kept rather than a spike invented. One frame at 60Hz.
  */
 export const VELOCITY_MIN_SPAN = 16;
 
