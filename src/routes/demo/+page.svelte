@@ -5,6 +5,7 @@
 		LiquidGlass,
 		LiquidLens,
 		LiquidMenu,
+		LiquidNavBar,
 		LiquidSlider,
 		LiquidSwitch,
 		LiquidTabs,
@@ -59,6 +60,20 @@
 	};
 
 	let lensStage = $state<HTMLElement | null>(null);
+
+	let navScroller = $state<HTMLElement | null>(null);
+	let navLargeTitle = $state<HTMLElement | null>(null);
+	let navProgress = $state(0);
+
+	/** Something with enough colour in it that the blur band is legible against it. */
+	const shelf = [
+		{ id: 'a', title: 'Late Reflections', meta: 'Ambient · 12 tracks', hue: 268 },
+		{ id: 'b', title: 'Displacement', meta: 'Electronic · 9 tracks', hue: 196 },
+		{ id: 'c', title: 'Snell', meta: 'Modern classical · 7 tracks', hue: 22 },
+		{ id: 'd', title: 'Bezel', meta: 'Downtempo · 14 tracks', hue: 330 },
+		{ id: 'e', title: 'Specular', meta: 'House · 11 tracks', hue: 148 },
+		{ id: 'f', title: 'Backdrop Root', meta: 'Techno · 10 tracks', hue: 44 }
+	];
 </script>
 
 <svelte:head>
@@ -123,6 +138,18 @@
 					Prominent
 				</LiquidButton>
 				<LiquidButton disabled>Disabled</LiquidButton>
+			</div>
+			<p class="note">
+				<code>shape="circle"</code> is not a pill with equal padding: it is laid out at a literal
+				diameter, so every circle of a size shares one rasterised map, and its rim is a fraction of
+				that diameter rather than a per-size constant — a circle's radius <em>is</em> half its size, so
+				a fixed bezel would turn the whole disc into rim and the glyph would sit in continuous distortion.
+			</p>
+			<div class="row">
+				<LiquidButton shape="circle" size="sm" aria-label="Previous">‹</LiquidButton>
+				<LiquidButton shape="circle" aria-label="Play">▶</LiquidButton>
+				<LiquidButton shape="circle" size="lg" tone="prominent" aria-label="Next">›</LiquidButton>
+				<LiquidButton shape="circle" disabled aria-label="Shuffle">⤫</LiquidButton>
 			</div>
 			<p class="readout">presses: <strong>{pressed}</strong></p>
 		</section>
@@ -205,6 +232,63 @@
 					<p class="panel">{tabCopy[id]}</p>
 				{/snippet}
 			</LiquidTabs>
+		</section>
+
+		<section class="span">
+			<h2>LiquidNavBar <span class="sub">and LiquidScrollEdge</span></h2>
+			<p class="note">
+				<strong>Scroll inside the panel.</strong> The bar is not a glass surface and has no surface
+				at all — no tint, no rim, no shadow, no boundary. What appears is a
+				<em>progressive blur</em>: four stacked backdrop layers, each masked to a different depth,
+				so the blur radius ramps from the pinned edge instead of stopping at a line. The content
+				loses definition as it approaches the top; nothing is laid over it. That is what iOS
+				actually does, and it is why the <em>controls</em> can be real glass — they sit beside the band,
+				not inside it, so their refraction still reaches the page.
+			</p>
+			<p class="note">
+				It takes its cue from the large title's bottom edge closing on the bar's, not from an
+				absolute offset, so the inline title arrives exactly as the large one goes under. Nothing is
+				sprung: the scroll position <em>is</em> the animation.
+			</p>
+			<div class="nav-stage" bind:this={navScroller}>
+				<LiquidNavBar
+					title="Listen Now"
+					titleTarget={navLargeTitle}
+					scroller={navScroller}
+					{scheme}
+					bind:progress={navProgress}
+				>
+					{#snippet leading()}
+						<LiquidButton shape="circle" size="sm" aria-label="Back">‹</LiquidButton>
+					{/snippet}
+					{#snippet trailing()}
+						<LiquidButton shape="circle" size="sm" aria-label="Search">⌕</LiquidButton>
+						<LiquidMenu
+							items={menuItems}
+							placement="bottom-end"
+							triggerShape="circle"
+							triggerSize="sm"
+							onselect={(id) => (lastMenuChoice = id)}
+						>
+							⋯
+						</LiquidMenu>
+					{/snippet}
+				</LiquidNavBar>
+
+				<div class="nav-content">
+					<h3 class="nav-large-title" bind:this={navLargeTitle}>Listen Now</h3>
+					<div class="nav-shelf">
+						{#each shelf as album (album.id)}
+							<article class="nav-card" style:--hue={album.hue}>
+								<div class="nav-art"></div>
+								<p class="nav-card-title">{album.title}</p>
+								<p class="nav-card-meta">{album.meta}</p>
+							</article>
+						{/each}
+					</div>
+				</div>
+			</div>
+			<p class="readout">materialisation: <strong>{navProgress.toFixed(2)}</strong></p>
 		</section>
 
 		<section class="span">
@@ -459,6 +543,76 @@
 	 * `position: relative` makes the stage the lens's offsetParent, which is what
 	 * `LiquidLens`'s bounds calculation expects.
 	 */
+	/*
+	 * The scroll container the bar sticks inside. Note what is *not* here: no
+	 * `mask`, no `filter`, no `opacity` below 1 and no transform. Any one of them
+	 * would make this box a backdrop root — or, in Chromium, a transformed ancestor —
+	 * and the bar would have nothing left to refract.
+	 */
+	.nav-stage {
+		position: relative;
+		height: 24rem;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		border-radius: 20px;
+		background: rgb(10 12 20 / 0.5);
+		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
+	}
+
+	.page[data-scheme='light'] .nav-stage {
+		background: rgb(255 255 255 / 0.45);
+		box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
+	}
+
+	.sub {
+		font-weight: 400;
+		opacity: 0.55;
+	}
+
+	.nav-content {
+		padding: 0 1.1rem 2rem;
+	}
+
+	.nav-large-title {
+		margin: 0.75rem 0 1rem;
+		font-size: 2rem;
+		font-weight: 700;
+		letter-spacing: -0.02em;
+	}
+
+	.nav-shelf {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+		gap: 1rem;
+	}
+
+	.nav-card {
+		min-width: 0;
+	}
+
+	.nav-art {
+		aspect-ratio: 1;
+		border-radius: 12px;
+		background: linear-gradient(
+			145deg,
+			hsl(var(--hue) 82% 62%),
+			hsl(calc(var(--hue) + 42) 74% 38%)
+		);
+		box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+	}
+
+	.nav-card-title {
+		margin: 0.5rem 0 0;
+		font-size: 0.85rem;
+		font-weight: 600;
+	}
+
+	.nav-card-meta {
+		margin: 0.1rem 0 0;
+		font-size: 0.75rem;
+		opacity: 0.6;
+	}
+
 	.lens-stage {
 		position: relative;
 		overflow: hidden;

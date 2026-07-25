@@ -151,6 +151,38 @@ export const MENU_GLASS_OPEN: DropletVisual = {
 };
 
 /**
+ * Diameter of a circular button per size, in CSS pixels.
+ *
+ * Mirrored by width/height rules in `LiquidButton.svelte`, and that duplication is
+ * deliberate rather than an oversight. The box has to have its size in the *server*
+ * render: a circle carries no padding, so a diameter that only arrives with the
+ * client effect that writes the glass custom properties would let the button
+ * collapse to the width of its glyph and then jump. CSS is the layout; these
+ * numbers are what the bezel is computed from. Change one, change the other.
+ *
+ * The sizes are the icon-button sizes, not the pill sizes: a circle has to be
+ * comfortably tappable at its narrowest, which is every direction.
+ */
+export const BUTTON_CIRCLE_SIZES = {
+	sm: 30,
+	md: 38,
+	lg: 46
+} as const;
+
+/**
+ * Refracting rim of a circular button, as a fraction of its diameter.
+ *
+ * The same argument as {@link SLIDER_THUMB.bezel}, and it bites harder here. A
+ * circle's radius *is* half its size, so the per-size button bezels — 10px on
+ * what would be a 30px circle — leave a 5px clear centre and the glyph sits in
+ * continuous distortion. Anything that refracts everywhere reads as a smudge
+ * rather than as a lens. At 0.26 the rim is a band with a flat middle wide enough
+ * to hold a glyph, which is what makes it read as a piece of glass with something
+ * *behind* it.
+ */
+export const BUTTON_CIRCLE_BEZEL_RATIO = 0.26;
+
+/**
  * Menu panel geometry, in CSS pixels.
  *
  * The bezel is wide for the same reason the lens's is: refraction concentrated in a
@@ -162,6 +194,112 @@ export const MENU_GEOMETRY = {
 	bezel: 16,
 	gap: 10,
 	minWidth: 208
+} as const;
+
+/**
+ * The scroll edge effect: a band of *progressive blur* pinned to one edge of a
+ * scroller, strongest at the edge and gone a few dozen pixels in.
+ *
+ * This is what iOS actually does at the top of a scrolling view, and it is worth
+ * being precise about what it is not. It is not a bar made of glass. There is no
+ * rim, no drop shadow, no refracting bezel and no boundary of any kind — nothing
+ * that would read as an *object* laid over the content. It is the content itself
+ * losing definition as it approaches the edge, so that whatever chrome is pinned
+ * there stays legible. The glass in that arrangement is reserved for the
+ * controls: the capsules and round buttons that float on top of the band, and
+ * those are real, discrete objects with real rims.
+ *
+ * Getting this backwards — a glass slab spanning the width, with plain buttons on
+ * it — is the single most recognisable way to look almost right and be wrong.
+ *
+ * ## How the ramp is built
+ *
+ * `backdrop-filter` blurs uniformly; a gradient mask on a single blurred layer
+ * only ramps its *alpha*, which cross-fades between sharp and uniformly-blurred
+ * and still shows a defined blur boundary. A true gradient of blur *radius* needs
+ * layers: {@link SCROLL_EDGE.layers} of them, each blurred by the same amount and
+ * each masked to hold from the pinned edge to a different depth. They stack, so
+ * the pixel at the edge is blurred by all of them and the pixel at the far side
+ * by none, with one fewer at each step. Stacked Gaussians add in quadrature, so
+ * the per-layer radius is the peak over √n — see `LiquidScrollEdge.svelte`.
+ */
+export const SCROLL_EDGE = {
+	/**
+	 * Stacked backdrop layers.
+	 *
+	 * Each one is a separate composited pass over the band, so this is the effect's
+	 * whole cost. Four is where the steps stop being visible against real content
+	 * at these radii; the difference between four and eight is not perceptible and
+	 * doubles the fill rate.
+	 */
+	layers: 4,
+	/** Peak blur at the pinned edge, in CSS pixels. */
+	blur: 12,
+	/**
+	 * Backdrop saturation under the band.
+	 *
+	 * Mild, and applied only to the widest layer so it ramps with everything else.
+	 * Blur washes colour out; a little saturation puts back what it took, which is
+	 * why a blurred iOS edge still looks like the photograph underneath it rather
+	 * than like fog.
+	 */
+	saturation: 1.35,
+	/**
+	 * Alpha of the legibility scrim at the pinned edge.
+	 *
+	 * Blur destroys detail but not luminance: white content stays white, and a
+	 * label sitting on it disappears however much it is blurred. This is the floor
+	 * that stops that, and it is deliberately near-invisible on anything else.
+	 */
+	scrim: 0.1,
+	/**
+	 * Scrim alpha on the `flat` tier, where there is no backdrop filtering at all
+	 * and the scrim is the only thing carrying legibility. Same role as the tint
+	 * boost `.lg` applies on that tier, and about as heavy.
+	 */
+	flatScrim: 0.6
+} as const;
+
+/**
+ * Nav bar geometry and scroll-edge thresholds, in CSS pixels unless stated.
+ */
+export const NAVBAR_GEOMETRY = {
+	/** Minimum height of the title row, before any safe-area inset. */
+	height: 52,
+	/** Horizontal padding of the title row. */
+	inset: 12,
+	/**
+	 * How far the blur band extends *past* the bottom of the row, as a fraction of
+	 * the row height.
+	 *
+	 * The band has to end below the controls, not at them. Ending it flush with the
+	 * row puts the last of the ramp exactly where the buttons are, so the eye reads
+	 * the band's lower boundary and the row's as the same line — which is the
+	 * boundary the whole effect exists to not have.
+	 */
+	bleedRatio: 0.55,
+	/**
+	 * Scroll distance over which the edge materialises — and, when a large title is
+	 * tracked, the distance over which its bottom edge closes on the bar's.
+	 *
+	 * Short on purpose. This is not an entrance animation, it is a *state* the
+	 * scroll position indexes into, so it has to be over almost as soon as the
+	 * content starts moving; anything longer and the bar spends normal scrolling
+	 * in a permanent half-materialised haze.
+	 */
+	fade: 24,
+	/**
+	 * Fraction of the materialisation the inline title sits out before it starts
+	 * appearing.
+	 *
+	 * The two must not cross-fade together. The edge blurring is the background
+	 * changing; the title arriving is a new object. Starting the second a third of
+	 * the way into the first is what makes the title read as landing *on* something
+	 * that is already there.
+	 */
+	titleDelay: 0.35,
+	/** How far the inline title rises into place as it fades in. */
+	titleRise: 8
 } as const;
 
 /**

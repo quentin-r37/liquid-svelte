@@ -5,13 +5,29 @@
 	import type { GlassMode, GlassQuality, LiquidGlassProps } from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { applyHover, applyPress } from './runtime/glassMotion.js';
-	import { GLASS_DEFAULTS } from './runtime/glassTokens.js';
+	import {
+		BUTTON_CIRCLE_BEZEL_RATIO,
+		BUTTON_CIRCLE_SIZES,
+		GLASS_DEFAULTS
+	} from './runtime/glassTokens.js';
 	import { HOVER_SPECULAR_BOOST } from './runtime/motionTokens.js';
+
+	/** Layout of the host box. */
+	export type ButtonShape = 'pill' | 'circle';
 
 	interface Props extends Omit<HTMLButtonAttributes, 'class' | 'style'> {
 		/** Visual weight. `prominent` reads as a primary action. */
 		tone?: 'plain' | 'prominent';
 		size?: 'sm' | 'md' | 'lg';
+		/**
+		 * `pill` hugs its label; `circle` is a fixed square box for a single glyph.
+		 *
+		 * A circle is not a pill with equal padding — it is laid out at an explicit
+		 * diameter (see {@link BUTTON_CIRCLE_SIZES}) and given a proportional rim, both
+		 * of which a text button derives from its content instead. Give one an
+		 * `aria-label`: a glyph is not an accessible name.
+		 */
+		shape?: ButtonShape;
 		borderRadius?: number;
 		bezel?: number;
 		quality?: GlassQuality;
@@ -31,6 +47,7 @@
 	let {
 		tone = 'plain',
 		size = 'md',
+		shape = 'pill',
 		borderRadius = 999,
 		bezel,
 		quality = GLASS_DEFAULTS.quality,
@@ -67,8 +84,24 @@
 		handler?.(event as E);
 	}
 
-	/** Small buttons need a proportionally thinner bezel, or the refraction eats the label. */
-	const resolvedBezel = $derived(bezel ?? { sm: 10, md: 14, lg: 20 }[size]);
+	/**
+	 * The circle's diameter, for the bezel below. Its *layout* comes from the
+	 * stylesheet rather than from here — see {@link BUTTON_CIRCLE_SIZES}.
+	 */
+	const diameter = $derived(shape === 'circle' ? BUTTON_CIRCLE_SIZES[size] : undefined);
+
+	/**
+	 * Small buttons need a proportionally thinner bezel, or the refraction eats the
+	 * label. A circle's is a fraction of its own diameter rather than a per-size
+	 * constant, because its radius *is* half its size and a fixed figure turns the
+	 * whole disc into rim.
+	 */
+	const resolvedBezel = $derived(
+		bezel ??
+			(diameter !== undefined
+				? diameter * BUTTON_CIRCLE_BEZEL_RATIO
+				: { sm: 10, md: 14, lg: 20 }[size])
+	);
 
 	let highlighted = $state(false);
 
@@ -110,7 +143,7 @@
 	{mode}
 	{disabled}
 	interactive
-	class={`lg-button lg-button-${size} lg-button-${tone} ${className}`}
+	class={`lg-button lg-button-${size} lg-button-${tone} lg-button-${shape} ${className}`}
 	{style}
 	type={type ?? 'button'}
 	{...forwarded}
@@ -160,6 +193,41 @@
 	:global(.lg-button-lg) {
 		padding: 0.85rem 1.9rem;
 		font-size: 1.0625rem;
+	}
+
+	/*
+	 * A circle is sized here rather than through the primitive's `width`/`height`
+	 * props, which are written by an effect and so are absent from the server render.
+	 * A pill survives that — its size comes from padding, which is in the stylesheet —
+	 * but a circle has no padding, so it would render at the width of its glyph and
+	 * jump to its real diameter on hydration. These must stay in step with
+	 * `BUTTON_CIRCLE_SIZES`, which is what the bezel is derived from.
+	 *
+	 * Compound selectors so they beat the per-size padding on specificity rather than
+	 * on source order.
+	 */
+	:global(.lg-button-circle.lg-button-sm) {
+		width: 30px;
+		height: 30px;
+		padding: 0;
+		line-height: 1;
+		font-size: 0.875rem;
+	}
+
+	:global(.lg-button-circle.lg-button-md) {
+		width: 38px;
+		height: 38px;
+		padding: 0;
+		line-height: 1;
+		font-size: 1.0625rem;
+	}
+
+	:global(.lg-button-circle.lg-button-lg) {
+		width: 46px;
+		height: 46px;
+		padding: 0;
+		line-height: 1;
+		font-size: 1.25rem;
 	}
 
 	:global(.lg-button:focus-visible) {

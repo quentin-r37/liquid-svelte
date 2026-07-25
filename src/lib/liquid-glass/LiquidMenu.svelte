@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { animate } from 'motion';
 	import { untrack, type Snippet } from 'svelte';
-	import LiquidButton from './LiquidButton.svelte';
+	import LiquidButton, { type ButtonShape } from './LiquidButton.svelte';
 	import LiquidGlass from './LiquidGlass.svelte';
 	import type { GlassMode, GlassQuality } from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
@@ -38,6 +38,16 @@
 		/** Which corner the panel grows from, and which side of the trigger it sits on. */
 		placement?: MenuPlacement;
 		disabled?: boolean;
+		/**
+		 * Shape and size of the trigger, forwarded to its `LiquidButton`.
+		 *
+		 * Here because the trigger is the component's own button and a consumer has no
+		 * other way at it. A menu pinned in a nav bar next to circular actions has to be
+		 * able to be one too, or it is the one control on the row that is a different
+		 * object.
+		 */
+		triggerShape?: ButtonShape;
+		triggerSize?: 'sm' | 'md' | 'lg';
 		/** Accessible name for the menu. Defaults to being labelled by the trigger. */
 		menuLabel?: string;
 		quality?: GlassQuality;
@@ -57,6 +67,8 @@
 		open = $bindable(false),
 		placement = 'bottom-start',
 		disabled = false,
+		triggerShape = 'pill',
+		triggerSize = 'md',
 		menuLabel,
 		quality = 'high',
 		mode = 'auto',
@@ -386,6 +398,8 @@
 		bind:element={triggerElement}
 		id={triggerId}
 		{disabled}
+		shape={triggerShape}
+		size={triggerSize}
 		{quality}
 		{mode}
 		aria-haspopup="menu"

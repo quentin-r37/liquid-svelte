@@ -18,6 +18,7 @@
 export { default as LiquidGlass } from './LiquidGlass.svelte';
 export { default as LiquidGlassFilter } from './LiquidGlassFilter.svelte';
 export { default as LiquidButton } from './LiquidButton.svelte';
+export type { ButtonShape } from './LiquidButton.svelte';
 export { default as LiquidSwitch } from './LiquidSwitch.svelte';
 export { default as LiquidSlider } from './LiquidSlider.svelte';
 export { default as LiquidLens } from './LiquidLens.svelte';
@@ -25,6 +26,10 @@ export { default as LiquidTabs } from './LiquidTabs.svelte';
 export type { LiquidTab } from './LiquidTabs.svelte';
 export { default as LiquidMenu } from './LiquidMenu.svelte';
 export type { LiquidMenuItem, MenuPlacement } from './LiquidMenu.svelte';
+export { default as LiquidNavBar } from './LiquidNavBar.svelte';
+export type { NavBarPosition } from './LiquidNavBar.svelte';
+export { default as LiquidScrollEdge } from './LiquidScrollEdge.svelte';
+export type { ScrollEdgeSide } from './LiquidScrollEdge.svelte';
 
 export type {
 	DisplacementMapParams,
@@ -58,9 +63,13 @@ export {
 	DROPLET_ACTIVE,
 	DROPLET_REST,
 	GLASS_DEFAULTS,
+	BUTTON_CIRCLE_BEZEL_RATIO,
+	BUTTON_CIRCLE_SIZES,
 	MENU_GLASS_OPEN,
 	MENU_GLASS_REST,
-	QUALITY_PRESETS
+	NAVBAR_GEOMETRY,
+	QUALITY_PRESETS,
+	SCROLL_EDGE
 } from './runtime/glassTokens.js';
 export type { DropletVisual, QualityPreset } from './runtime/glassTokens.js';
 
@@ -70,6 +79,7 @@ export { setGlassProperties } from './runtime/applyGlassStyle.js';
 export { trackPointer } from './runtime/pointerTracking.js';
 export type { PointerTrackingOptions } from './runtime/pointerTracking.js';
 export { observeSize } from './runtime/sharedResizeObserver.js';
+export { observeScroll } from './runtime/sharedScrollListener.js';
 
 export {
 	acquireGlassTransform,
