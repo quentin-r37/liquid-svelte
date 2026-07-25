@@ -70,6 +70,35 @@ interface Entry {
 
 const entries = new WeakMap<HTMLElement, Entry>();
 
+/**
+ * Round a translation onto the device-pixel grid.
+ *
+ * `backdrop-filter` is what forces this. Chromium captures the backdrop over a
+ * region snapped to whole device pixels, so while a surface's translation carries
+ * a fractional part, that part drifts across the rounding boundary as the surface
+ * moves — one axis at a time — and the captured backdrop shifts a pixel under a
+ * displacement map that did not move. At the rim the map's gradient is savage (the
+ * profile LUT falls from 1.0 to 0.47 within a tenth of the bezel), so one pixel of
+ * misalignment there moves the refracted edge by dozens: the edge visibly jumps
+ * and the surface reads as having suddenly grown taller or wider.
+ *
+ * It only shows up when moving *slowly*. A fast drag crosses several boundaries
+ * per frame and they average into the motion; a slow one delivers them one at a
+ * time, on whichever axis crossed first. It also needs a fractional pointer
+ * position to begin with, which is why it appears on a scaled Windows display and
+ * not under keyboard stepping, where every position is a whole number of pixels.
+ *
+ * Landing on the grid costs nothing perceptible — a device pixel is the finest
+ * thing the display can resolve, and the sub-pixel remainder was only ever being
+ * antialiased away. It does not need the element's *layout* position to be on the
+ * grid either: a constant misalignment is invisible, it is the changing one that
+ * is seen.
+ */
+function snapToDevicePixel(value: number): number {
+	const ratio = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+	return Math.round(value * ratio) / ratio;
+}
+
 function createEntry(element: HTMLElement): Entry {
 	const x = motionValue(0);
 	const y = motionValue(0);
@@ -94,7 +123,9 @@ function createEntry(element: HTMLElement): Entry {
 		const scaleBase = hoverScale.get() * pressScale.get() * dragScale.get();
 		const sx = scaleBase * stretchX.get() * revealX.get();
 		const sy = scaleBase * stretchY.get() * revealY.get();
-		return `translate(${x.get()}px, ${y.get() + lift.get()}px) scale(${sx}, ${sy})`;
+		const tx = snapToDevicePixel(x.get());
+		const ty = snapToDevicePixel(y.get() + lift.get());
+		return `translate(${tx}px, ${ty}px) scale(${sx}, ${sy})`;
 	});
 
 	const stopEffect = styleEffect(element, { transform: composed });

@@ -93,7 +93,16 @@ export const DRAG_ACTIVE_SCALE = 1;
  */
 export const MAX_STRETCH = 0.12;
 
-/** Pointer speed in px/s that saturates the stretch at {@link MAX_STRETCH}. */
+/**
+ * Pointer speed in px/s that saturates the stretch at {@link MAX_STRETCH}.
+ *
+ * A flick, not a drag. Speed maps onto the deformation linearly between the floor
+ * and this, so a deliberate 500px/s reposition deforms by a sixth of the cap and a
+ * thrown surface gets all of it. That gap is the point: the deformation has to be
+ * something the surface does when *moved fast*, not the shape it holds while being
+ * placed — a surface that stays stretched the whole time it is being dragged just
+ * reads as the wrong size.
+ */
 export const STRETCH_VELOCITY_REFERENCE = 3000;
 
 /** Perpendicular compression, as a fraction of the along-axis stretch. */

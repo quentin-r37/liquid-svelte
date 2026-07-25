@@ -154,7 +154,13 @@ export function applyStretch(
 		return;
 	}
 
-	const amount = Math.min(MAX_STRETCH, speed / STRETCH_VELOCITY_REFERENCE);
+	// Normalise *then* scale. Clamping `speed / REFERENCE` against `MAX_STRETCH`
+	// directly — which is what this used to do — makes the two constants multiply:
+	// the deformation saturated at `MAX_STRETCH * REFERENCE`, i.e. 360px/s rather
+	// than 3000. A leisurely drag sat pinned at the cap, and everything slower swept
+	// the whole 0–12% range over a 300px/s spread, so an ordinary hand tremor
+	// visibly resized the surface.
+	const amount = MAX_STRETCH * Math.min(1, speed / STRETCH_VELOCITY_REFERENCE);
 	const unitX = Math.abs(velocityX / speed);
 	const unitY = Math.abs(velocityY / speed);
 
@@ -328,6 +334,15 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		startPointerY = event.clientY;
 		pointerX = event.clientX;
 		pointerY = event.clientY;
+		// A release glide or a keyboard step may still be running on these channels.
+		// Motion keeps writing an animated value every frame, so it would spend the
+		// whole tail of the spring fighting `positionAt` for the position — the
+		// surface stuttering between the two, and the velocity sampler reading that
+		// stutter as speed. Stopping leaves the value where it stands, which is
+		// exactly the origin the drag should start from.
+		transform.x.stop();
+		transform.y.stop();
+
 		originX = transform.x.get();
 		originY = transform.y.get();
 		samples.length = 0;
