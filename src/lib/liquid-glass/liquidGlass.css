@@ -43,6 +43,8 @@
  * Set by the component:
  *   --lg-radius, --lg-bezel, --lg-tint, --lg-specular, --lg-shadow,
  *   --lg-backdrop, --lg-elevation
+ * Set by a surface that is being scaled non-uniformly (see LiquidMenu):
+ *   --lg-radius-x, --lg-radius-y
  * Set by pointer tracking (see runtime/pointerTracking.ts):
  *   --pointer-x, --pointer-y, --velocity-x, --velocity-y,
  *   --highlight-x, --highlight-y, --pointer-inside
@@ -50,6 +52,27 @@
 
 .lg {
 	--lg-radius: 28px;
+	/*
+	 * The corner, split per axis so a surface being scaled can keep its *rendered*
+	 * radius while it is deformed.
+	 *
+	 * A transform scales the border radius along with everything else, which is
+	 * invisible at 1 and ruinous below it: a panel opening out of a button is a
+	 * sixth of its final height for the first frames, and a 22px corner drawn at
+	 * 0.16 is a 3px one — square, next to the pill it is supposed to *be*. Dividing
+	 * the radius by the scale it is about to be multiplied by cancels that out, and
+	 * costs nothing when nothing is deformed, which is why these default straight
+	 * back to `--lg-radius`.
+	 *
+	 * The clamp CSS already applies to an over-large radius — no more than half the
+	 * box on each axis — is what makes it land correctly rather than merely close:
+	 * a compensated radius saturates at exactly half the *rendered* box, which is a
+	 * pill, which is what the button being replaced was. Nothing here regenerates a
+	 * displacement map; the corner the map was built for is the corner the surface
+	 * ends up with.
+	 */
+	--lg-radius-x: var(--lg-radius);
+	--lg-radius-y: var(--lg-radius);
 	--lg-bezel: 24px;
 	--lg-tint: 0.05;
 	--lg-specular: 0.8;
@@ -69,7 +92,7 @@
 	align-items: center;
 	justify-content: center;
 	box-sizing: border-box;
-	border-radius: var(--lg-radius);
+	border-radius: var(--lg-radius-x) / var(--lg-radius-y);
 	background: transparent;
 	-webkit-tap-highlight-color: transparent;
 

@@ -276,6 +276,64 @@
 	});
 
 	/**
+	 * The corner, held still while the panel is being scaled.
+	 *
+	 * A transform scales the border radius with everything else, and this one scales
+	 * hard and unevenly: a panel opening out of its trigger is a sixth of its final
+	 * height for the first frames, where a 22px corner is drawn as a 3px one. The
+	 * surface that replaces a pill therefore arrived with square corners — the one
+	 * moment the swap has to be invisible. Dividing the radius by the scale it is about
+	 * to be multiplied by cancels that exactly, and CSS's own clamp (no radius past
+	 * half the box) turns the saturated case into a pill of precisely the trigger's
+	 * corner, whatever size that trigger is. See the note in `liquidGlass.css`.
+	 *
+	 * Written per frame with `setProperty`, in the same manner and for the same reasons
+	 * as everything else this library owns inline — never through the `style` attribute
+	 * (which Svelte rewrites wholesale) and never through a prop, which would put the
+	 * radius back in the displacement map's cache key and rasterise a PNG per frame.
+	 * These are CSS custom properties feeding one declaration; the map, built for the
+	 * settled corner, is never consulted about it.
+	 *
+	 * Only the channels this component actually drives are composed. Hover, press and
+	 * drag do not touch a menu panel.
+	 */
+	$effect(() => {
+		const transform = panelTransform;
+		const panel = panelElement;
+		if (!transform || !panel) return;
+
+		const write = () => {
+			const scaleX = transform.revealX.get() * transform.stretchX.get();
+			const scaleY = transform.revealY.get();
+			// Guarding the divisor, not the result: a channel at zero would otherwise
+			// write `Infinity px`, which is not a length and drops the declaration.
+			panel.style.setProperty(
+				'--lg-radius-x',
+				`${MENU_GEOMETRY.radius / Math.max(scaleX, 0.01)}px`
+			);
+			panel.style.setProperty(
+				'--lg-radius-y',
+				`${MENU_GEOMETRY.radius / Math.max(scaleY, 0.01)}px`
+			);
+		};
+
+		write();
+		const unsubscribe = [
+			transform.revealX.on('change', write),
+			transform.revealY.on('change', write),
+			transform.stretchX.on('change', write)
+		];
+
+		return () => {
+			for (const stop of unsubscribe) stop();
+			// Back to the plain `--lg-radius` the primitive writes, rather than to a
+			// computed copy of it.
+			panel.style.removeProperty('--lg-radius-x');
+			panel.style.removeProperty('--lg-radius-y');
+		};
+	});
+
+	/**
 	 * The spread.
 	 *
 	 * Two springs on two channels, the vertical one delayed behind the horizontal

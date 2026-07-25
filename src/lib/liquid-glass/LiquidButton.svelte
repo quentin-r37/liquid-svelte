@@ -249,16 +249,27 @@
 	 * `display: block` is not redundant with the flex centring: it stops the SVG's
 	 * inline baseline from reserving descender space in any context where the content
 	 * box is not a flex container.
+	 *
+	 * ## No `filter` here, however tempting
+	 *
+	 * The label gets a `text-shadow` for separation from a busy backdrop, and the
+	 * obvious way to give a stroked path the same is `filter: drop-shadow()`. Do not.
+	 * A `filter` gives the element its own render surface, and this element is inside
+	 * one that Motion transforms on every hover and press. Composited separately, the
+	 * icon is free to be positioned a frame apart from the button carrying it: the
+	 * button lifts, the glyph appears to sink.
+	 *
+	 * It only shows where the surrounding layers are already compositor-driven — a
+	 * bar that is `position: sticky` inside a scrolling container, which is exactly
+	 * what `LiquidNavBar` is and exactly why the same button in ordinary flow looks
+	 * fine. `text-shadow` is safe because it paints into its element's own layer and
+	 * creates no surface, which is the whole difference.
 	 */
 	:global(.lg-button .lg-content svg) {
 		display: block;
 		flex: 0 0 auto;
 		width: var(--lg-icon-size, 1em);
 		height: var(--lg-icon-size, 1em);
-		/* The `text-shadow` on the label does nothing for a stroked path; this is the
-		   same separation from a busy backdrop, by the one means that reaches an SVG.
-		   Safe on a descendant — only an *ancestor* filter forms a backdrop root. */
-		filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.28));
 	}
 
 	/* Only ever visible when a label sits beside an icon. */
