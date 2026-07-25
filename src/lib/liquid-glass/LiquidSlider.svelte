@@ -3,11 +3,13 @@
 	import LiquidGlass from './LiquidGlass.svelte';
 	import type { GlassMode, GlassQuality } from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
+	import { DropletMorph } from './runtime/dropletMorph.svelte.js';
 	import {
 		acquireGlassTransform,
 		applyStretch,
 		type GlassTransform
 	} from './runtime/glassMotion.js';
+	import { DROPLET_ACTIVE } from './runtime/glassTokens.js';
 	import { springFor } from './runtime/motionTokens.js';
 	import { observeSize } from './runtime/sharedResizeObserver.js';
 
@@ -130,30 +132,56 @@
 	}
 
 	/**
-	 * `will-change` is bracketed by the interaction, not by the animation: a drag or
-	 * a held arrow key is exactly the "anticipated change" the hint exists for.
+	 * Grabbing the knob melts it into a droplet, and releasing it freezes it back.
 	 *
-	 * Guarded by a boolean rather than leaning on `setActive`'s counter, because
-	 * these are called from several overlapping events (pointer, key, focus, change)
-	 * and an unbalanced pair would leave the hint stuck on.
+	 * This is the behaviour the effect actually has on iOS 26: the knob is an opaque
+	 * tinted blob until you touch it, and only then does it swell, clear up and start
+	 * refracting. A knob that is permanently glass reads as a smudge at this size —
+	 * the transition is what makes it a droplet.
+	 *
+	 * `will-change` is bracketed here too: a drag or a held arrow key is exactly the
+	 * "anticipated change" the hint exists for. Guarded by a boolean rather than
+	 * leaning on `setActive`'s counter, because these are called from several
+	 * overlapping events (pointer, key, focus, change) and an unbalanced pair would
+	 * leave the hint stuck on.
 	 */
+	const droplet = new DropletMorph();
+	$effect(() => droplet.setReduced(reducedMotion.current));
+	$effect(() => () => droplet.destroy());
+
 	let engaged = false;
 
 	function engage() {
 		if (engaged) return;
 		engaged = true;
-		thumbTransform?.setActive(true);
+
+		const transform = thumbTransform;
+		transform?.setActive(true);
+		droplet.engage();
+		// The swell goes through a transform channel, not a CSS variable: Svelte
+		// rewrites the whole `style` attribute when it changes, which would wipe
+		// Motion's transform once per frame.
+		if (transform) {
+			animate(
+				transform.pressScale,
+				DROPLET_ACTIVE.scale,
+				springFor('droplet', reducedMotion.current)
+			);
+		}
 	}
 
 	function relax() {
 		const transform = thumbTransform;
 		if (!transform) return;
+
 		lastTime = 0;
 		applyStretch(transform, 0, 0, reducedMotion.current);
-		if (engaged) {
-			engaged = false;
-			transform.setActive(false);
-		}
+
+		if (!engaged) return;
+		engaged = false;
+		droplet.release();
+		animate(transform.pressScale, 1, springFor('settle', reducedMotion.current));
+		transform.setActive(false);
 	}
 </script>
 
@@ -174,9 +202,11 @@
 			height={THUMB_SIZE}
 			borderRadius={THUMB_SIZE / 2}
 			bezel={THUMB_SIZE / 2}
-			saturation={2.6}
-			opacity={0.09}
-			specularIntensity={0.95}
+			displacement={(THUMB_SIZE / 2) * droplet.visual.displacementRatio}
+			opacity={droplet.visual.opacity}
+			saturation={droplet.visual.saturation}
+			blur={droplet.visual.blur}
+			specularIntensity={droplet.visual.specularIntensity}
 			shadowIntensity={0.7}
 			{quality}
 			{mode}

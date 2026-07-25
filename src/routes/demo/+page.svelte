@@ -110,8 +110,10 @@
 		<section>
 			<h2>LiquidSwitch</h2>
 			<p class="note">
-				<code>role="switch"</code> on a real button, so it announces as “switch, on”. The thumb travels
-				on an under-damped spring; toggling mid-flight carries the velocity through.
+				<strong>Drag the droplet</strong> — don't just tap it. At rest the thumb is an opaque knob;
+				grabbing it melts it into refracting glass that swells and deforms as it crosses, then snaps
+				to whichever end you threw it towards. A flick beats position. Tapping still toggles, Escape
+				abandons a drag, and <code>role="switch"</code> means it announces as “switch, on”.
 			</p>
 			<div class="col">
 				<LiquidSwitch bind:checked={notifications}>Notifications</LiquidSwitch>
@@ -123,8 +125,9 @@
 		<section>
 			<h2>LiquidSlider</h2>
 			<p class="note">
-				A transparent <code>&lt;input type="range"&gt;</code> sits over the track, so arrows, PageUp/PageDown
-				and Home/End all work. The glass thumb squashes along its travel when the value moves fast.
+				Same droplet: an opaque knob until you grab it, then clear refracting glass that swells and
+				squashes along its travel. A transparent <code>&lt;input type="range"&gt;</code> sits over the
+				track, so arrows, PageUp/PageDown and Home/End all work — and melt the droplet too.
 			</p>
 			<div class="col wide">
 				<LiquidSlider bind:value={volume} label="Volume" showValue />

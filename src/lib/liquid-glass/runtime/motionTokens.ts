@@ -21,7 +21,12 @@ export const SPRINGS = {
 	/** Returning to rest after a drag, and velocity-driven deformation decay. */
 	settle: { type: 'spring', stiffness: 400, damping: 30, mass: 1 },
 	/** Slider thumb tracking its value. Stiff enough to feel directly connected. */
-	track: { type: 'spring', stiffness: 900, damping: 46, mass: 1 }
+	track: { type: 'spring', stiffness: 900, damping: 46, mass: 1 },
+	/**
+	 * A knob melting into a droplet. Softer and slightly wobbly, so the surface
+	 * appears to liquefy rather than snap between two states.
+	 */
+	droplet: { type: 'spring', stiffness: 300, damping: 20, mass: 1 }
 } as const;
 
 export type SpringName = keyof typeof SPRINGS;

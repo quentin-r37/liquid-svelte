@@ -153,6 +153,15 @@ export interface DragBounds {
 	maxY: number;
 }
 
+export interface DragRelease {
+	x: number;
+	y: number;
+	velocityX: number;
+	velocityY: number;
+	/** Straight-line distance travelled since the drag started, in CSS pixels. */
+	distance: number;
+}
+
 export interface DragOptions extends SharedOptions {
 	axis?: 'x' | 'y' | 'both';
 	/** Evaluated on every drag start, so it can follow a resized container. */
@@ -161,9 +170,17 @@ export interface DragOptions extends SharedOptions {
 	restScale?: number;
 	/** Support arrow keys when the element has focus. */
 	keyboard?: boolean;
+	/**
+	 * Choose the resting position on release. Return `null` to keep the default
+	 * behaviour, which is to glide a little further along the release velocity.
+	 *
+	 * This is what turns a free drag into a detented one — a switch thumb snapping
+	 * to whichever end it was thrown towards, for instance.
+	 */
+	snap?: (release: DragRelease) => { x: number; y: number } | null;
 	onStart?: () => void;
 	onMove?: (x: number, y: number) => void;
-	onEnd?: (x: number, y: number) => void;
+	onEnd?: (release: DragRelease) => void;
 	/** Fired when a drag is abandoned with Escape, after the position is restored. */
 	onCancel?: () => void;
 }
@@ -187,6 +204,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		keyboard = true,
 		reduced = false,
 		disabled = false,
+		snap,
 		onStart,
 		onMove,
 		onEnd,
@@ -245,6 +263,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		velocityX = 0;
 		velocityY = 0;
 
+		window.addEventListener('keydown', onWindowKeyDown);
 		transform.setActive(true);
 		animate(transform.dragScale, DRAG_ACTIVE_SCALE, springFor('snap', reduced));
 		onStart?.();
@@ -276,6 +295,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 			element.releasePointerCapture(activePointer);
 		}
 		activePointer = null;
+		window.removeEventListener('keydown', onWindowKeyDown);
 
 		const settle = springFor('settle', reduced);
 		animate(transform.dragScale, restScale, springFor('snap', reduced));
@@ -287,21 +307,33 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 			animate(transform.y, originY, settle);
 			onMove?.(originX, originY);
 			onCancel?.();
-		} else if (reduced) {
-			onEnd?.(transform.x.get(), transform.y.get());
-		} else {
-			// A little glide on release. Projecting the velocity a few tens of
-			// milliseconds ahead and letting the spring resolve it reads as inertia
-			// without needing a separate decay animation.
-			const projectedX = transform.x.get() + velocityX * DRAG_INERTIA_SECONDS;
-			const projectedY = transform.y.get() + velocityY * DRAG_INERTIA_SECONDS;
-			const targetX = limits ? clamp(projectedX, limits.minX, limits.maxX) : projectedX;
-			const targetY = limits ? clamp(projectedY, limits.minY, limits.maxY) : projectedY;
-			if (allowX) animate(transform.x, targetX, settle);
-			if (allowY) animate(transform.y, targetY, settle);
-			onMove?.(targetX, targetY);
-			onEnd?.(targetX, targetY);
+			transform.setActive(false);
+			return;
 		}
+
+		const currentX = transform.x.get();
+		const currentY = transform.y.get();
+		const release: DragRelease = {
+			x: currentX,
+			y: currentY,
+			velocityX: reduced ? 0 : velocityX,
+			velocityY: reduced ? 0 : velocityY,
+			distance: Math.hypot(currentX - originX, currentY - originY)
+		};
+
+		// A little glide on release. Projecting the velocity a few tens of
+		// milliseconds ahead and letting the spring resolve it reads as inertia
+		// without needing a separate decay animation. A `snap` handler overrides it.
+		const snapped = snap?.(release) ?? null;
+		const projectedX = snapped ? snapped.x : currentX + release.velocityX * DRAG_INERTIA_SECONDS;
+		const projectedY = snapped ? snapped.y : currentY + release.velocityY * DRAG_INERTIA_SECONDS;
+		const targetX = limits && !snapped ? clamp(projectedX, limits.minX, limits.maxX) : projectedX;
+		const targetY = limits && !snapped ? clamp(projectedY, limits.minY, limits.maxY) : projectedY;
+
+		if (allowX) animate(transform.x, targetX, settle);
+		if (allowY) animate(transform.y, targetY, settle);
+		onMove?.(targetX, targetY);
+		onEnd?.({ ...release, x: targetX, y: targetY });
 
 		transform.setActive(false);
 	}
@@ -311,13 +343,20 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		finish(false);
 	}
 
-	function onKeyDown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && activePointer !== null) {
-			event.preventDefault();
-			finish(true);
-			return;
-		}
+	/**
+	 * Escape is listened for on the window, not the element.
+	 *
+	 * A dragged surface is very often not focusable — a switch thumb inside a button,
+	 * for instance — so the key event would never reach it. It is only bound while a
+	 * drag is actually in flight, so it never competes with anything else.
+	 */
+	function onWindowKeyDown(event: KeyboardEvent) {
+		if (event.key !== 'Escape' || activePointer === null) return;
+		event.preventDefault();
+		finish(true);
+	}
 
+	function onKeyDown(event: KeyboardEvent) {
 		if (!keyboard) return;
 
 		const step = event.shiftKey ? KEYBOARD_STEP_COARSE : KEYBOARD_STEP;
@@ -342,7 +381,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		if (allowX) animate(transform.x, targetX, settle);
 		if (allowY) animate(transform.y, targetY, settle);
 		onMove?.(targetX, targetY);
-		onEnd?.(targetX, targetY);
+		onEnd?.({ x: targetX, y: targetY, velocityX: 0, velocityY: 0, distance: step });
 	}
 
 	element.addEventListener('pointerdown', onPointerDown);
@@ -355,6 +394,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		if (activePointer !== null && element.hasPointerCapture(activePointer)) {
 			element.releasePointerCapture(activePointer);
 		}
+		window.removeEventListener('keydown', onWindowKeyDown);
 		element.removeEventListener('pointerdown', onPointerDown);
 		element.removeEventListener('pointermove', onPointerMove);
 		element.removeEventListener('pointerup', onPointerUp);

@@ -51,10 +51,18 @@ export {
 	setGlassModeOverride
 } from './runtime/capabilities.svelte.js';
 
-export { DISPLACEMENT_PER_BEZEL, GLASS_DEFAULTS, QUALITY_PRESETS } from './runtime/glassTokens.js';
-export type { QualityPreset } from './runtime/glassTokens.js';
+export {
+	DISPLACEMENT_PER_BEZEL,
+	DROPLET_ACTIVE,
+	DROPLET_REST,
+	GLASS_DEFAULTS,
+	QUALITY_PRESETS
+} from './runtime/glassTokens.js';
+export type { DropletVisual, QualityPreset } from './runtime/glassTokens.js';
 
-export { applyGlassStyle } from './runtime/applyGlassStyle.js';
+export { DropletMorph } from './runtime/dropletMorph.svelte.js';
+
+export { setGlassProperties } from './runtime/applyGlassStyle.js';
 export { trackPointer } from './runtime/pointerTracking.js';
 export type { PointerTrackingOptions } from './runtime/pointerTracking.js';
 export { observeSize } from './runtime/sharedResizeObserver.js';
@@ -72,6 +80,7 @@ export {
 export type {
 	DragBounds,
 	DragOptions,
+	DragRelease,
 	GlassTransform,
 	HoverOptions,
 	PressOptions

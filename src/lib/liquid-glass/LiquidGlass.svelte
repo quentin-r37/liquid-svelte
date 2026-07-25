@@ -4,7 +4,7 @@
 	import { getSpecularMap, specularWidthFor } from './displacement/createSpecularMap.js';
 	import { quantiseSize } from './displacement/mapCache.js';
 	import type { LiquidGlassProps } from './liquidGlass.types.js';
-	import { applyGlassStyle } from './runtime/applyGlassStyle.js';
+	import { setGlassProperties } from './runtime/applyGlassStyle.js';
 	import {
 		reducedMotion,
 		resolveGlassSupport,
@@ -161,6 +161,12 @@
 		height: height === undefined ? undefined : `${height}px`
 	});
 
+	// Overwrites in place rather than tearing down, so animating any of these — as
+	// the droplet morph does — never momentarily drops `width`/`height`.
+	$effect(() => {
+		if (element) setGlassProperties(element, glassStyle);
+	});
+
 	const trackingOptions = $derived({
 		enabled: interactive && !disabled,
 		suppressVelocity: reducedMotion.current
@@ -176,7 +182,6 @@
 	data-disabled={disabled ? 'true' : undefined}
 	disabled={tag === 'button' && disabled ? true : undefined}
 	type={tag === 'button' ? (type ?? 'button') : type}
-	{@attach applyGlassStyle(glassStyle)}
 	{@attach trackPointer(trackingOptions)}
 	{...rest}
 >

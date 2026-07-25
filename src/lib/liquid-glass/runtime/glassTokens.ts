@@ -69,6 +69,49 @@ export const QUALITY_PRESETS: Record<GlassQuality, QualityPreset> = {
 	high: { resolution: 1, chromatic: true, specular: true }
 };
 
+/**
+ * Endpoints of the rest → droplet morph used by slider and switch thumbs.
+ * See `runtime/dropletMorph.svelte.ts` for why a knob is not glass at rest.
+ */
+export interface DropletVisual {
+	/** Peak displacement as a multiple of the bezel. `0` disables refraction. */
+	displacementRatio: number;
+	opacity: number;
+	saturation: number;
+	blur: number;
+	specularIntensity: number;
+	/** Multiplier applied to the transform's scale channel. */
+	scale: number;
+}
+
+/**
+ * An opaque, tinted knob. Reads as a solid object, not as glass.
+ *
+ * `blur` is a hair above zero rather than exactly zero on purpose: the filter
+ * chain omits `feGaussianBlur` entirely at zero, so crossing that boundary
+ * mid-morph would add and remove a filter primitive every time the knob is
+ * grabbed. 0.05 is visually indistinguishable from none and keeps the chain
+ * structurally stable.
+ */
+export const DROPLET_REST: DropletVisual = {
+	displacementRatio: 0,
+	opacity: 0.92,
+	saturation: 1,
+	blur: 0.05,
+	specularIntensity: 0.32,
+	scale: 1
+};
+
+/** Fully liquid: clear, strongly refracting, swollen and brightly rimmed. */
+export const DROPLET_ACTIVE: DropletVisual = {
+	displacementRatio: DISPLACEMENT_PER_BEZEL,
+	opacity: 0.06,
+	saturation: 2.8,
+	blur: 0.4,
+	specularIntensity: 1,
+	scale: 1.18
+};
+
 /** Samples in the 1-D magnitude LUT. 128 keeps a smooth gradient at 8-bit depth. */
 export const LUT_SAMPLES = 128;
 
