@@ -16,6 +16,8 @@ import {
 	STRETCH_CROSS_RATIO,
 	STRETCH_VELOCITY_FLOOR,
 	STRETCH_VELOCITY_REFERENCE,
+	VELOCITY_MIN_SPAN,
+	VELOCITY_WINDOW,
 	springFor
 } from './motionTokens.js';
 
@@ -263,13 +265,36 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 	let originY = 0;
 	let limits: DragBounds | null = null;
 
-	/** Manual velocity tracking: the values are `set` during a drag, not animated,
-	 *  so `motionValue.getVelocity()` would report zero. */
-	let lastX = 0;
-	let lastY = 0;
-	let lastTime = 0;
+	/**
+	 * Manual velocity tracking: the values are `set` during a drag, not animated,
+	 * so `motionValue.getVelocity()` would report zero.
+	 *
+	 * Measured over a trailing window rather than between consecutive events — see
+	 * {@link VELOCITY_WINDOW} for why the naive version makes a slowly dragged
+	 * surface jump. Positions sampled here are the *surface's*, already clamped, so
+	 * a surface held against a bound correctly reports no velocity.
+	 */
+	const samples: { x: number; y: number; time: number }[] = [];
 	let velocityX = 0;
 	let velocityY = 0;
+	let lastStretchTime = 0;
+
+	function sampleVelocity(x: number, y: number, time: number) {
+		samples.push({ x, y, time });
+
+		// Drop a sample only while the one behind it is still older than the window,
+		// so exactly one sample survives on the far side of it. Pruning everything
+		// older than the window instead would let the span collapse back to the gap
+		// between the last two events — the very thing this exists to avoid.
+		while (samples.length > 2 && time - samples[1].time >= VELOCITY_WINDOW) samples.shift();
+
+		const oldest = samples[0];
+		const elapsed = time - oldest.time;
+		if (elapsed < VELOCITY_MIN_SPAN) return;
+
+		velocityX = ((x - oldest.x) / elapsed) * 1000;
+		velocityY = ((y - oldest.y) / elapsed) * 1000;
+	}
 
 	/**
 	 * Exponential resistance past a bound: the finger's travel is unbounded, the
@@ -305,9 +330,9 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		pointerY = event.clientY;
 		originX = transform.x.get();
 		originY = transform.y.get();
-		lastX = originX;
-		lastY = originY;
-		lastTime = event.timeStamp;
+		samples.length = 0;
+		samples.push({ x: originX, y: originY, time: event.timeStamp });
+		lastStretchTime = event.timeStamp;
 		velocityX = 0;
 		velocityY = 0;
 
@@ -328,19 +353,24 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 			originY + (event.clientY - startPointerY)
 		);
 
-		const elapsed = event.timeStamp - lastTime;
-		if (elapsed > 0) {
-			velocityX = ((x - lastX) / elapsed) * 1000;
-			velocityY = ((y - lastY) / elapsed) * 1000;
-			lastX = x;
-			lastY = y;
-			lastTime = event.timeStamp;
+		sampleVelocity(x, y, event.timeStamp);
+
+		// At most one deformation update per frame: a 1000Hz mouse would otherwise
+		// restart both stretch springs a thousand times a second for a result the
+		// display cannot show.
+		if (event.timeStamp - lastStretchTime >= VELOCITY_MIN_SPAN) {
+			lastStretchTime = event.timeStamp;
 			applyStretch(transform, velocityX, velocityY, reduced);
 		}
 	}
 
-	function finish(restore: boolean) {
+	function finish(restore: boolean, time: number) {
 		if (activePointer === null) return;
+
+		// Re-sample at the moment of release: a finger that stops dead and then lifts
+		// emits no further move events, so the last *reading* would otherwise survive
+		// the pause and glide the surface away from where it was let go.
+		sampleVelocity(transform.x.get(), transform.y.get(), time);
 
 		if (element.hasPointerCapture(activePointer)) {
 			element.releasePointerCapture(activePointer);
@@ -391,7 +421,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 
 	function onPointerUp(event: PointerEvent) {
 		if (event.pointerId !== activePointer) return;
-		finish(false);
+		finish(false, event.timeStamp);
 	}
 
 	/**
@@ -404,7 +434,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 	function onWindowKeyDown(event: KeyboardEvent) {
 		if (event.key !== 'Escape' || activePointer === null) return;
 		event.preventDefault();
-		finish(true);
+		finish(true, event.timeStamp);
 	}
 
 	function onKeyDown(event: KeyboardEvent) {

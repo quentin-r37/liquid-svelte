@@ -103,6 +103,34 @@ export const STRETCH_CROSS_RATIO = 0.5;
 export const STRETCH_VELOCITY_FLOOR = 50;
 
 /**
+ * Trailing window, in milliseconds, over which pointer velocity is measured.
+ *
+ * Not the gap between two consecutive events, which is meaningless at low speed:
+ * pointers report whole CSS pixels and a high-polling mouse fires every 1–2ms, so
+ * a slow drag arrives as a burst of zero-delta events punctuated by a single 1px
+ * one. Divided by that 1ms it reads as 1000px/s — enough to saturate
+ * {@link MAX_STRETCH} — and the surface snaps 12% wider or taller for one frame
+ * while the finger is barely moving, on whichever axis happened to tick.
+ *
+ * 50ms is roughly three frames: long enough that pixel quantisation averages out,
+ * short enough that a flick still registers as one. The deformation it feeds is
+ * spring-damped anyway, so the small lag it adds is not perceptible.
+ */
+export const VELOCITY_WINDOW = 50;
+
+/**
+ * Shortest span, in milliseconds, that counts as a velocity reading — and the
+ * minimum interval between deformation updates.
+ *
+ * At the very start of a gesture the window has not filled yet, and the first two
+ * samples are as untrustworthy as any other pair; below this the previous reading
+ * is kept rather than a spike invented. One frame at 60Hz, which doubles as the
+ * throttle: pointers fire several times faster than the display refreshes, and
+ * every update restarts two springs.
+ */
+export const VELOCITY_MIN_SPAN = 16;
+
+/**
  * How much release velocity carries into the settle spring, in seconds of
  * projected travel. Kept low: glass should glide a little, not skate.
  */
