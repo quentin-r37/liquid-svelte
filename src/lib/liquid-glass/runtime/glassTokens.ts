@@ -163,6 +163,69 @@ export const SLIDER_THUMB = {
  */
 export const SLIDER_RAIL_HEIGHT = 12;
 
+/**
+ * Switch geometry — proportions rather than pixels, so `sm` and `md` are the same
+ * control at two scales instead of two hand-tuned ones.
+ *
+ * The reference switch is not a circle sliding inside a pill. It is a wide capsule
+ * — 146×92, radius 46 — riding a *shorter* 160×67 track, laid out at that full
+ * size and drawn at 0.65 while idle, swelling to 0.9 the instant it is grabbed. At
+ * rest that reads as an ordinary chunky knob inset in its track; grabbed, the
+ * droplet visibly bulges past the track's rim at all four sides. That bulge is the
+ * effect, and it is why nothing in the switch's markup may clip.
+ *
+ * As with {@link SLIDER_THUMB} the element is always laid out at full geometry and
+ * shrunk by the transform, never resized — width and height are part of the
+ * displacement-map cache key, so animating them would rasterise a fresh PNG every
+ * frame, whereas scaling is free. The active end is therefore pinned at exactly 1
+ * so no map is ever magnified past the size it was rasterised for, and the
+ * reference's 0.65 → 0.9 is expressed as 0.72 → 1: the same 1.39× swell,
+ * renormalised.
+ */
+export const SWITCH_THUMB = {
+	/** Capsule width ÷ height. The reference's 146:92. */
+	aspect: 1.59,
+	/**
+	 * Idle scale. The knob spends nearly all its life here, so this — not the
+	 * laid-out geometry — is the size the control reads as.
+	 */
+	restScale: 0.72,
+	/** Grabbed. See above for why this is exactly 1. */
+	activeScale: 1,
+	/**
+	 * Refracting band, as a fraction of the laid-out height; the reference's 19px
+	 * on 92px. Same reasoning as the slider's quarter-height bezel: a half-height
+	 * bezel turns the entire capsule into bezel, and a knob that refracts
+	 * everywhere reads as a smudge rather than as a lens with a clear centre.
+	 */
+	bezelRatio: 0.22,
+	/**
+	 * Travel as a multiple of the track height. The reference is 0.86, which would
+	 * put the default switch at 84px wide; 0.7 keeps it at 78 and preserves the
+	 * 26px of travel the previous round-knob switch had, which is what the label
+	 * spacing and the demo layouts were built around.
+	 */
+	travelRatio: 0.7,
+	/**
+	 * How far past either end the knob may be pulled, as a fraction of the travel.
+	 * The reference allows a comparable few pixels; see {@link DRAG_OVERSHOOT_DECAY}
+	 * for why a bound needs *some* give rather than a hard stop.
+	 */
+	overshootRatio: 0.14
+} as const;
+
+/**
+ * Track height and inner padding per size, in CSS pixels. The width is derived
+ * from the knob's idle footprint plus its travel, so it cannot drift out of
+ * agreement with {@link SWITCH_THUMB}.
+ */
+export const SWITCH_SIZES = {
+	sm: { height: 28, padding: 3 },
+	md: { height: 36, padding: 4 }
+} as const;
+
+export type SwitchSize = keyof typeof SWITCH_SIZES;
+
 /** Samples in the 1-D magnitude LUT. 128 keeps a smooth gradient at 8-bit depth. */
 export const LUT_SAMPLES = 128;
 

@@ -88,6 +88,18 @@ export const STRETCH_VELOCITY_FLOOR = 50;
  */
 export const DRAG_INERTIA_SECONDS = 0.06;
 
+/**
+ * Finger travel, in CSS pixels, over which resistance past a drag bound reaches
+ * ~63% of the allowed overshoot.
+ *
+ * A hard clamp at a bound reads as a dropped gesture — the finger keeps moving and
+ * the surface stops dead — while a linear fraction never stops at all. An
+ * exponential gives immediately, then refuses: pull 36px past the end and the
+ * surface has already spent most of the give it will ever offer. Deliberately
+ * short; the point is to show the bound is real, not to make it stretchy.
+ */
+export const DRAG_OVERSHOOT_DECAY = 36;
+
 /** Arrow-key step for keyboard-driven dragging, in CSS pixels. */
 export const KEYBOARD_STEP = 12;
 /** Larger step when Shift is held. */

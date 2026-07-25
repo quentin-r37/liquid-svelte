@@ -4,6 +4,7 @@ import { acquireGlassTransform, type GlassTransform } from './glassTransform.js'
 import {
 	DRAG_ACTIVE_SCALE,
 	DRAG_INERTIA_SECONDS,
+	DRAG_OVERSHOOT_DECAY,
 	DRAG_REST_SCALE,
 	HOVER_LIFT,
 	HOVER_SCALE,
@@ -158,7 +159,14 @@ export interface DragRelease {
 	y: number;
 	velocityX: number;
 	velocityY: number;
-	/** Straight-line distance travelled since the drag started, in CSS pixels. */
+	/**
+	 * Straight-line distance travelled since the drag started, in CSS pixels.
+	 *
+	 * Measured on the *pointer*, not on the surface: a surface pushed against a bound
+	 * stops moving while the finger keeps going, and measuring the surface would then
+	 * report a deliberate 40px shove as a 2px one — which is how a tap-versus-drag
+	 * test ends up calling it a tap.
+	 */
 	distance: number;
 }
 
@@ -166,6 +174,14 @@ export interface DragOptions extends SharedOptions {
 	axis?: 'x' | 'y' | 'both';
 	/** Evaluated on every drag start, so it can follow a resized container. */
 	bounds?: () => DragBounds | null;
+	/**
+	 * How far past `bounds` the pointer may drag the surface, in CSS pixels — an
+	 * asymptote, not a limit that can be reached. `0` (the default) clamps hard.
+	 *
+	 * Only applies to pointer dragging: an arrow key stops at the bound, because
+	 * there is no held gesture for the surface to spring back from.
+	 */
+	overshoot?: number;
 	/** Scale applied while at rest. Set to 1 to disable the pick-up effect. */
 	restScale?: number;
 	/** Support arrow keys when the element has focus. */
@@ -200,6 +216,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 	const {
 		axis = 'both',
 		bounds,
+		overshoot = 0,
 		restScale = DRAG_REST_SCALE,
 		keyboard = true,
 		reduced = false,
@@ -225,6 +242,8 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 	let activePointer: number | null = null;
 	let startPointerX = 0;
 	let startPointerY = 0;
+	let pointerX = 0;
+	let pointerY = 0;
 	let originX = 0;
 	let originY = 0;
 	let limits: DragBounds | null = null;
@@ -237,9 +256,21 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 	let velocityX = 0;
 	let velocityY = 0;
 
+	/**
+	 * Exponential resistance past a bound: the finger's travel is unbounded, the
+	 * surface's is not, and it approaches `overshoot` without ever arriving. See
+	 * {@link DRAG_OVERSHOOT_DECAY}.
+	 */
+	function resist(value: number, min: number, max: number): number {
+		if (overshoot <= 0) return clamp(value, min, max);
+		if (value < min) return min - overshoot * (1 - Math.exp((value - min) / DRAG_OVERSHOOT_DECAY));
+		if (value > max) return max + overshoot * (1 - Math.exp((max - value) / DRAG_OVERSHOOT_DECAY));
+		return value;
+	}
+
 	function positionAt(x: number, y: number) {
-		const nextX = limits ? clamp(x, limits.minX, limits.maxX) : x;
-		const nextY = limits ? clamp(y, limits.minY, limits.maxY) : y;
+		const nextX = limits ? resist(x, limits.minX, limits.maxX) : x;
+		const nextY = limits ? resist(y, limits.minY, limits.maxY) : y;
 		if (allowX) transform.x.set(nextX);
 		if (allowY) transform.y.set(nextY);
 		onMove?.(nextX, nextY);
@@ -255,6 +286,8 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 		limits = bounds?.() ?? null;
 		startPointerX = event.clientX;
 		startPointerY = event.clientY;
+		pointerX = event.clientX;
+		pointerY = event.clientY;
 		originX = transform.x.get();
 		originY = transform.y.get();
 		lastX = originX;
@@ -271,6 +304,9 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 
 	function onPointerMove(event: PointerEvent) {
 		if (event.pointerId !== activePointer) return;
+
+		pointerX = event.clientX;
+		pointerY = event.clientY;
 
 		const { x, y } = positionAt(
 			originX + (event.clientX - startPointerX),
@@ -318,7 +354,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 			y: currentY,
 			velocityX: reduced ? 0 : velocityX,
 			velocityY: reduced ? 0 : velocityY,
-			distance: Math.hypot(currentX - originX, currentY - originY)
+			distance: Math.hypot(pointerX - startPointerX, pointerY - startPointerY)
 		};
 
 		// A little glide on release. Projecting the velocity a few tens of
