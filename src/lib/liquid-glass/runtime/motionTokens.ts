@@ -28,25 +28,43 @@ export const SPRINGS = {
 	 */
 	droplet: { type: 'spring', stiffness: 300, damping: 20, mass: 1 },
 	/**
-	 * A puddle spilling sideways — the first half of a menu opening.
+	 * A puddle spilling sideways — the first half of a menu opening, and the travel
+	 * that carries a morphing panel to the middle of its own box.
 	 *
 	 * Damped at ζ ≈ 0.79, which overshoots its target by under 2%. That is the whole
-	 * budget: liquid spreading into a shape settles *into* its edges, and a panel that
-	 * balloons past its final width and springs back reads as rubber. The looser
-	 * ζ ≈ 0.58 this started at overshot by 6% — 12px on a default panel, plainly
+	 * budget on this axis: liquid spreading into a shape settles *into* its edges, and
+	 * a panel that balloons past its final width and springs back reads as rubber. The
+	 * looser ζ ≈ 0.58 this started at overshot by 6% — 12px on a default panel, plainly
 	 * visible, and visible underneath text that is fading in at the same moment.
-	 */
-	spread: { type: 'spring', stiffness: 360, damping: 30, mass: 1 },
-	/**
-	 * The same puddle filling out on its other axis. Softer and heavier than
-	 * {@link SPRINGS.spread} on purpose: the two axes must not arrive together, or the
-	 * whole thing collapses back into a uniform scale-up.
 	 *
-	 * Left slightly looser than `spread` (ζ ≈ 0.74, ~3% overshoot) because this is the
-	 * axis that arrives last, and a single small settle at the end of the sequence is
-	 * what reads as liquid coming to rest rather than a box stopping.
+	 * The stiffness is where the speed lives, and it is deliberately high: ζω₀ ≈ 20
+	 * puts the width within a percent of final in about 230ms, against the ~310ms of
+	 * the 360 this was. The reference opens a menu in roughly a third of a second
+	 * *including* its sequencing, which leaves each individual axis less than that.
+	 * Raising stiffness while holding ζ buys that without touching the shape of the
+	 * motion — same overshoot, same settle, less of everyone's time.
 	 */
-	rise: { type: 'spring', stiffness: 240, damping: 24, mass: 1.1 }
+	spread: { type: 'spring', stiffness: 640, damping: 40, mass: 1 },
+	/**
+	 * The same puddle filling out on its other axis. Heavier than
+	 * {@link SPRINGS.spread}, and reaching its target later, on purpose: the two axes
+	 * must not arrive together, or the whole thing collapses back into a uniform
+	 * scale-up.
+	 *
+	 * Looser than `spread` — ζ ≈ 0.70 against 0.79, so ~4.5% overshoot against under 2%
+	 * — because this is the axis that arrives last, and the give at the end of the
+	 * sequence is the entire difference between liquid coming to rest and a box
+	 * stopping. On a default panel it is a ten-pixel swell shared between the top and
+	 * bottom edges (the morph scales about its centre), which is a cushion rather than
+	 * a bounce: enough to feel soft, not enough to be seen as a rebound. Deliberately
+	 * spent *here* rather than on the width, where the same 4.5% would push the panel's
+	 * side out past the text settling onto it.
+	 *
+	 * Faster in absolute terms than the 240/24 it replaces (ζω₀ ≈ 14 against 11, so
+	 * ~330ms to settle rather than ~420ms) while staying the slower of the two, which
+	 * is what keeps the sequence legible at the new speed.
+	 */
+	rise: { type: 'spring', stiffness: 440, damping: 31, mass: 1.1 }
 } as const;
 
 export type SpringName = keyof typeof SPRINGS;
@@ -206,6 +224,57 @@ export const MENU_PUDDLE = { scaleX: 0.44, scaleY: 0.06 } as const;
  * to read a sequence — spill, then rise — without the panel feeling slow.
  */
 export const MENU_RISE_DELAY = 0.05;
+
+/**
+ * How long the morphing panel's *travel* has to itself before it starts expanding,
+ * in seconds. Both scale channels wait this out; the rise then waits
+ * {@link MENU_RISE_DELAY} again behind the spread.
+ *
+ * A morph opens from the middle of the box the menu is about to fill, and the surface
+ * has to be seen going there. Started together, the translation is swallowed whole by
+ * the scale — the box grows past its own travel within a frame or two and what is left
+ * reads as a panel that simply appeared slightly off-centre.
+ *
+ * Three frames, which is the least that reads as a departure and the most that can be
+ * spent on one: it is pure latency between the press and anything opening, and it lands
+ * on top of {@link MENU_RISE_DELAY} for the axis that already waits. Held at 70ms
+ * against the springs above it was a menu that acknowledged the press and *then*
+ * opened; the two must overlap, which is the difference between one object moving and
+ * two animations played in order.
+ *
+ * It is a *lead*, not a pause. The travel spring is running throughout; this only
+ * says how much of it happens alone.
+ */
+export const MENU_MORPH_LEAD = 0.045;
+
+/**
+ * The pinch a morphing panel makes on its way out of the trigger, and how long it
+ * takes to come back out of it.
+ *
+ * A menu is wider than the button that opened it, but rarely by much: a pill with a
+ * word in it starts two thirds of the way to the panel's width, so the sideways spill
+ * has almost no distance left to cover and the whole opening reads as purely vertical.
+ * The height grows sixfold and the width by half, and the eye sees only the height.
+ *
+ * The gather is what gives the width something to do. The patch draws in on itself as
+ * it leaves the trigger and then spills out of a shape narrow enough for the spill to
+ * be seen — on a default panel, from a third of the final width rather than two thirds,
+ * which is the difference between an expansion and a nudge. It is also the more liquid
+ * of the two readings, since liquid gathers before it spreads, and it is textbook
+ * anticipation: a movement backwards is what makes the movement forwards look intended.
+ *
+ * `scale` is a fraction of the *trigger's* width, not the panel's, so a wide trigger
+ * and a narrow one pinch by the same proportion of themselves rather than one of them
+ * being squeezed to a sliver.
+ *
+ * The pinch is not timed here — it takes exactly {@link MENU_MORPH_LEAD}, the window
+ * the travel already has to itself, so the surface is at its narrowest at the precise
+ * moment the spread begins. `release` is the other side of it, and it deliberately
+ * outlasts the spread spring it composes with: the width is still coming out of the
+ * pinch while the height is rising, which is what makes both axes look like they are
+ * opening rather than one following the other.
+ */
+export const MENU_MORPH_GATHER = { scale: 0.45, release: 0.26 } as const;
 
 /**
  * The collapse, on both axes at once. The one animation in this library that is not

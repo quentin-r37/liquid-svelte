@@ -10,6 +10,8 @@
 	import { MENU_GEOMETRY, MENU_GLASS_OPEN, MENU_GLASS_REST } from './runtime/glassTokens.js';
 	import {
 		MENU_COLLAPSE,
+		MENU_MORPH_GATHER,
+		MENU_MORPH_LEAD,
 		MENU_PUDDLE,
 		MENU_RISE_DELAY,
 		REDUCED_MOTION_TRANSITION,
@@ -152,29 +154,55 @@
 	$effect(() => droplet.setReduced(reducedMotion.current));
 	$effect(() => () => droplet.destroy());
 
+	interface MorphStart {
+		/** Scales on the two reveal channels. */
+		scaleX: number;
+		scaleY: number;
+		/** Offset of the collapsed patch from the panel's own centre, in CSS pixels. */
+		x: number;
+		y: number;
+		/** Seconds the travel gets to itself before the scales join it. */
+		lead: number;
+		/** Fraction of its own width the patch pinches to first. 1 is no pinch. */
+		gather: number;
+	}
+
 	/**
-	 * The shape the panel starts from and collapses back into, as scales on the two
-	 * reveal channels.
+	 * The state the panel starts from and collapses back into: how small, how far from
+	 * where it will end up, and how much of that journey it makes alone.
 	 *
-	 * Under `morph` that is the trigger's own box, and it has to be *measured* — the
-	 * two boxes are whatever their content made them. Nothing has to be translated to
-	 * line them up: a morphing panel is anchored *on* the trigger rather than offset
-	 * below it (see the placement rules), so the two share a corner in layout, and a
-	 * scale leaves its `transform-origin` exactly where it is. The panel therefore
-	 * grows out of the trigger's footprint and settles over it — the button's place is
-	 * the menu's place, which is the whole point of a morph. It is also why the gap
-	 * disappears in this mode: there is no longer a trigger beside it to be separated
-	 * from.
+	 * Under `morph` this is the trigger, exactly — a patch of the panel the size of the
+	 * button, sitting on the button. Both figures have to be *measured*: the two boxes
+	 * are whatever their content made them.
+	 *
+	 * The offset is centre to centre, and the panel scales about its own centre (see
+	 * the `transform-origin` override), which together are what make the opening read
+	 * as the button *going somewhere*. The button leaves its place, arrives at the
+	 * middle of the box the menu is about to occupy, and opens out of it in every
+	 * direction at once — rather than a corner of the menu being pinned to a corner of
+	 * the button and the rest unrolling off it. The panel's resting place is still the
+	 * trigger's own (the gap does not apply here), so the travel is only ever the
+	 * difference between the centre of a small box and the centre of the larger one it
+	 * grows into.
 	 *
 	 * Read at the top of every opening rather than cached. The panel is measurable
 	 * while closed (`visibility: hidden` is laid out, which is half of why it stays
 	 * mounted), but a menu whose items or trigger changed in the meantime would
 	 * otherwise morph out of a box that no longer exists.
 	 *
-	 * Without `morph`, the declared puddle — the original opening, unchanged.
+	 * Without `morph`, the declared puddle, no travel, no lead and no pinch — the
+	 * original opening, unchanged. Its puddle is already 44% of the panel's width, so
+	 * the width has its own distance to cover there and needs no help finding some.
 	 */
-	function morphStart(): { scaleX: number; scaleY: number } {
-		const puddle = { scaleX: MENU_PUDDLE.scaleX, scaleY: MENU_PUDDLE.scaleY };
+	function morphStart(): MorphStart {
+		const puddle = {
+			scaleX: MENU_PUDDLE.scaleX,
+			scaleY: MENU_PUDDLE.scaleY,
+			x: 0,
+			y: 0,
+			lead: 0,
+			gather: 1
+		};
 		if (!morph || !triggerElement || !panelElement) return puddle;
 
 		const panelWidth = panelElement.offsetWidth;
@@ -184,9 +212,25 @@
 		// not a state it can animate out of.
 		if (panelWidth === 0 || panelHeight === 0) return puddle;
 
+		const triggerWidth = triggerElement.offsetWidth;
+		const triggerHeight = triggerElement.offsetHeight;
+
 		return {
-			scaleX: triggerElement.offsetWidth / panelWidth,
-			scaleY: triggerElement.offsetHeight / panelHeight
+			scaleX: triggerWidth / panelWidth,
+			scaleY: triggerHeight / panelHeight,
+			/*
+			 * Both boxes measured against the wrapper, which is the offset parent of the
+			 * absolutely positioned panel and of the static trigger alike.
+			 *
+			 * `offsetLeft`/`offsetTop` rather than `getBoundingClientRect`, and that is not
+			 * a preference: these are *layout* positions, untouched by the transform this
+			 * is about to write, while the rect would report the panel's currently
+			 * translated and scaled box and feed the animation straight back into itself.
+			 */
+			x: triggerElement.offsetLeft + triggerWidth / 2 - (panelElement.offsetLeft + panelWidth / 2),
+			y: triggerElement.offsetTop + triggerHeight / 2 - (panelElement.offsetTop + panelHeight / 2),
+			lead: MENU_MORPH_LEAD,
+			gather: MENU_MORPH_GATHER.scale
 		};
 	}
 
@@ -215,12 +259,18 @@
 			const start = untrack(morphStart);
 			transform.revealX.set(start.scaleX);
 			transform.revealY.set(start.scaleY);
+			transform.x.set(start.x);
+			transform.y.set(start.y);
+			transform.stretchX.set(1);
 		}
 		panelTransform = transform;
 		return () => {
 			panelTransform = null;
 			transform.revealX.set(1);
 			transform.revealY.set(1);
+			transform.x.set(0);
+			transform.y.set(0);
+			transform.stretchX.set(1);
 			transform.release();
 		};
 	});
@@ -235,11 +285,16 @@
 	 * whichever corner the trigger is on, and lives in CSS because Motion owns
 	 * `transform` but not its origin.
 	 *
-	 * Still two channels and nothing else under `morph`. The panel has no distance to
-	 * travel there — it is laid out on the trigger, so the corner they share is already
-	 * where it belongs and only the far one moves. What differs is where the scales
-	 * start: the trigger's measured box rather than the declared puddle (see
-	 * {@link morphStart}).
+	 * Under `morph` the same two springs run behind two more movements, and the order is
+	 * the effect. The panel is a button-sized patch sitting on the button; for
+	 * {@link MENU_MORPH_LEAD} it has the stage to itself, *travelling* to the centre of
+	 * the box the menu will fill and *pinching* in as it goes
+	 * ({@link MENU_MORPH_GATHER}), and only then does it spill and rise out of that
+	 * centre — which is why both scales carry the lead as a delay and the origin moves
+	 * to the middle of the panel. Without the lead the expansion outruns the travel
+	 * inside two frames and there is nothing left to see but a panel that appeared
+	 * slightly off-centre; without the pinch the width has almost nowhere to expand
+	 * from, and the opening reads as vertical only.
 	 *
 	 * Closing is neither sequenced nor sprung: both axes collapse together on a plain
 	 * monotone curve — see {@link MENU_COLLAPSE} for why an exit must not overshoot —
@@ -267,6 +322,12 @@
 			if (!untrack(() => present)) {
 				transform.revealX.set(start.scaleX);
 				transform.revealY.set(start.scaleY);
+				transform.x.set(start.x);
+				transform.y.set(start.y);
+				// The pinch is a deformation the opening applies and takes back; parking it
+				// at square is what guarantees the patch is the trigger's box exactly, on
+				// the frame the trigger stops being drawn.
+				transform.stretchX.set(1);
 			}
 			present = true;
 
@@ -291,18 +352,74 @@
 
 		const collapse = reduced ? REDUCED_MOTION_TRANSITION : MENU_COLLAPSE;
 
+		// The travel to the centre of the final box, on the same spring as the spread it
+		// leads. Closing runs it on the collapse curve alongside everything else — the
+		// panel shrinks *and* returns within one 170ms move, because an exit that
+		// retraced the opening's sequence backwards would take longer than the opening
+		// it is undoing.
+		const travelX = animate(
+			transform.x,
+			opening ? 0 : start.x,
+			opening ? springFor('spread', reduced) : collapse
+		);
+		const travelY = animate(
+			transform.y,
+			opening ? 0 : start.y,
+			opening ? springFor('spread', reduced) : collapse
+		);
 		const spreadX = animate(
 			transform.revealX,
 			opening ? 1 : start.scaleX,
-			opening ? springFor('spread', reduced) : collapse
+			opening ? { ...springFor('spread', reduced), delay: reduced ? 0 : start.lead } : collapse
 		);
 		const riseY = animate(
 			transform.revealY,
 			opening ? 1 : start.scaleY,
-			opening ? { ...springFor('rise', reduced), delay: reduced ? 0 : MENU_RISE_DELAY } : collapse
+			opening
+				? { ...springFor('rise', reduced), delay: reduced ? 0 : start.lead + MENU_RISE_DELAY }
+				: collapse
 		);
+
+		const animations = [travelX, travelY, spreadX, riseY];
+
+		/*
+		 * The gather (see {@link MENU_MORPH_GATHER}), and the one animation here that is
+		 * neither a spring nor part of the panel's geometry.
+		 *
+		 * It rides `stretchX` rather than `revealX` because the composed transform
+		 * multiplies the two: the spread keeps its spring to itself and the pinch
+		 * composes on top, instead of one animation having to describe a departure and a
+		 * return at once. Which is also why it is keyframed — a spring goes to a value
+		 * and stays there, and this leaves 1 only to come back to it. The first keyframe
+		 * is read off the channel rather than assumed, so an opening interrupted
+		 * mid-pinch resumes from where the width actually stood.
+		 *
+		 * `easeInOut` across both segments on purpose: the slow start of the second one
+		 * holds the surface at its narrowest for a few frames after the spread has begun,
+		 * which is the beat that makes the spill read as a release rather than as a
+		 * scale. Reduced motion skips the whole thing — anticipation is precisely the
+		 * kind of extra movement that setting asks not to be shown — and the `else`
+		 * branch is what returns a half-pinched panel to square on close.
+		 */
+		const gathering = opening && !reduced && start.gather < 1;
+		if (gathering || transform.stretchX.get() !== 1) {
+			animations.push(
+				animate(
+					transform.stretchX,
+					gathering ? [transform.stretchX.get(), start.gather, 1] : 1,
+					gathering
+						? {
+								duration: start.lead + MENU_MORPH_GATHER.release,
+								times: [0, start.lead / (start.lead + MENU_MORPH_GATHER.release), 1],
+								ease: 'easeInOut'
+							}
+						: collapse
+				)
+			);
+		}
+
 		let cancelled = false;
-		Promise.all([spreadX.finished, riseY.finished])
+		Promise.all(animations.map((animation) => animation.finished))
 			.then(() => {
 				if (cancelled) return;
 				settle();
@@ -320,8 +437,7 @@
 		return () => {
 			cancelled = true;
 			settle();
-			spreadX.stop();
-			riseY.stop();
+			for (const animation of animations) animation.stop();
 		};
 	});
 
@@ -576,10 +692,27 @@
 		 * is exactly what a morph is not.
 		 */
 		--lg-menu-offset: calc(100% + var(--lg-menu-gap));
+
+		/*
+		 * How long the items wait before fading in — see the rule on `.lg-menu-list` for
+		 * what the delay is for. It has to sit here rather than there because it is a
+		 * property of the *opening*, and a morph pushes its whole expansion back by
+		 * `MENU_MORPH_LEAD` to make room for the travel. The two must move together:
+		 * text fading in over a panel that has not started growing yet is the
+		 * squashed-label problem the delay exists to avoid, arrived at from the other
+		 * side.
+		 *
+		 * Both figures are the old 90ms scaled by how much faster the springs now are,
+		 * plus the lead where there is one. They are a fraction of the spread, not a
+		 * measurement of it: what has to be true is that the panel is visibly on its way
+		 * before any text is on it.
+		 */
+		--lg-menu-content-delay: 70ms;
 	}
 
 	.lg-menu[data-morph='true'] {
 		--lg-menu-offset: 0px;
+		--lg-menu-content-delay: 115ms;
 	}
 
 	/*
@@ -666,6 +799,23 @@
 	}
 
 	/*
+	 * A morph grows from the middle of the box it is going to fill, so it overrides
+	 * every corner above — deliberately after them, since the two selectors weigh the
+	 * same and source order is what settles it.
+	 *
+	 * The origin is what makes the travel and the expansion describe one object. The
+	 * panel's collapsed patch is placed on the trigger by a translation (see
+	 * {@link morphStart}), and a scale about the centre leaves that translation meaning
+	 * the same thing at every size: the patch is centred on wherever it has travelled
+	 * to. A corner origin would instead pin one corner of the growing panel and swing
+	 * the patch off the button the moment the scale moved, which is the opening this
+	 * replaced.
+	 */
+	.lg-menu[data-morph='true'] :global(.lg-menu-panel) {
+		transform-origin: center;
+	}
+
+	/*
 	 * The items fade in behind the spread rather than with it.
 	 *
 	 * They are inside the panel, so they are squashed by the same scale that opens it —
@@ -698,8 +848,8 @@
 		opacity: 1;
 		transform: none;
 		transition:
-			opacity 170ms ease 90ms,
-			transform 240ms cubic-bezier(0.2, 0.8, 0.3, 1) 90ms;
+			opacity 170ms ease var(--lg-menu-content-delay),
+			transform 240ms cubic-bezier(0.2, 0.8, 0.3, 1) var(--lg-menu-content-delay);
 	}
 
 	.lg-menu-item {
