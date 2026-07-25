@@ -1,12 +1,18 @@
 import type { SurfaceProfile } from '../liquidGlass.types.js';
-import { DERIVATIVE_DELTA, GLASS_IOR, LUT_SAMPLES } from '../runtime/glassTokens.js';
+import {
+	BEZEL_THICKNESS_RATIO,
+	DERIVATIVE_DELTA,
+	GLASS_IOR,
+	LUT_SAMPLES
+} from '../runtime/glassTokens.js';
 
 /**
  * Surface height functions, normalised on `x ∈ [0, 1]`.
  *
  * `x = 0` is the outer edge of the glass, `x = 1` the inner boundary of the
- * bezel where the surface becomes flat. Only the *slope* of these functions is
- * ever used, which is why a flat centre (slope 0) stays optically stable.
+ * bezel where the surface becomes flat. Both the height *and* its slope matter:
+ * the slope sets how far the ray is bent, the height sets how much glass it then
+ * has to travel through.
  */
 type HeightFunction = (x: number) => number;
 
@@ -45,22 +51,40 @@ const HEIGHT_FUNCTIONS: Record<SurfaceProfile, HeightFunction> = {
 };
 
 /**
- * Lateral offset a vertical ray picks up crossing a surface tilted by `slope`,
- * per unit of glass thickness.
+ * Lateral travel of a vertical ray crossing the glass, in units of the centre
+ * glass thickness.
  *
- * Snell's law: a normal tilted `θ` from vertical refracts the ray by
- * `δ = θ − asin(sin θ / n)`, and the ray then travels laterally by `tan δ`.
+ * This is Snell's law in vector form. Given the inward surface normal `n` and
+ * `η = 1 / ior`, the refracted direction is
+ * `η·i − (η·cosθ + √k)·n` with `k = 1 − η²(1 − cos²θ)`; `k < 0` means total
+ * internal reflection and no transmitted ray at all. The lateral offset is then
+ * the ray's horizontal/vertical component ratio times the distance it travels.
  *
- * Using this instead of the raw derivative matters a lot in practice. Convex
- * profiles have an *infinite* slope at the outer edge (`⁴√` and `√` both do),
- * so normalising raw slopes would collapse the whole LUT into a one-pixel
- * spike. `tan δ` saturates at ~1.12 for `n = 1.5`, which yields a refraction
- * that decays smoothly across the bezel and reaches zero at the flat centre.
+ * Doing the full vector refraction rather than a small-angle approximation
+ * matters at the rim, where convex profiles have an *infinite* slope: the exact
+ * form saturates at a finite offset (≈1.12 thicknesses for ior 1.5) instead of
+ * blowing up, which is what keeps the profile a smooth ramp rather than a
+ * one-pixel spike.
  */
-function snellOffset(slope: number): number {
-	const theta = Math.atan(Math.abs(slope));
-	const deviation = theta - Math.asin(Math.sin(theta) / GLASS_IOR);
-	return Math.tan(deviation);
+function lateralOffset(slope: number, height: number): number {
+	const eta = 1 / GLASS_IOR;
+	const length = Math.hypot(slope, 1);
+
+	// Normal pointing down into the glass.
+	const normalX = -slope / length;
+	const normalY = -1 / length;
+
+	const cosTheta = normalY;
+	const k = 1 - eta * eta * (1 - cosTheta * cosTheta);
+	if (k < 0) return 0;
+
+	const f = eta * cosTheta + Math.sqrt(k);
+	const rayX = -f * normalX;
+	const rayY = eta - f * normalY;
+	if (rayY === 0) return 0;
+
+	// Thickness grows from the rim towards the flat centre.
+	return (rayX / rayY) * (1 + height * BEZEL_THICKNESS_RATIO);
 }
 
 const lutCache = new Map<SurfaceProfile, Float32Array>();
@@ -68,15 +92,13 @@ const lutCache = new Map<SurfaceProfile, Float32Array>();
 /**
  * Signed, normalised refraction magnitude versus normalised depth into the bezel.
  *
- * The sign carries the direction: positive pushes the sample point *outwards*
- * along the edge normal (convex glass compresses the surroundings into the
- * rim), negative pulls it inwards (concave). Values are normalised so the peak
- * absolute magnitude is exactly 1, which makes the SVG filter's `scale`
+ * The sign carries the direction along the edge normal. Values are normalised so
+ * the peak absolute magnitude is exactly 1, which makes the filter's `scale`
  * attribute the single knob for refraction strength.
  *
  * The LUT depends only on the profile — never on the element's size — so it is
- * built at most once per profile for the whole page. That is what makes
- * resizing cheap: only the per-pixel SDF has to be re-evaluated.
+ * built at most once per profile for the whole page. That is what makes resizing
+ * cheap: only the per-pixel SDF has to be re-evaluated.
  */
 export function getMagnitudeLut(profile: SurfaceProfile): Float32Array {
 	const cached = lutCache.get(profile);
@@ -87,9 +109,13 @@ export function getMagnitudeLut(profile: SurfaceProfile): Float32Array {
 	let peak = 0;
 
 	for (let i = 0; i < LUT_SAMPLES; i += 1) {
-		const x = i / (LUT_SAMPLES - 1);
-		const slope = (f(x + DERIVATIVE_DELTA) - f(x - DERIVATIVE_DELTA)) / (2 * DERIVATIVE_DELTA);
-		const magnitude = Math.sign(slope) * snellOffset(slope);
+		const x = i / LUT_SAMPLES;
+		const height = f(x);
+		// Forward difference: a central difference would step outside [0, 1] at the
+		// rim, exactly where the profile is steepest and accuracy matters most.
+		const slope = (f(Math.min(1, x + DERIVATIVE_DELTA)) - height) / DERIVATIVE_DELTA;
+		const magnitude = lateralOffset(slope, height);
+
 		lut[i] = magnitude;
 		peak = Math.max(peak, Math.abs(magnitude));
 	}

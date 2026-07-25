@@ -1,6 +1,8 @@
 <script lang="ts">
 	import LiquidGlassFilter from './LiquidGlassFilter.svelte';
-	import { getDisplacementMap, quantiseSize } from './displacement/createDisplacementMap.js';
+	import { getDisplacementMap } from './displacement/createDisplacementMap.js';
+	import { getSpecularMap, specularWidthFor } from './displacement/createSpecularMap.js';
+	import { quantiseSize } from './displacement/mapCache.js';
 	import type { LiquidGlassProps } from './liquidGlass.types.js';
 	import { applyGlassStyle } from './runtime/applyGlassStyle.js';
 	import {
@@ -8,7 +10,11 @@
 		resolveGlassSupport,
 		resolveTier
 	} from './runtime/capabilities.svelte.js';
-	import { GLASS_DEFAULTS, QUALITY_PRESETS } from './runtime/glassTokens.js';
+	import {
+		DISPLACEMENT_PER_BEZEL,
+		GLASS_DEFAULTS,
+		QUALITY_PRESETS
+	} from './runtime/glassTokens.js';
 	import { trackPointer } from './runtime/pointerTracking.js';
 	import { observeSize } from './runtime/sharedResizeObserver.js';
 	import './liquidGlass.css';
@@ -18,7 +24,7 @@
 		height,
 		borderRadius = GLASS_DEFAULTS.borderRadius,
 		bezel = GLASS_DEFAULTS.bezel,
-		displacement = GLASS_DEFAULTS.displacement,
+		displacement,
 		blur = GLASS_DEFAULTS.blur,
 		opacity = GLASS_DEFAULTS.opacity,
 		saturation = GLASS_DEFAULTS.saturation,
@@ -82,24 +88,28 @@
 	const resolvedHeight = $derived(height ?? measured.height);
 	const hasGeometry = $derived(resolvedWidth > 0 && resolvedHeight > 0);
 
-	/** Geometry clamps, shared by the CSS variables and the map generator. */
+	/** Geometry clamps, shared by the CSS variables and the map generators. */
 	const limit = $derived(hasGeometry ? Math.min(resolvedWidth, resolvedHeight) / 2 : 0);
 	const clampedRadius = $derived(hasGeometry ? Math.min(borderRadius, limit) : borderRadius);
 	const clampedBezel = $derived(hasGeometry ? Math.min(bezel, limit) : bezel);
 
 	/**
-	 * Chromatic aberration is a 3-pass chain, so it is gated on the quality preset
-	 * rather than on the prop alone.
+	 * A fixed pixel figure stops looking right the moment the bezel changes, so the
+	 * default scales with it. The multiplier is large by design — see
+	 * `DISPLACEMENT_PER_BEZEL`.
 	 */
+	const effectiveDisplacement = $derived(displacement ?? clampedBezel * DISPLACEMENT_PER_BEZEL);
+
+	/** Chromatic aberration is a 3-pass chain, so the quality preset gates it. */
 	const effectiveAberration = $derived(preset.chromatic ? chromaticAberration : 0);
 
 	/**
-	 * The map is rebuilt only when quantised geometry, profile or resolution
-	 * change. Displacement strength, blur, saturation and aberration are live
-	 * filter attributes, so those props can be animated without ever touching the
-	 * canvas.
+	 * The maps are rebuilt only when quantised geometry, profile or resolution
+	 * change. Displacement strength, blur, saturation, aberration and specular
+	 * intensity are all live filter attributes, so those props can be animated
+	 * without ever touching the canvas.
 	 */
-	const map = $derived(
+	const displacementMap = $derived(
 		requestedTier === 'full' && hasGeometry
 			? getDisplacementMap({
 					width: resolvedWidth,
@@ -112,28 +122,37 @@
 			: null
 	);
 
+	const specularMap = $derived(
+		requestedTier === 'full' && hasGeometry && preset.specular
+			? getSpecularMap({
+					width: resolvedWidth,
+					height: resolvedHeight,
+					radius: clampedRadius,
+					rimWidth: specularWidthFor(clampedBezel)
+				})
+			: null
+	);
+
 	/**
 	 * Fall back to the degraded backdrop while a `full` surface is still measuring
 	 * or rasterising, so the glass is never momentarily invisible.
 	 */
-	const tier = $derived(requestedTier === 'full' && !map ? 'degraded' : requestedTier);
+	const tier = $derived(requestedTier === 'full' && !displacementMap ? 'degraded' : requestedTier);
 
 	const backdrop = $derived.by(() => {
 		if (tier === 'full') return `url(#${filterId})`;
 		// The SVG chain carries blur and saturation for the full tier; the degraded
-		// tier has to express them as CSS filter functions. Doubling the radius
-		// compensates for the loss of refraction, which normally does much of the
-		// visual work of separating the glass from its backdrop.
-		if (tier === 'degraded') return `blur(${blur * 2}px) saturate(${saturation})`;
+		// tier has to express them as CSS filter functions. The radius is raised a
+		// long way because without refraction the blur is all that separates the
+		// glass from its backdrop.
+		if (tier === 'degraded') return `blur(${Math.max(6, blur * 12)}px) saturate(${saturation})`;
 		return 'none';
 	});
 
 	const glassStyle = $derived({
 		'--lg-radius': `${clampedRadius}px`,
 		'--lg-bezel': `${clampedBezel}px`,
-		'--lg-blur': `${blur}px`,
 		'--lg-tint': String(opacity),
-		'--lg-saturation': String(saturation),
 		'--lg-specular': String(specularIntensity),
 		'--lg-shadow': String(shadowIntensity),
 		'--lg-backdrop': backdrop,
@@ -159,16 +178,18 @@
 	{@attach trackPointer(trackingOptions)}
 	{...rest}
 >
-	{#if tier === 'full' && map}
+	{#if tier === 'full' && displacementMap}
 		<LiquidGlassFilter
 			id={filterId}
-			{map}
+			{displacementMap}
+			{specularMap}
 			width={resolvedWidth}
 			height={resolvedHeight}
-			{displacement}
+			displacement={effectiveDisplacement}
 			chromaticAberration={effectiveAberration}
 			{blur}
 			{saturation}
+			{specularIntensity}
 		/>
 	{/if}
 

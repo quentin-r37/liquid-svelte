@@ -17,11 +17,20 @@
  * `opacity` property, and blending / masking happens only on layers painted
  * *above* the refraction.
  *
+ * ## Where the look comes from
+ *
+ * In the `full` tier almost all of it is in the SVG filter: the refraction and,
+ * crucially, the generated specular hairline (see `createSpecularMap.ts`). The
+ * CSS layers here stay deliberately faint — a heavy white sheet or a thick
+ * gradient border is exactly what makes an effect like this read as cheap. The
+ * softer CSS rim light only switches on for the `degraded` and `flat` tiers,
+ * which have no SVG specular to fall back on.
+ *
  * ## Custom properties
  *
  * Set by the component:
- *   --lg-radius, --lg-bezel, --lg-blur, --lg-tint, --lg-saturation,
- *   --lg-specular, --lg-shadow, --lg-elevation
+ *   --lg-radius, --lg-bezel, --lg-tint, --lg-specular, --lg-shadow,
+ *   --lg-backdrop, --lg-elevation
  * Set by pointer tracking (see runtime/pointerTracking.ts):
  *   --pointer-x, --pointer-y, --velocity-x, --velocity-y,
  *   --highlight-x, --highlight-y, --pointer-inside
@@ -29,20 +38,16 @@
 
 .lg {
 	--lg-radius: 28px;
-	--lg-bezel: 16px;
-	--lg-blur: 3px;
-	--lg-tint: 0.12;
-	--lg-saturation: 1.5;
-	--lg-specular: 0.6;
+	--lg-bezel: 24px;
+	--lg-tint: 0.05;
+	--lg-specular: 0.8;
 	--lg-shadow: 0.5;
 	--lg-elevation: 4px;
 	--lg-border-width: 1px;
 	--lg-light-angle: 145deg;
 
-	/* Scheme-agnostic base: a low-alpha white sheet plus soft dark inner shading
+	/* Scheme-agnostic base: a very low-alpha white sheet plus soft inner shading
 	   reads correctly on light and dark backdrops alike. */
-	--lg-tint-top: 255 255 255;
-	--lg-tint-bottom: 255 255 255;
 	--lg-tint-boost: 1;
 	--lg-rim: 255 255 255;
 	--lg-shade: 0 0 0;
@@ -57,17 +62,17 @@
 	-webkit-tap-highlight-color: transparent;
 
 	box-shadow:
-		0 1px 2px rgb(var(--lg-shade) / calc(0.06 * var(--lg-shadow))),
+		0 1px 2px rgb(var(--lg-shade) / calc(0.05 * var(--lg-shadow))),
 		0 var(--lg-elevation) calc(var(--lg-elevation) * 3)
-			rgb(var(--lg-shade) / calc(0.14 * var(--lg-shadow))),
+			rgb(var(--lg-shade) / calc(0.16 * var(--lg-shadow))),
 		0 calc(var(--lg-elevation) * 2) calc(var(--lg-elevation) * 7)
 			rgb(var(--lg-shade) / calc(0.1 * var(--lg-shadow)));
 }
 
 @media (prefers-color-scheme: dark) {
 	.lg {
-		--lg-tint-boost: 1.35;
-		--lg-shadow: 0.75;
+		--lg-tint-boost: 1.3;
+		--lg-shadow: 0.8;
 	}
 }
 
@@ -76,7 +81,7 @@
 	--lg-tint-boost: 1;
 }
 .lg[data-scheme='dark'] {
-	--lg-tint-boost: 1.35;
+	--lg-tint-boost: 1.3;
 }
 
 .lg[data-disabled='true'] {
@@ -85,7 +90,7 @@
 	cursor: not-allowed;
 }
 
-/* Reset native chrome when the host element is a button or an input label. */
+/* Reset native chrome when the host element is a button, link or input label. */
 .lg:is(button, label, a) {
 	appearance: none;
 	border: 0;
@@ -111,28 +116,32 @@
 
 /* 1. Refraction — the only layer that touches the backdrop. */
 .lg-refraction {
-	/* `filter: url()` in backdrop-filter is Chromium-only; the SVG chain already
-	   contains the blur and saturation for this tier. */
+	/* `url()` in backdrop-filter is Chromium-only; the SVG chain carries the blur,
+	   saturation and specular for that tier. */
 	backdrop-filter: var(--lg-backdrop);
 	-webkit-backdrop-filter: var(--lg-backdrop);
 }
 
-/* 2. Tint — a faint, slightly warm sheet. Never an opaque white slab. */
+/* 2. Tint — barely there. Never an opaque white slab. */
 .lg-tint {
 	background: linear-gradient(
 		var(--lg-light-angle),
-		rgb(var(--lg-tint-top) / calc(var(--lg-tint) * var(--lg-tint-boost) * 1.15)) 0%,
-		rgb(var(--lg-tint-top) / calc(var(--lg-tint) * var(--lg-tint-boost) * 0.55)) 45%,
-		rgb(var(--lg-tint-bottom) / calc(var(--lg-tint) * var(--lg-tint-boost) * 0.9)) 100%
+		rgb(var(--lg-rim) / calc(var(--lg-tint) * var(--lg-tint-boost) * 1.3)) 0%,
+		rgb(var(--lg-rim) / calc(var(--lg-tint) * var(--lg-tint-boost) * 0.6)) 50%,
+		rgb(var(--lg-rim) / calc(var(--lg-tint) * var(--lg-tint-boost) * 1)) 100%
 	);
+}
+
+.lg[data-tier='degraded'] .lg-tint {
+	--lg-tint-boost: 1.8;
 }
 
 .lg[data-tier='flat'] .lg-tint {
 	/* Without any backdrop filtering the tint has to carry legibility on its own. */
-	--lg-tint-boost: 3.2;
+	--lg-tint-boost: 4;
 }
 
-/* 3 & 4. Luminous rim border, and soft inner shadows. */
+/* 3 & 4. Edge line, and soft inner shadows. */
 .lg-edge::before,
 .lg-edge::after {
 	content: '';
@@ -144,15 +153,17 @@
 
 .lg-edge::before {
 	padding: var(--lg-border-width);
+	/* Faint and near-uniform. The bright, normal-following rim comes from the SVG
+	   specular map; a strong CSS gradient here would fight it and win, flattening
+	   the edge back into a sticker outline. */
 	background: linear-gradient(
 		var(--lg-light-angle),
-		rgb(var(--lg-rim) / 0.75) 0%,
-		rgb(var(--lg-rim) / 0.18) 28%,
-		rgb(var(--lg-rim) / 0.06) 52%,
-		rgb(var(--lg-rim) / 0.2) 74%,
-		rgb(var(--lg-rim) / 0.5) 100%
+		rgb(var(--lg-rim) / 0.3) 0%,
+		rgb(var(--lg-rim) / 0.12) 40%,
+		rgb(var(--lg-rim) / 0.1) 60%,
+		rgb(var(--lg-rim) / 0.22) 100%
 	);
-	/* A 1px gradient ring: paint the whole box, then punch out the content box. */
+	/* A 1px ring: paint the whole box, then punch out the content box. */
 	-webkit-mask:
 		linear-gradient(#000 0 0) content-box,
 		linear-gradient(#000 0 0);
@@ -163,42 +174,73 @@
 	mask-composite: exclude;
 }
 
-.lg-edge::after {
-	box-shadow:
-		inset 0 1px 1px rgb(var(--lg-rim) / 0.32),
-		inset 0 -1px 1px rgb(var(--lg-rim) / 0.14),
-		inset 0 calc(var(--lg-bezel) * -0.3) calc(var(--lg-bezel) * 0.75) rgb(var(--lg-shade) / 0.12),
-		inset 0 calc(var(--lg-bezel) * 0.22) calc(var(--lg-bezel) * 0.6) rgb(var(--lg-shade) / 0.07);
+/* Without an SVG specular the edge has to do more work on its own. */
+.lg:not([data-tier='full']) .lg-edge::before {
+	background: linear-gradient(
+		var(--lg-light-angle),
+		rgb(var(--lg-rim) / 0.7) 0%,
+		rgb(var(--lg-rim) / 0.16) 32%,
+		rgb(var(--lg-rim) / 0.08) 55%,
+		rgb(var(--lg-rim) / 0.45) 100%
+	);
 }
 
-/* 6. Specular highlight — pointer-driven glow plus a static rim light. */
+.lg-edge::after {
+	/* Light from above, shade below — the cue that reads as thickness. */
+	box-shadow:
+		inset 0 1px 1px rgb(var(--lg-rim) / 0.22),
+		inset 0 calc(var(--lg-bezel) * 0.08) calc(var(--lg-bezel) * 0.7) rgb(var(--lg-shade) / 0.09),
+		inset 0 calc(var(--lg-bezel) * -0.08) calc(var(--lg-bezel) * 0.7) rgb(var(--lg-rim) / 0.07);
+}
+
+/*
+ * Registering the property is what allows it to be transitioned: pointer tracking
+ * flips it between 0 and 1 discretely, and an unregistered custom property would
+ * jump. Transitioning it rather than the layer's `opacity` keeps the static rim
+ * light in `::before` independent of the pointer glow.
+ */
+@property --pointer-inside {
+	syntax: '<number>';
+	inherits: true;
+	initial-value: 0;
+}
+
+/* 6. Specular — pointer-driven glow. */
+.lg {
+	transition: --pointer-inside 260ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
 .lg-specular {
 	overflow: hidden;
+	/* Gated on `--pointer-inside` inside the colour rather than via the layer's
+	   opacity: at rest the SVG rim *is* the highlight, and a static blob layered on
+	   top of it just looks foggy. */
 	background: radial-gradient(
 		circle at var(--highlight-x, 50%) var(--highlight-y, 50%),
-		rgb(var(--lg-rim) / 0.5) 0%,
-		rgb(var(--lg-rim) / 0.12) 34%,
-		rgb(var(--lg-rim) / 0) 66%
+		rgb(var(--lg-rim) / calc(0.3 * var(--lg-specular) * var(--pointer-inside, 0))) 0%,
+		rgb(var(--lg-rim) / calc(0.08 * var(--lg-specular) * var(--pointer-inside, 0))) 38%,
+		rgb(var(--lg-rim) / 0) 68%
 	);
 	mix-blend-mode: screen;
-	/* Dim at rest, full strength while the pointer is over the surface. This is a
-	   purely decorative fade, so a CSS transition is appropriate here. */
-	opacity: calc(var(--lg-specular) * (0.4 + 0.6 * var(--pointer-inside, 0)));
-	transition: opacity 240ms cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
-.lg-specular::before {
+/*
+ * Static rim light, for the tiers that have no SVG specular map. A blurred ring
+ * inside the bezel — softer and less accurate than the generated hairline, but it
+ * keeps the degraded rendering from looking like a plain frosted rectangle.
+ */
+.lg:not([data-tier='full']) .lg-specular::before {
 	content: '';
 	position: absolute;
 	inset: 0;
 	border-radius: inherit;
-	padding: calc(var(--lg-bezel) * 0.45);
+	padding: calc(var(--lg-bezel) * 0.4);
 	background: linear-gradient(
 		var(--lg-light-angle),
-		rgb(var(--lg-rim) / 0.42) 0%,
-		rgb(var(--lg-rim) / 0) 36%,
-		rgb(var(--lg-rim) / 0) 64%,
-		rgb(var(--lg-rim) / 0.2) 100%
+		rgb(var(--lg-rim) / 0.4) 0%,
+		rgb(var(--lg-rim) / 0) 38%,
+		rgb(var(--lg-rim) / 0) 62%,
+		rgb(var(--lg-rim) / 0.18) 100%
 	);
 	-webkit-mask:
 		linear-gradient(#000 0 0) content-box,
@@ -208,7 +250,8 @@
 		linear-gradient(#000 0 0);
 	-webkit-mask-composite: xor;
 	mask-composite: exclude;
-	filter: blur(calc(var(--lg-bezel) * 0.18));
+	filter: blur(calc(var(--lg-bezel) * 0.16));
+	opacity: var(--lg-specular);
 }
 
 /* 7. Content. */
@@ -222,7 +265,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.lg-specular {
+	.lg {
 		transition-duration: 0ms;
 	}
 }

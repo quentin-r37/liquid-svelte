@@ -1,11 +1,12 @@
 <script lang="ts">
 	import {
+		DISPLACEMENT_PER_BEZEL,
 		LiquidGlass,
-		getDisplacementMapStats,
+		getGlassMapStats,
 		glassSupport,
 		reducedMotion,
 		setGlassModeOverride,
-		type DisplacementMapStats,
+		type GlassMapStats,
 		type GlassMode,
 		type GlassQuality,
 		type SurfaceProfile
@@ -22,20 +23,24 @@
 
 	let width = $state(360);
 	let height = $state(220);
-	let borderRadius = $state(44);
-	let bezel = $state(26);
-	let displacement = $state(18);
-	let blur = $state(3);
-	let opacity = $state(0.12);
-	let saturation = $state(1.6);
-	let chromaticAberration = $state(0.06);
-	let specularIntensity = $state(0.7);
+	let borderRadius = $state(70);
+	let bezel = $state(30);
+	/** `null` exercises the auto default (`bezel × DISPLACEMENT_PER_BEZEL`). */
+	let displacementOverride = $state<number | null>(null);
+	let blur = $state(0.5);
+	let opacity = $state(0.05);
+	let saturation = $state(1.3);
+	let chromaticAberration = $state(0.04);
+	let specularIntensity = $state(0.8);
 	let shadowIntensity = $state(0.6);
 	let profile = $state<SurfaceProfile>('convex-squircle');
 	let quality = $state<GlassQuality>('high');
 	let modeOverride = $state<GlassMode>('auto');
 	let scheme = $state<'light' | 'dark'>('dark');
 	let autoSize = $state(false);
+
+	const autoDisplacement = $derived(bezel * DISPLACEMENT_PER_BEZEL);
+	const displacement = $derived(displacementOverride ?? autoDisplacement);
 
 	$effect(() => {
 		setGlassModeOverride(modeOverride);
@@ -88,13 +93,13 @@
 
 	// ------------------------------------------------------------- stats ---
 
-	let stats = $state<DisplacementMapStats>({ generations: 0, hits: 0, cacheSize: 0 });
+	let stats = $state<GlassMapStats>({ generations: 0, hits: 0, cacheSize: 0 });
 
 	$effect(() => {
 		// Polled rather than pushed: the point is to watch the counters *not* move
 		// while dragging, and a 200 ms tick is plenty to see that.
 		const id = setInterval(() => {
-			stats = getDisplacementMapStats();
+			stats = getGlassMapStats();
 		}, 200);
 		return () => clearInterval(id);
 	});
@@ -155,7 +160,7 @@
 					height={item.height}
 					borderRadius={item.borderRadius}
 					bezel={item.bezel}
-					{displacement}
+					displacement={displacementOverride ?? undefined}
 					{blur}
 					{opacity}
 					{saturation}
@@ -194,7 +199,13 @@
 
 		<p class="hint">
 			Drag the card and watch <em>map generations</em>: it must stay flat. It only ticks when the
-			quantised geometry, the profile or the quality changes.
+			quantised geometry, the profile or the quality changes — never for displacement, blur,
+			saturation, aberration or specular, which are live filter attributes.
+		</p>
+		<p class="hint">
+			Two counter-intuitive defaults, both matching the reference effect: displacement is ~4× the
+			bezel (a 30px bezel wants ~120px), and blur is 0.5px. Liquid glass is <em>clear</em> — frosting
+			it hides the refraction that does all the work.
 		</p>
 
 		<fieldset>
@@ -262,18 +273,45 @@
 				<span>bezel <output>{bezel}px</output></span>
 				<input type="range" min="2" max="80" step="1" bind:value={bezel} />
 			</label>
+			<label>
+				<span>opacity (tint) <output>{opacity.toFixed(3)}</output></span>
+				<input type="range" min="0" max="0.3" step="0.005" bind:value={opacity} />
+			</label>
 		</fieldset>
 
 		<fieldset>
 			<legend>optics</legend>
 
-			<label>
-				<span>displacement <output>{displacement}px</output></span>
-				<input type="range" min="0" max="60" step="1" bind:value={displacement} />
+			<label class="check">
+				<input
+					type="checkbox"
+					checked={displacementOverride === null}
+					onchange={(event) => {
+						displacementOverride = event.currentTarget.checked ? null : autoDisplacement;
+					}}
+				/>
+				<span>auto displacement (bezel × {DISPLACEMENT_PER_BEZEL})</span>
 			</label>
 			<label>
-				<span>blur <output>{blur}px</output></span>
-				<input type="range" min="0" max="16" step="0.5" bind:value={blur} />
+				<span>
+					displacement <output>{Math.round(displacement)}px</output>
+				</span>
+				<input
+					type="range"
+					min="0"
+					max="240"
+					step="1"
+					value={displacement}
+					disabled={displacementOverride === null}
+					oninput={(event) => (displacementOverride = event.currentTarget.valueAsNumber)}
+				/>
+			</label>
+			<label>
+				<span>
+					blur <output>{blur}px</output>
+					{#if blur > 1.5}<em class="warn">frosted, kills refraction</em>{/if}
+				</span>
+				<input type="range" min="0" max="8" step="0.1" bind:value={blur} />
 			</label>
 			<label>
 				<span>saturation <output>{saturation.toFixed(2)}</output></span>
@@ -291,10 +329,6 @@
 		<fieldset>
 			<legend>surface</legend>
 
-			<label>
-				<span>opacity <output>{opacity.toFixed(2)}</output></span>
-				<input type="range" min="0" max="0.5" step="0.01" bind:value={opacity} />
-			</label>
 			<label>
 				<span>specularIntensity <output>{specularIntensity.toFixed(2)}</output></span>
 				<input type="range" min="0" max="1" step="0.02" bind:value={specularIntensity} />

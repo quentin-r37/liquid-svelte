@@ -44,9 +44,18 @@ export interface DisplacementMapParams {
 	resolution: number;
 }
 
-/** A generated, cacheable displacement map. */
-export interface DisplacementMap {
-	/** `data:image/png;base64,…` — fed to `<feImage href>`. */
+/** Geometry that fully determines a specular rim map. */
+export interface SpecularMapParams {
+	width: number;
+	height: number;
+	radius: number;
+	/** Width of the bright hairline in CSS pixels. */
+	rimWidth: number;
+}
+
+/** A generated, cacheable texture fed to `<feImage href>`. */
+export interface GlassMap {
+	/** `data:image/png;base64,…` */
 	url: string;
 	/** Map width in pixels (may be smaller than the element; `feImage` stretches it). */
 	width: number;
@@ -55,12 +64,12 @@ export interface DisplacementMap {
 }
 
 /** Counters exposed for the debug panel, to prove maps are not rebuilt per frame. */
-export interface DisplacementMapStats {
-	/** Maps actually rasterised since page load. */
+export interface GlassMapStats {
+	/** Maps actually rasterised since page load, across all generators. */
 	generations: number;
 	/** Cache hits served without rasterising. */
 	hits: number;
-	/** Entries currently held in the LRU cache. */
+	/** Entries currently held across the LRU caches. */
 	cacheSize: number;
 }
 
@@ -73,9 +82,16 @@ export interface LiquidGlassProps extends Omit<HTMLAttributes<HTMLElement>, 'sty
 	borderRadius?: number;
 	/** Thickness of the refracting rim in CSS pixels. Refraction is concentrated here. */
 	bezel?: number;
-	/** Peak refraction offset in CSS pixels at the outer edge. */
+	/**
+	 * Peak refraction offset in CSS pixels at the outer edge. Leave unset to derive
+	 * it from `bezel` (×4), which is what keeps the effect looking right across
+	 * sizes. Expect large numbers — a 24px bezel wants ~96px.
+	 */
 	displacement?: number;
-	/** Backdrop blur radius in pixels. */
+	/**
+	 * Backdrop blur radius in pixels, applied *before* refraction. Keep it under
+	 * ~1.5: liquid glass is clear, and frosting swallows the distortion.
+	 */
 	blur?: number;
 	/** Opacity of the tint layer, `0`–`1`. */
 	opacity?: number;
