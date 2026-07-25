@@ -8,7 +8,13 @@
 	import { DropletMorph } from './runtime/dropletMorph.svelte.js';
 	import { acquireGlassTransform, type GlassTransform } from './runtime/glassMotion.js';
 	import { MENU_GEOMETRY, MENU_GLASS_OPEN, MENU_GLASS_REST } from './runtime/glassTokens.js';
-	import { MENU_PUDDLE, MENU_RISE_DELAY, springFor } from './runtime/motionTokens.js';
+	import {
+		MENU_COLLAPSE,
+		MENU_PUDDLE,
+		MENU_RISE_DELAY,
+		REDUCED_MOTION_TRANSITION,
+		springFor
+	} from './runtime/motionTokens.js';
 
 	export interface LiquidMenuItem {
 		/** Stable identifier, reported by `onselect`. */
@@ -156,8 +162,10 @@
 	 * whichever corner the trigger is on, and lives in CSS because Motion owns
 	 * `transform` but not its origin.
 	 *
-	 * Closing is one stiff spring on both axes at once, with no lag. Dismissal should
-	 * be over before it is noticed; only the opening is worth watching.
+	 * Closing is neither sequenced nor sprung: both axes collapse together on a plain
+	 * monotone curve — see {@link MENU_COLLAPSE} for why an exit must not overshoot —
+	 * and the optics are left alone until the panel is out of sight. Dismissal should be
+	 * over before it is noticed; only the opening is worth watching.
 	 *
 	 * Nothing here animates width, height, radius or bezel — those are the
 	 * displacement map's cache key. The whole reveal is a transform plus a handful of
@@ -170,11 +178,15 @@
 		const reduced = reducedMotion.current;
 		const opening = open;
 
+		// Only the opening morphs the optics. Reversing the morph *while the panel is
+		// still visible* would run its milky rest tint (0.3, versus 0.12 settled)
+		// backwards over the collapse, turning the shrinking sheet into an opaque white
+		// bar — the one thing guaranteed to draw the eye to a panel that is leaving. So
+		// the liquid drains away as clear glass, and the puddle's optics are restored
+		// after it is hidden, below.
 		if (opening) {
 			present = true;
 			droplet.engage();
-		} else {
-			droplet.release();
 		}
 
 		// `will-change: transform` for the duration of the reveal only. Left on
@@ -187,17 +199,17 @@
 			transform.setActive(false);
 		};
 
+		const collapse = reduced ? REDUCED_MOTION_TRANSITION : MENU_COLLAPSE;
+
 		const spreadX = animate(
 			transform.revealX,
 			opening ? 1 : MENU_PUDDLE.scaleX,
-			springFor(opening ? 'spread' : 'snap', reduced)
+			opening ? springFor('spread', reduced) : collapse
 		);
 		const riseY = animate(
 			transform.revealY,
 			opening ? 1 : MENU_PUDDLE.scaleY,
-			opening
-				? { ...springFor('rise', reduced), delay: reduced ? 0 : MENU_RISE_DELAY }
-				: springFor('snap', reduced)
+			opening ? { ...springFor('rise', reduced), delay: reduced ? 0 : MENU_RISE_DELAY } : collapse
 		);
 
 		let cancelled = false;
@@ -205,9 +217,14 @@
 			.then(() => {
 				if (cancelled) return;
 				settle();
-				// Hiding is deferred to here so the collapse is allowed to play out. A
-				// re-open mid-collapse cancels this run, so it can never hide an open menu.
-				if (!opening) present = false;
+				if (opening) return;
+
+				// The collapse is over, so the panel goes out of the interaction and
+				// accessibility trees — and only now, unseen, are the puddle's optics
+				// restored, ready for the next opening. A re-open mid-collapse cancels this
+				// run, so neither can ever happen to a menu that is on its way back in.
+				present = false;
+				droplet.release();
 			})
 			.catch(() => {});
 
@@ -524,12 +541,22 @@
 	 * close to its final shape. Both properties are on a *descendant* of the glass,
 	 * which is why an opacity here is harmless.
 	 */
+	/*
+	 * This rule is the *exit*, and the transition declared on it is the one the browser
+	 * uses on the way out — a transition is read from the state being moved to, which is
+	 * what makes each direction independently tunable.
+	 *
+	 * Leaving out on the way out is not optional. The entrance delay applies in both
+	 * directions if it is declared in one place, so the items used to sit there for 90ms
+	 * before beginning to fade, and were then squashed flat by the collapse. Out fast,
+	 * with no delay: the glass should have nothing left in it by the time it drains.
+	 */
 	.lg-menu-list {
 		opacity: 0;
 		transform: translateY(-6px);
 		transition:
-			opacity 170ms ease 90ms,
-			transform 240ms cubic-bezier(0.2, 0.8, 0.3, 1) 90ms;
+			opacity 90ms ease,
+			transform 90ms ease;
 	}
 
 	/* `:global()` leads the selector rather than sitting inside it: Svelte only allows
@@ -537,6 +564,9 @@
 	:global(.lg-menu-panel.is-open) .lg-menu-list {
 		opacity: 1;
 		transform: none;
+		transition:
+			opacity 170ms ease 90ms,
+			transform 240ms cubic-bezier(0.2, 0.8, 0.3, 1) 90ms;
 	}
 
 	.lg-menu-item {

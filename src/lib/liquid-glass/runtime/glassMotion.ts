@@ -38,10 +38,24 @@ interface SharedOptions {
 
 // ------------------------------------------------------------------ hover ---
 
-export type HoverOptions = SharedOptions;
+export interface HoverOptions extends SharedOptions {
+	/**
+	 * Upward travel on hover, in CSS pixels. Defaults to {@link HOVER_LIFT}.
+	 *
+	 * Pass `0` for a surface that is mechanically constrained to one axis. A
+	 * switch knob rides a groove and only ever travels on X; lifting it out of
+	 * that groove contradicts the constraint the rest of the control spends its
+	 * effort selling (end-of-travel overshoot, the droplet deforming as it
+	 * slides). The swell and the specular boost still read as a response to the
+	 * pointer — which is what the reference does: the knob grows, it does not
+	 * levitate. A free-floating surface like a button has nothing to contradict,
+	 * so it keeps the lift.
+	 */
+	lift?: number;
+}
 
 /**
- * Lift and brighten on hover.
+ * Swell, lift and brighten on hover.
  *
  * Uses Motion's `hover` rather than raw `pointerenter`, because browsers
  * synthesise hover events from touches, which leaves surfaces stuck in the
@@ -52,11 +66,12 @@ export function applyHover(element: HTMLElement, options: HoverOptions = {}): ()
 
 	const transform = acquireGlassTransform(element);
 	const spring = () => springFor('soft', options.reduced ?? false);
+	const lift = options.lift ?? HOVER_LIFT;
 
 	const stop = hover(element, () => {
 		transform.setActive(true);
 		animate(transform.hoverScale, HOVER_SCALE, spring());
-		animate(transform.lift, HOVER_LIFT, spring());
+		animate(transform.lift, lift, spring());
 		element.style.setProperty('--lg-specular-boost', String(HOVER_SPECULAR_BOOST));
 
 		return () => {

@@ -144,6 +144,25 @@ export const MENU_PUDDLE = { scaleX: 0.44, scaleY: 0.06 } as const;
  */
 export const MENU_RISE_DELAY = 0.05;
 
+/**
+ * The collapse, on both axes at once. The one animation in this library that is not
+ * a spring, deliberately.
+ *
+ * A spring approaches a *resting state* with momentum, and every spring here is
+ * under-damped enough to overshoot a little. That is right for anything that stays
+ * on screen and wrong for a dismissal: the collapsed puddle is not a state anything
+ * rests in, it is hidden the instant it is reached, so an overshoot has nothing to
+ * justify it. Left as `snap` it undershot the target by 5% of the travel — the panel
+ * shrank to a sliver, visibly bounced *on* that sliver, and only then disappeared,
+ * because the panel cannot be hidden until the spring finishes settling and a spring's
+ * tail is long.
+ *
+ * A duration is provably monotone and provably over, which is exactly what is wanted
+ * of an exit. `easeIn` puts the fastest part at the end, so the last few frames — the
+ * smallest, least explicable ones — are the ones the eye has least time to catch.
+ */
+export const MENU_COLLAPSE = { duration: 0.17, ease: 'easeIn' } as const;
+
 /** Arrow-key step for keyboard-driven dragging, in CSS pixels. */
 export const KEYBOARD_STEP = 12;
 /** Larger step when Shift is held. */

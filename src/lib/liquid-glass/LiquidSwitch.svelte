@@ -273,10 +273,15 @@
 	 * knob itself the transform and the filter share one element, which is fine.
 	 *
 	 * Hovering the bare track gets a plain colour cue from CSS instead.
+	 *
+	 * `lift: 0` because the knob is constrained to its groove: it travels on X and
+	 * nowhere else, and floating it up on hover reads as the knob coming loose. The
+	 * swell and the specular boost carry the hover on their own, which is also what
+	 * the reference does — the knob grows under the pointer, it does not rise.
 	 */
 	$effect(() => {
 		if (!thumbElement) return;
-		return applyHover(thumbElement, { reduced: reducedMotion.current, disabled });
+		return applyHover(thumbElement, { reduced: reducedMotion.current, disabled, lift: 0 });
 	});
 
 	function onClick() {
