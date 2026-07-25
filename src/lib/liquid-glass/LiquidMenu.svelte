@@ -48,6 +48,22 @@
 		 */
 		triggerShape?: ButtonShape;
 		triggerSize?: 'sm' | 'md' | 'lg';
+		/**
+		 * Open by *transforming the trigger into the panel*, the way iOS does it, rather
+		 * than by spilling a panel out beside a trigger that stays put.
+		 *
+		 * The panel starts as a copy of the trigger's box — same size, same place — and
+		 * the trigger stops being drawn for exactly as long as the panel is out, so what
+		 * the eye follows is one object changing shape rather than two objects, one of
+		 * which appeared. The starting box is measured from the two elements instead of
+		 * being taken from {@link MENU_PUDDLE}: it is a morph only if the shape that
+		 * appears is the shape that was already there.
+		 *
+		 * `false` restores the puddle-beside-the-trigger opening. Worth having for a
+		 * trigger that has to stay on screen — one that is also the only thing marking
+		 * its position in a bar, say, where losing it leaves a hole.
+		 */
+		morph?: boolean;
 		/** Accessible name for the menu. Defaults to being labelled by the trigger. */
 		menuLabel?: string;
 		quality?: GlassQuality;
@@ -69,6 +85,7 @@
 		disabled = false,
 		triggerShape = 'pill',
 		triggerSize = 'md',
+		morph = true,
 		menuLabel,
 		quality = 'high',
 		mode = 'auto',
@@ -130,6 +147,47 @@
 	$effect(() => droplet.setReduced(reducedMotion.current));
 	$effect(() => () => droplet.destroy());
 
+	/**
+	 * Where the panel comes from, expressed on the channels that open it: a scale per
+	 * axis and one vertical offset.
+	 *
+	 * Under `morph` that is the trigger's own box, and it has to be *measured* — the
+	 * two boxes are whatever their content made them. `transform-origin` already sits
+	 * on the corner the panel shares with the trigger (see the placement rules), and a
+	 * scale leaves its origin where it is, so aligning the two boxes needs no
+	 * horizontal travel at all: the shared corner is already in the right column. What
+	 * is left is the vertical gap between them — the trigger's height plus
+	 * {@link MENU_GEOMETRY.gap}, signed by which side the panel is on.
+	 *
+	 * Read at the top of every opening rather than cached. The panel is measurable
+	 * while closed (`visibility: hidden` is laid out, which is half of why it stays
+	 * mounted), but a menu whose items or trigger changed in the meantime would
+	 * otherwise morph out of a box that no longer exists.
+	 *
+	 * Without `morph`, the declared puddle and no travel — the original opening,
+	 * unchanged.
+	 */
+	function morphStart(): { scaleX: number; scaleY: number; offsetY: number } {
+		const puddle = { scaleX: MENU_PUDDLE.scaleX, scaleY: MENU_PUDDLE.scaleY, offsetY: 0 };
+		if (!morph || !triggerElement || !panelElement) return puddle;
+
+		const panelWidth = panelElement.offsetWidth;
+		const panelHeight = panelElement.offsetHeight;
+		// No layout yet — measured before the first one, or inside a `display: none`
+		// ancestor. Dividing by that would park the panel at `scale(Infinity)`, which is
+		// not a state it can animate out of.
+		if (panelWidth === 0 || panelHeight === 0) return puddle;
+
+		const triggerHeight = triggerElement.offsetHeight;
+		const below = placement.startsWith('bottom');
+
+		return {
+			scaleX: triggerElement.offsetWidth / panelWidth,
+			scaleY: triggerHeight / panelHeight,
+			offsetY: (below ? -1 : 1) * (triggerHeight + MENU_GEOMETRY.gap)
+		};
+	}
+
 	/*
 	 * Acquisition, in its own effect and depending on nothing but the element.
 	 *
@@ -144,22 +202,25 @@
 	 *
 	 * Hence `untrack`: the initial state is genuinely wanted, the dependency is not.
 	 *
-	 * A closed panel is parked at the puddle imperatively rather than animated into it:
-	 * that is its initial state, not a transition, and animating would play a collapse
-	 * on mount.
+	 * A closed panel is parked at its starting box imperatively rather than animated
+	 * into it: that is its initial state, not a transition, and animating would play a
+	 * collapse on mount.
 	 */
 	$effect(() => {
 		if (!panelElement) return;
 		const transform = acquireGlassTransform(panelElement);
 		if (!untrack(() => open)) {
-			transform.revealX.set(MENU_PUDDLE.scaleX);
-			transform.revealY.set(MENU_PUDDLE.scaleY);
+			const start = untrack(morphStart);
+			transform.revealX.set(start.scaleX);
+			transform.revealY.set(start.scaleY);
+			transform.y.set(start.offsetY);
 		}
 		panelTransform = transform;
 		return () => {
 			panelTransform = null;
 			transform.revealX.set(1);
 			transform.revealY.set(1);
+			transform.y.set(0);
 			transform.release();
 		};
 	});
@@ -173,6 +234,13 @@
 	 * edges from a rectangle being scaled up. `transform-origin` puts the source at
 	 * whichever corner the trigger is on, and lives in CSS because Motion owns
 	 * `transform` but not its origin.
+	 *
+	 * A third channel under `morph`: the panel's travel from on top of the trigger to
+	 * its resting place beside it (see {@link morphStart}). It rides the *spread*
+	 * spring rather than the delayed rise, so the sheet steps off the trigger as it
+	 * spills — the alternative is a panel that widens while still sitting on the
+	 * button and then slides out from under itself. Off, `offsetY` is zero at both
+	 * ends and the animation is a formality.
 	 *
 	 * Closing is neither sequenced nor sprung: both axes collapse together on a plain
 	 * monotone curve — see {@link MENU_COLLAPSE} for why an exit must not overshoot —
@@ -189,15 +257,27 @@
 
 		const reduced = reducedMotion.current;
 		const opening = open;
+		const start = untrack(morphStart);
 
-		// Only the opening morphs the optics. Reversing the morph *while the panel is
-		// still visible* would run its milky rest tint (0.3, versus 0.12 settled)
-		// backwards over the collapse, turning the shrinking sheet into an opaque white
-		// bar — the one thing guaranteed to draw the eye to a panel that is leaving. So
-		// the liquid drains away as clear glass, and the puddle's optics are restored
-		// after it is hidden, below.
 		if (opening) {
+			// Re-park on the box just measured, before anything moves. The parked values
+			// are derived from two elements that may have been resized — or had their
+			// content replaced — since the panel was last closed, and a morph that starts
+			// from a stale box starts with a jump. Only ever from rest: the same write
+			// against a panel that is still collapsing would teleport it mid-flight.
+			if (!untrack(() => present)) {
+				transform.revealX.set(start.scaleX);
+				transform.revealY.set(start.scaleY);
+				transform.y.set(start.offsetY);
+			}
 			present = true;
+
+			// Only the opening morphs the optics. Reversing the morph *while the panel is
+			// still visible* would run its milky rest tint (0.3, versus 0.12 settled)
+			// backwards over the collapse, turning the shrinking sheet into an opaque white
+			// bar — the one thing guaranteed to draw the eye to a panel that is leaving. So
+			// the liquid drains away as clear glass, and the puddle's optics are restored
+			// after it is hidden, below.
 			droplet.engage();
 		}
 
@@ -215,17 +295,22 @@
 
 		const spreadX = animate(
 			transform.revealX,
-			opening ? 1 : MENU_PUDDLE.scaleX,
+			opening ? 1 : start.scaleX,
 			opening ? springFor('spread', reduced) : collapse
 		);
 		const riseY = animate(
 			transform.revealY,
-			opening ? 1 : MENU_PUDDLE.scaleY,
+			opening ? 1 : start.scaleY,
 			opening ? { ...springFor('rise', reduced), delay: reduced ? 0 : MENU_RISE_DELAY } : collapse
+		);
+		const glideY = animate(
+			transform.y,
+			opening ? 0 : start.offsetY,
+			opening ? springFor('spread', reduced) : collapse
 		);
 
 		let cancelled = false;
-		Promise.all([spreadX.finished, riseY.finished])
+		Promise.all([spreadX.finished, riseY.finished, glideY.finished])
 			.then(() => {
 				if (cancelled) return;
 				settle();
@@ -245,6 +330,7 @@
 			settle();
 			spreadX.stop();
 			riseY.stop();
+			glideY.stop();
 		};
 	});
 
@@ -402,6 +488,7 @@
 		size={triggerSize}
 		{quality}
 		{mode}
+		class={`lg-menu-trigger ${morph && present ? 'is-yielded' : ''}`}
 		aria-haspopup="menu"
 		aria-expanded={open}
 		aria-controls={menuId}
@@ -484,6 +571,29 @@
 	.lg-menu {
 		position: relative;
 		display: inline-block;
+	}
+
+	/*
+	 * The other half of the morph: the trigger *is* the panel for as long as the panel
+	 * is out, so it stops being drawn for exactly that long — `present`, not `open`,
+	 * which is what makes it come back at the end of the collapse rather than at the
+	 * start of it. The shrinking sheet is the button on its way home; a button
+	 * reappearing underneath it while it is still travelling is two of them.
+	 *
+	 * Switched, never transitioned. Any opacity strictly between 0 and 1 turns the
+	 * button into a backdrop root and kills its own refraction, so a fade would spend
+	 * its whole length showing a flat disc where a lens was. There is nothing to fade
+	 * anyway: both swaps happen on a frame where the panel is parked exactly over the
+	 * trigger, at its size, in its place.
+	 *
+	 * `opacity: 0` rather than `visibility: hidden` because a hidden element cannot
+	 * take focus, and closing returns focus here — from a hidden trigger it would land
+	 * on the body instead, which is the one place a keyboard user cannot continue
+	 * from. Invisible and focusable is also what the trigger has to be for a screen
+	 * reader, which is still being told there is an expanded menu button here.
+	 */
+	.lg-menu :global(.lg-menu-trigger.is-yielded) {
+		opacity: 0;
 	}
 
 	/*

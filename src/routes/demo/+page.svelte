@@ -16,6 +16,15 @@
 		type LiquidMenuItem,
 		type LiquidTab
 	} from '$lib/liquid-glass/index.js';
+	import {
+		ChevronLeft,
+		Ellipsis,
+		Play,
+		Search,
+		Shuffle,
+		SkipBack,
+		SkipForward
+	} from '@lucide/svelte';
 	import Backdrop, { BACKDROP_KINDS, type BackdropKind } from '../Backdrop.svelte';
 
 	let scheme = $state<'light' | 'dark'>('dark');
@@ -146,10 +155,13 @@
 				a fixed bezel would turn the whole disc into rim and the glyph would sit in continuous distortion.
 			</p>
 			<div class="row">
-				<LiquidButton shape="circle" size="sm" aria-label="Previous">‹</LiquidButton>
-				<LiquidButton shape="circle" aria-label="Play">▶</LiquidButton>
-				<LiquidButton shape="circle" size="lg" tone="prominent" aria-label="Next">›</LiquidButton>
-				<LiquidButton shape="circle" disabled aria-label="Shuffle">⤫</LiquidButton>
+				<LiquidButton shape="circle" size="sm" aria-label="Previous"><SkipBack /></LiquidButton>
+				<LiquidButton shape="circle" aria-label="Play"><Play /></LiquidButton>
+				<LiquidButton shape="circle" size="lg" tone="prominent" aria-label="Next">
+					<SkipForward />
+				</LiquidButton>
+				<LiquidButton shape="circle" disabled aria-label="Shuffle"><Shuffle /></LiquidButton>
+				<LiquidButton><Play />Play all</LiquidButton>
 			</div>
 			<p class="readout">presses: <strong>{pressed}</strong></p>
 		</section>
@@ -172,11 +184,13 @@
 		<section>
 			<h2>LiquidMenu</h2>
 			<p class="note">
-				The panel opens as a <strong>puddle</strong>: it spills sideways out of the trigger's corner
-				first, then rises 50ms behind, and the refraction grows in with it — a shallow puddle has no
-				thickness to bend light through. Two scale channels, no size animation, so the displacement
-				map is rasterised once before the menu is ever opened. Arrows, Home/End, Escape, Tab and an
-				outside press all behave; pointing at an item moves focus to it, as a native menu does.
+				The trigger <strong>becomes</strong> the panel. It starts as a copy of the button's own box —
+				measured, so the swap has nothing to give away — then spills sideways off it and rises 50ms behind,
+				with the refraction growing in as it deepens: a shallow puddle has no thickness to bend light
+				through. The button is not drawn while the panel is out, so what moves is one object changing
+				shape. Three transform channels, no size animation, so the displacement map is rasterised once
+				before the menu is ever opened. Arrows, Home/End, Escape, Tab and an outside press all behave;
+				pointing at an item moves focus to it, as a native menu does.
 			</p>
 			<div class="row">
 				<LiquidMenu items={menuItems} onselect={(id) => (lastMenuChoice = id)}>Actions</LiquidMenu>
@@ -193,6 +207,9 @@
 					onselect={(id) => (lastMenuChoice = id)}
 				>
 					Upwards
+				</LiquidMenu>
+				<LiquidMenu items={menuItems} morph={false} onselect={(id) => (lastMenuChoice = id)}>
+					No morph
 				</LiquidMenu>
 				<LiquidMenu items={menuItems} disabled>Disabled</LiquidMenu>
 			</div>
@@ -259,18 +276,17 @@
 					bind:progress={navProgress}
 				>
 					{#snippet leading()}
-						<LiquidButton shape="circle" size="sm" aria-label="Back">‹</LiquidButton>
+						<LiquidButton shape="circle" aria-label="Back"><ChevronLeft /></LiquidButton>
 					{/snippet}
 					{#snippet trailing()}
-						<LiquidButton shape="circle" size="sm" aria-label="Search">⌕</LiquidButton>
+						<LiquidButton shape="circle" aria-label="Search"><Search /></LiquidButton>
 						<LiquidMenu
 							items={menuItems}
 							placement="bottom-end"
 							triggerShape="circle"
-							triggerSize="sm"
 							onselect={(id) => (lastMenuChoice = id)}
 						>
-							⋯
+							<Ellipsis />
 						</LiquidMenu>
 					{/snippet}
 				</LiquidNavBar>

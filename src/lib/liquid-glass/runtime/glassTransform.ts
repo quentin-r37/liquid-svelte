@@ -17,7 +17,11 @@ import { motionValue, styleEffect, transformValue, type MotionValue } from 'moti
  */
 
 export interface GlassTransform {
-	/** Drag offset, in CSS pixels. */
+	/**
+	 * Positional offset, in CSS pixels — a drag's, and also the travel of a surface
+	 * that opens from somewhere other than where it rests (`LiquidMenu`'s panel
+	 * starts on top of its trigger and glides off it).
+	 */
 	x: MotionValue<number>;
 	y: MotionValue<number>;
 	/** Hover elevation, in CSS pixels. Added to `y`. */

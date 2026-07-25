@@ -230,6 +230,42 @@
 		font-size: 1.25rem;
 	}
 
+	/*
+	 * Inline SVG content — a Lucide icon, or anything shaped like one.
+	 *
+	 * Sized in `em` rather than in pixels, which is what makes it come out right in
+	 * every one of the six size/shape combinations without a table of constants. The
+	 * font sizes above already sit at roughly 0.46 × the circle's diameter, and that
+	 * ratio is not arbitrary: {@link BUTTON_CIRCLE_BEZEL_RATIO} leaves a flat centre
+	 * of `d × 0.48`, so an icon at `1em` is the largest one that still lands entirely
+	 * on the clear middle instead of straddling the refracting rim. On a pill it
+	 * comes out at the cap height of the label beside it, which is where an inline
+	 * icon belongs.
+	 *
+	 * `--lg-icon-size` is the way out for a consumer who wants a different figure,
+	 * since these rules would otherwise beat Lucide's own `size` prop — it lands as a
+	 * presentation attribute, and any stylesheet outranks one.
+	 *
+	 * `display: block` is not redundant with the flex centring: it stops the SVG's
+	 * inline baseline from reserving descender space in any context where the content
+	 * box is not a flex container.
+	 */
+	:global(.lg-button .lg-content svg) {
+		display: block;
+		flex: 0 0 auto;
+		width: var(--lg-icon-size, 1em);
+		height: var(--lg-icon-size, 1em);
+		/* The `text-shadow` on the label does nothing for a stroked path; this is the
+		   same separation from a busy backdrop, by the one means that reaches an SVG.
+		   Safe on a descendant — only an *ancestor* filter forms a backdrop root. */
+		filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.28));
+	}
+
+	/* Only ever visible when a label sits beside an icon. */
+	:global(.lg-button > .lg-content) {
+		gap: 0.45em;
+	}
+
 	:global(.lg-button:focus-visible) {
 		outline: 2px solid rgb(255 255 255 / 0.85);
 		outline-offset: 3px;
