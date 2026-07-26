@@ -1,11 +1,13 @@
 <script lang="ts">
 	import LiquidGlassFilter from './LiquidGlassFilter.svelte';
+	import { cornerShapeCss } from './displacement/cornerShape.js';
 	import { getDisplacementMap } from './displacement/createDisplacementMap.js';
 	import { getSpecularMap, specularWidthFor } from './displacement/createSpecularMap.js';
 	import { quantiseSize } from './displacement/mapCache.js';
 	import type { LiquidGlassProps } from './liquidGlass.types.js';
 	import { setGlassProperties } from './runtime/applyGlassStyle.js';
 	import {
+		glassSupport,
 		reducedMotion,
 		resolveGlassSupport,
 		resolveTier
@@ -23,6 +25,7 @@
 		width,
 		height,
 		borderRadius = GLASS_DEFAULTS.borderRadius,
+		cornerShape = GLASS_DEFAULTS.cornerShape,
 		bezel = GLASS_DEFAULTS.bezel,
 		displacement,
 		blur = GLASS_DEFAULTS.blur,
@@ -95,6 +98,18 @@
 	const clampedBezel = $derived(hasGeometry ? Math.min(bezel, limit) : bezel);
 
 	/**
+	 * The corner the surface will actually be *clipped* to — which is the only
+	 * corner the maps may be built for.
+	 *
+	 * Falling back in one place, before either the field or the stylesheet sees the
+	 * value, is what makes the two incapable of disagreeing. Resolving them
+	 * separately would produce the failure this whole feature has to avoid: a
+	 * squircle field inside a circular clip, which leaves four crescents of
+	 * unrefracted backdrop at the corners, on exactly the browsers nobody tests on.
+	 */
+	const effectiveCornerShape = $derived(glassSupport.cornerShape ? cornerShape : 'round');
+
+	/**
 	 * A fixed pixel figure stops looking right the moment the bezel changes, so the
 	 * default scales with it. The multiplier is large by design — see
 	 * `DISPLACEMENT_PER_BEZEL`.
@@ -116,6 +131,7 @@
 					width: resolvedWidth,
 					height: resolvedHeight,
 					radius: clampedRadius,
+					cornerShape: effectiveCornerShape,
 					bezel: clampedBezel,
 					profile,
 					resolution: preset.resolution
@@ -129,6 +145,7 @@
 					width: resolvedWidth,
 					height: resolvedHeight,
 					radius: clampedRadius,
+					cornerShape: effectiveCornerShape,
 					rimWidth: specularWidthFor(clampedBezel)
 				})
 			: null
@@ -152,6 +169,7 @@
 
 	const glassStyle = $derived({
 		'--lg-radius': `${clampedRadius}px`,
+		'--lg-corner-shape': cornerShapeCss(effectiveCornerShape),
 		'--lg-bezel': `${clampedBezel}px`,
 		'--lg-tint': String(opacity),
 		'--lg-specular': String(specularIntensity),

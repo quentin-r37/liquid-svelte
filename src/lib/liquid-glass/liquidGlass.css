@@ -73,6 +73,23 @@
 	 */
 	--lg-radius-x: var(--lg-radius);
 	--lg-radius-y: var(--lg-radius);
+	/*
+	 * The corner *outline*, as a `corner-shape` value — `round`, `squircle`, or a
+	 * `superellipse()`. Set by the component from its `cornerShape` prop, and only
+	 * ever to something other than `round` once detection has confirmed the browser
+	 * honours the property (Chromium 139+).
+	 *
+	 * That gate is not politeness towards old browsers. The displacement and
+	 * specular maps are rasterised for one specific silhouette and then clipped by
+	 * this one, so the two must describe the same curve or the corners tear: a
+	 * squircle field under a circular clip loses its refraction in four crescents,
+	 * and the inverse slices the rim hairline off. Both values come from
+	 * `LiquidGlass.svelte`'s single `effectiveCornerShape`.
+	 *
+	 * A browser without `corner-shape` simply drops the declarations below, which is
+	 * the correct outcome precisely because the maps were built round to match.
+	 */
+	--lg-corner-shape: round;
 	--lg-bezel: 24px;
 	--lg-tint: 0.05;
 	--lg-specular: 0.8;
@@ -93,6 +110,7 @@
 	justify-content: center;
 	box-sizing: border-box;
 	border-radius: var(--lg-radius-x) / var(--lg-radius-y);
+	corner-shape: var(--lg-corner-shape);
 	background: transparent;
 	-webkit-tap-highlight-color: transparent;
 
@@ -155,10 +173,18 @@
 
 /* ---------------------------------------------------------------- layers --- */
 
+/*
+ * `border-radius: inherit` has no `corner-shape` counterpart worth relying on —
+ * the property is not inherited — so every layer that copies the radius restates
+ * the shape from the custom property, which *is* inherited. Miss one and that
+ * layer keeps a circular corner while the host has a squircle, which shows up as a
+ * bright arc of tint or rim poking past the silhouette.
+ */
 .lg-layer {
 	position: absolute;
 	inset: 0;
 	border-radius: inherit;
+	corner-shape: var(--lg-corner-shape);
 	pointer-events: none;
 }
 
@@ -190,6 +216,7 @@
 	position: absolute;
 	inset: 0;
 	border-radius: inherit;
+	corner-shape: var(--lg-corner-shape);
 	pointer-events: none;
 }
 
@@ -279,6 +306,7 @@
 	position: absolute;
 	inset: 0;
 	border-radius: inherit;
+	corner-shape: var(--lg-corner-shape);
 	padding: calc(var(--lg-bezel) * 0.4);
 	background: linear-gradient(
 		var(--lg-light-angle),

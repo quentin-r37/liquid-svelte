@@ -1,7 +1,12 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import LiquidGlass from './LiquidGlass.svelte';
-	import type { GlassMode, GlassQuality, SurfaceProfile } from './liquidGlass.types.js';
+	import type {
+		CornerShape,
+		GlassMode,
+		GlassQuality,
+		SurfaceProfile
+	} from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { applyDrag, type DragBounds } from './runtime/glassMotion.js';
 
@@ -9,6 +14,7 @@
 		width?: number;
 		height?: number;
 		borderRadius?: number;
+		cornerShape?: CornerShape;
 		bezel?: number;
 		displacement?: number;
 		profile?: SurfaceProfile;
@@ -34,6 +40,7 @@
 		width = 200,
 		height = 140,
 		borderRadius = 70,
+		cornerShape = 'round',
 		bezel = 30,
 		displacement,
 		profile = 'convex-squircle',
@@ -107,6 +114,7 @@
 	{width}
 	{height}
 	{borderRadius}
+	{cornerShape}
 	{bezel}
 	{displacement}
 	{profile}

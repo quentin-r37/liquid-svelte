@@ -12,6 +12,25 @@ import type { HTMLAttributes } from 'svelte/elements';
 export type SurfaceProfile = 'convex-squircle' | 'convex-circle' | 'concave' | 'lip';
 
 /**
+ * Shape of the corner *outline*, mirroring the CSS `corner-shape` property.
+ *
+ * Orthogonal to {@link SurfaceProfile}, which shapes the glass surface inside the
+ * bezel. This one shapes the silhouette: `round` is the quarter-ellipse of plain
+ * `border-radius`, `squircle` is the continuous superellipse iOS draws. A number
+ * is CSS's `superellipse()` argument `K` directly — `1` is `round`, `2` is
+ * `squircle`, larger is squarer, and values are clamped to `[1, 10]`.
+ *
+ * Concave corners (`bevel`, `scoop`, `notch`, i.e. `K ≤ 0`) are not supported;
+ * see `displacement/cornerShape.ts` for why they need a different field rather
+ * than a different exponent.
+ *
+ * Anything other than `round` requires the browser to support `corner-shape`
+ * (Chromium 139+). Where it does not, `LiquidGlass` falls back to `round` for the
+ * generated maps *and* the stylesheet together, so the two can never disagree.
+ */
+export type CornerShape = 'round' | 'squircle' | number;
+
+/**
  * Quality preset. Trades displacement-map resolution and SVG filter
  * complexity against per-frame GPU cost. See `QUALITY_PRESETS`.
  */
@@ -37,6 +56,8 @@ export interface DisplacementMapParams {
 	height: number;
 	/** Effective corner radius in CSS pixels (clamped to `min(w, h) / 2`). */
 	radius: number;
+	/** Corner outline. Defaults to `round`, the plain `border-radius` corner. */
+	cornerShape?: CornerShape;
 	/** Thickness of the refracting rim in CSS pixels (clamped to `min(w, h) / 2`). */
 	bezel: number;
 	profile: SurfaceProfile;
@@ -49,6 +70,11 @@ export interface SpecularMapParams {
 	width: number;
 	height: number;
 	radius: number;
+	/**
+	 * Corner outline. Must match the displacement map's, or the hairline stops
+	 * following the silhouette at the corners.
+	 */
+	cornerShape?: CornerShape;
 	/** Width of the bright hairline in CSS pixels. */
 	rimWidth: number;
 }
@@ -80,6 +106,12 @@ export interface LiquidGlassProps extends Omit<HTMLAttributes<HTMLElement>, 'sty
 	height?: number;
 	/** Corner radius in CSS pixels. Large values are clamped to a pill shape. */
 	borderRadius?: number;
+	/**
+	 * Corner outline — `round` (default) or `squircle`, or a `superellipse()` `K`.
+	 * Silently stays `round` where the browser has no `corner-shape` support, since
+	 * the generated maps and the CSS clip have to describe the same silhouette.
+	 */
+	cornerShape?: CornerShape;
 	/** Thickness of the refracting rim in CSS pixels. Refraction is concentrated here. */
 	bezel?: number;
 	/**

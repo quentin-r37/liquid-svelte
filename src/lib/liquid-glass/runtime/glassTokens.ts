@@ -1,4 +1,9 @@
-import type { GlassQuality, LiquidGlassProps, SurfaceProfile } from '../liquidGlass.types.js';
+import type {
+	CornerShape,
+	GlassQuality,
+	LiquidGlassProps,
+	SurfaceProfile
+} from '../liquidGlass.types.js';
 
 /**
  * Every tunable constant of the library lives here so that no magic number is
@@ -8,6 +13,17 @@ import type { GlassQuality, LiquidGlassProps, SurfaceProfile } from '../liquidGl
 /** Default prop values for {@link LiquidGlassProps}. */
 export const GLASS_DEFAULTS = {
 	borderRadius: 28,
+	/**
+	 * The plain `border-radius` corner, deliberately.
+	 *
+	 * `squircle` is the better-looking shape and it is what iOS actually draws, but
+	 * it is opt-in because it is not free: `corner-shape` is Chromium 139+, so on an
+	 * older Chromium — which still renders the `full` tier perfectly well — the
+	 * surface would silently drop back to a round outline, and a library whose
+	 * default silhouette depends on the browser version is a library whose designs
+	 * do not reproduce. Opting in makes that a decision with a known blast radius.
+	 */
+	cornerShape: 'round' as CornerShape,
 	bezel: 24,
 	/**
 	 * Peak refraction offset in CSS pixels. `undefined` means "derive it from the
@@ -398,7 +414,7 @@ export const SWITCH_THUMB = {
 	 * (`thumbWidth × restScale`), which rounding keeps at 44.6px either way — so the
 	 * default switch is still 78px wide with the same 25px of travel.
 	 */
-	restScale: 0.50,
+	restScale: 0.5,
 	/** Grabbed. See above for why this is exactly 1. */
 	activeScale: 1,
 	/**
@@ -467,6 +483,18 @@ export const GLASS_IOR = 1.5;
  * constant rather than another prop.
  */
 export const BEZEL_THICKNESS_RATIO = 0.2;
+
+/**
+ * Bounds on the CSS `superellipse()` argument `K` accepted by `cornerShape`.
+ *
+ * `1` is the circle — the floor, because everything below it is a corner the
+ * distance field cannot model (see `displacement/cornerShape.ts`). `10` is where
+ * MDN notes a superellipse becomes visually indistinguishable from a square
+ * corner, so past it the exponent only costs `Math.pow` precision in the inner
+ * rasterisation loop.
+ */
+export const CORNER_K_MIN = 1;
+export const CORNER_K_MAX = 10;
 
 /**
  * Filter region margin, as a fraction of the element on each side.

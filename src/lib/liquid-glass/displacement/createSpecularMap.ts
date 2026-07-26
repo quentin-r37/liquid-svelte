@@ -5,6 +5,7 @@ import {
 	SPECULAR_WIDTH_MIN,
 	SPECULAR_WIDTH_PER_BEZEL
 } from '../runtime/glassTokens.js';
+import { cornerExponent } from './cornerShape.js';
 import { clampMapDimension, createMapCache, quantiseSize } from './mapCache.js';
 import { sampleRoundedBox } from './roundedBoxSdf.js';
 
@@ -41,7 +42,9 @@ export function specularWidthFor(bezel: number): number {
 	);
 }
 
-function normaliseParams(params: SpecularMapParams): SpecularMapParams {
+type NormalisedParams = Omit<SpecularMapParams, 'cornerShape'> & { exponent: number };
+
+function normaliseParams(params: SpecularMapParams): NormalisedParams {
 	const width = Math.max(4, quantiseSize(params.width));
 	const height = Math.max(4, quantiseSize(params.height));
 	const limit = Math.min(width, height) / 2;
@@ -50,21 +53,22 @@ function normaliseParams(params: SpecularMapParams): SpecularMapParams {
 		width,
 		height,
 		radius: Math.min(quantiseSize(Math.max(0, params.radius)), limit),
+		exponent: cornerExponent(params.cornerShape ?? 'round'),
 		// Rounded to a tenth of a pixel: the rim is thin enough that quantising it
 		// to whole pixels would make it visibly pop as the bezel is adjusted.
 		rimWidth: Math.max(0.5, Math.round(params.rimWidth * 10) / 10)
 	};
 }
 
-function cacheKey(p: SpecularMapParams): string {
-	return `${p.width}x${p.height}|r${p.radius}|s${p.rimWidth}`;
+function cacheKey(p: NormalisedParams): string {
+	return `${p.width}x${p.height}|r${p.radius}|n${p.exponent}|s${p.rimWidth}`;
 }
 
 function paint(
 	data: Uint8ClampedArray,
 	mapWidth: number,
 	mapHeight: number,
-	p: SpecularMapParams
+	p: NormalisedParams
 ): void {
 	const halfWidth = p.width / 2;
 	const halfHeight = p.height / 2;
@@ -76,7 +80,14 @@ function paint(
 			const x = px + 0.5 - halfWidth;
 			const offset = (py * mapWidth + px) * 4;
 
-			const { depth, normalX, normalY } = sampleRoundedBox(x, y, halfWidth, halfHeight, p.radius);
+			const { depth, normalX, normalY } = sampleRoundedBox(
+				x,
+				y,
+				halfWidth,
+				halfHeight,
+				p.radius,
+				p.exponent
+			);
 
 			if (depth <= -EDGE_FEATHER || depth >= p.rimWidth) {
 				data[offset + 3] = 0;

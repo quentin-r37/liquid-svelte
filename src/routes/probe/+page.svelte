@@ -6,6 +6,7 @@
 		glassSupport,
 		reducedMotion,
 		setGlassModeOverride,
+		type CornerShape,
 		type GlassMapStats,
 		type GlassMode,
 		type GlassQuality,
@@ -34,6 +35,7 @@
 	let specularIntensity = $state(0.8);
 	let shadowIntensity = $state(0.6);
 	let profile = $state<SurfaceProfile>('convex-squircle');
+	let cornerShape = $state<CornerShape>('round');
 	let quality = $state<GlassQuality>('high');
 	let modeOverride = $state<GlassMode>('auto');
 	let scheme = $state<'light' | 'dark'>('dark');
@@ -130,6 +132,7 @@
 				width={autoSize ? undefined : width}
 				height={autoSize ? undefined : height}
 				{borderRadius}
+				{cornerShape}
 				{bezel}
 				{displacement}
 				{blur}
@@ -160,6 +163,7 @@
 					width={item.width}
 					height={item.height}
 					borderRadius={item.borderRadius}
+					{cornerShape}
 					bezel={item.bezel}
 					displacement={displacementOverride ?? undefined}
 					{blur}
@@ -186,6 +190,8 @@
 			<dd>{glassSupport.tier}</dd>
 			<dt>detected</dt>
 			<dd>{glassSupport.detected ?? '…'}</dd>
+			<dt>corner-shape</dt>
+			<dd>{glassSupport.cornerShape ? 'supported' : 'unsupported → round'}</dd>
 			<dt>reduced motion</dt>
 			<dd>{reducedMotion.current ? 'yes' : 'no'}</dd>
 			<dt>glass instances</dt>
@@ -238,6 +244,16 @@
 					<option value="convex-circle">convex circle</option>
 					<option value="concave">concave</option>
 					<option value="lip">lip</option>
+				</select>
+			</label>
+
+			<label>
+				<span>corner</span>
+				<select bind:value={cornerShape}>
+					<option value="round">round — border-radius</option>
+					<option value="squircle">squircle — superellipse(2)</option>
+					<option value={3}>superellipse(3)</option>
+					<option value={6}>superellipse(6)</option>
 				</select>
 			</label>
 

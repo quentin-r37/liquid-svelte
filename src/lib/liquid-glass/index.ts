@@ -32,6 +32,7 @@ export { default as LiquidScrollEdge } from './LiquidScrollEdge.svelte';
 export type { ScrollEdgeSide } from './LiquidScrollEdge.svelte';
 
 export type {
+	CornerShape,
 	DisplacementMapParams,
 	GlassMap,
 	GlassMapStats,
@@ -49,6 +50,7 @@ export { clearGlassMapCaches, getGlassMapStats, quantiseSize } from './displacem
 export { getMagnitudeLut, sampleLut } from './displacement/surfaceProfiles.js';
 export { sampleRoundedBox } from './displacement/roundedBoxSdf.js';
 export type { EdgeSample } from './displacement/roundedBoxSdf.js';
+export { cornerExponent, cornerShapeCss } from './displacement/cornerShape.js';
 
 export {
 	glassSupport,
@@ -59,6 +61,8 @@ export {
 } from './runtime/capabilities.svelte.js';
 
 export {
+	CORNER_K_MAX,
+	CORNER_K_MIN,
 	DISPLACEMENT_PER_BEZEL,
 	DROPLET_ACTIVE,
 	DROPLET_REST,

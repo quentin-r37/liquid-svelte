@@ -35,6 +35,7 @@ type NavigatorWithUaData = Navigator & { userAgentData?: { brands?: UserAgentBra
 
 let detected = $state<GlassTier | null>(null);
 let override = $state<GlassTier | null>(null);
+let cornerShape = $state(false);
 
 function supportsBackdropFilter(): boolean {
 	return (
@@ -70,6 +71,27 @@ function detect(): GlassTier {
 	return SSR_TIER;
 }
 
+/**
+ * Whether `corner-shape` is honoured, which is what gates a non-round `cornerShape`.
+ *
+ * This one *is* a real feature test, unlike the tier detection above, and the
+ * difference is worth being explicit about. `backdrop-filter: url()` is a lie in
+ * two engines because referencing an SVG filter is a rendering capability they
+ * parse but never implement. `corner-shape` is an ordinary paint-time property
+ * with no such split: an engine that parses it clips to it, and one that does not
+ * drops the declaration and leaves the corner round. So the syntax check answers
+ * exactly the question that matters — will the element's own clip match the field
+ * we are about to rasterise.
+ *
+ * Note the check is deliberately *not* gated on the tier. A `degraded` surface has
+ * no displacement map to keep in sync, but it still has a silhouette, and there is
+ * no reason for it to be squarer than a `full` one on the same browser.
+ */
+function detectCornerShape(): boolean {
+	if (typeof CSS === 'undefined') return false;
+	return CSS.supports('corner-shape', 'squircle');
+}
+
 export const glassSupport = {
 	/**
 	 * The tier to render. `degraded` until {@link resolveGlassSupport} runs on the
@@ -86,6 +108,15 @@ export const glassSupport = {
 
 	get override(): GlassTier | null {
 		return override;
+	},
+
+	/**
+	 * Whether a non-round `cornerShape` will actually be clipped to. `false` until
+	 * detection runs — and therefore during SSR, which is what keeps the server's
+	 * round outline agreeing with the first client render.
+	 */
+	get cornerShape(): boolean {
+		return cornerShape;
 	}
 };
 
@@ -94,7 +125,9 @@ export const glassSupport = {
  * `$effect` so the initial render still matches the server output.
  */
 export function resolveGlassSupport(): void {
-	if (detected === null) detected = detect();
+	if (detected !== null) return;
+	detected = detect();
+	cornerShape = detectCornerShape();
 }
 
 /** Force a tier for the whole page, or pass `null` to return to detection. */

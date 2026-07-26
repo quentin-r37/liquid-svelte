@@ -1,4 +1,5 @@
 import type { DisplacementMapParams, GlassMap } from '../liquidGlass.types.js';
+import { cornerExponent } from './cornerShape.js';
 import { clampMapDimension, createMapCache, quantiseSize } from './mapCache.js';
 import { sampleRoundedBox } from './roundedBoxSdf.js';
 import { getMagnitudeLut, sampleLut } from './surfaceProfiles.js';
@@ -19,10 +20,13 @@ const cache = createMapCache();
 const EDGE_FEATHER = 1;
 
 /**
- * Clamp the raw props into a geometry that is actually renderable, and quantise
- * it. The result doubles as the cache identity.
+ * The renderable form of the params: geometry clamped and quantised, and the
+ * corner resolved from its CSS-facing keyword to the exponent the field wants.
+ * Doubles as the cache identity.
  */
-function normaliseParams(params: DisplacementMapParams): DisplacementMapParams {
+type NormalisedParams = Omit<DisplacementMapParams, 'cornerShape'> & { exponent: number };
+
+function normaliseParams(params: DisplacementMapParams): NormalisedParams {
 	const width = Math.max(4, quantiseSize(params.width));
 	const height = Math.max(4, quantiseSize(params.height));
 	const limit = Math.min(width, height) / 2;
@@ -31,14 +35,17 @@ function normaliseParams(params: DisplacementMapParams): DisplacementMapParams {
 		width,
 		height,
 		radius: Math.min(quantiseSize(Math.max(0, params.radius)), limit),
+		// Resolved rather than carried through, so `'round'`, `1` and an omitted
+		// value are one cache entry instead of three identical rasterisations.
+		exponent: cornerExponent(params.cornerShape ?? 'round'),
 		bezel: Math.max(1, Math.min(quantiseSize(Math.max(1, params.bezel)), limit)),
 		profile: params.profile,
 		resolution: params.resolution
 	};
 }
 
-function cacheKey(p: DisplacementMapParams): string {
-	return `${p.width}x${p.height}|r${p.radius}|b${p.bezel}|${p.profile}|q${p.resolution}`;
+function cacheKey(p: NormalisedParams): string {
+	return `${p.width}x${p.height}|r${p.radius}|n${p.exponent}|b${p.bezel}|${p.profile}|q${p.resolution}`;
 }
 
 /**
@@ -52,7 +59,7 @@ function paint(
 	data: Uint8ClampedArray,
 	mapWidth: number,
 	mapHeight: number,
-	p: DisplacementMapParams
+	p: NormalisedParams
 ): void {
 	const lut = getMagnitudeLut(p.profile);
 	const halfWidth = p.width / 2;
@@ -68,7 +75,14 @@ function paint(
 			const x = (px + 0.5) * scaleX - halfWidth;
 			const offset = (py * mapWidth + px) * 4;
 
-			const { depth, normalX, normalY } = sampleRoundedBox(x, y, halfWidth, halfHeight, p.radius);
+			const { depth, normalX, normalY } = sampleRoundedBox(
+				x,
+				y,
+				halfWidth,
+				halfHeight,
+				p.radius,
+				p.exponent
+			);
 
 			let r = 128;
 			let g = 128;
