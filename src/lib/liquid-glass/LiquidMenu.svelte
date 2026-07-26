@@ -382,8 +382,7 @@
 			 * keeps the round panel's geometry untouched.
 			 */
 			const radius =
-				matchedRadius(MENU_GEOMETRY.radius, k) *
-				(1 + (MENU_PUDDLE_ROUNDNESS - 1) * (1 - settled));
+				matchedRadius(MENU_GEOMETRY.radius, k) * (1 + (MENU_PUDDLE_ROUNDNESS - 1) * (1 - settled));
 
 			// Guarding the divisor, not the result: a channel at zero would otherwise
 			// write `Infinity px`, which is not a length and drops the declaration.
