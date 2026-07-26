@@ -14,10 +14,20 @@ export const SPRINGS = {
 	snap: { type: 'spring', stiffness: 620, damping: 34, mass: 1 },
 	/** Hover lift and other low-stakes decoration. */
 	soft: { type: 'spring', stiffness: 280, damping: 26, mass: 1 },
-	/** Switch thumb. Deliberately under-damped so the travel reads as elastic. */
+	/**
+	 * A detented surface travelling between two stops: the switch thumb, and the
+	 * segmented control's selection bubble. Deliberately under-damped (ζ ≈ 0.51) so
+	 * the travel reads as elastic.
+	 *
+	 * Shared by the two on purpose rather than by coincidence. They are the same
+	 * mechanism — a tile that is dragged, flicked or tapped between fixed positions
+	 * and has to arrive with some give — and the tabs had their own near-critically
+	 * damped spring, which is what made the bubble read as a rectangle being
+	 * repositioned rather than as something with mass being thrown across a groove.
+	 * One spring is also the only way the two controls stay in agreement as it is
+	 * tuned.
+	 */
 	elastic: { type: 'spring', stiffness: 420, damping: 21, mass: 1 },
-	/** Tab bubble sliding between segments. Quick, barely any overshoot. */
-	bubble: { type: 'spring', stiffness: 440, damping: 34, mass: 1 },
 	/** Returning to rest after a drag, and velocity-driven deformation decay. */
 	settle: { type: 'spring', stiffness: 400, damping: 30, mass: 1 },
 	/** Slider thumb tracking its value. Stiff enough to feel directly connected. */
@@ -342,6 +352,119 @@ export const MENU_MORPH_VOLUME = { swell: 1.1, flatten: 0.84, dip: 0.06, release
  * smallest, least explicable ones — are the ones the eye has least time to catch.
  */
 export const MENU_COLLAPSE = { duration: 0.17, ease: 'easeIn' } as const;
+
+/**
+ * How long a toolbar's *travel* has to itself before the bar starts unrolling, in
+ * seconds.
+ *
+ * The same argument as {@link MENU_MORPH_LEAD} and the same three frames: the patch
+ * that replaces the trigger has to be seen leaving the button's place for the centre
+ * of the bar's box, and started together the scale swallows the translation whole.
+ *
+ * Kept identical rather than shared, because the two are not the same quantity — the
+ * menu's lead is followed by {@link MENU_RISE_DELAY} on a second axis and this one is
+ * not, so the menu could want a shorter lead than the toolbar the moment either is
+ * retuned. That they agree today is a coincidence of both being "the least that reads
+ * as a departure".
+ */
+export const TOOLBAR_MORPH_LEAD = 0.045;
+
+/**
+ * The pinch a toolbar makes on its way out of the trigger, as a fraction of the
+ * collapsed patch's width, and how long it takes to come back out of it.
+ *
+ * Far shallower than {@link MENU_MORPH_GATHER}, and the reason is instructive: that
+ * gather exists because a menu panel is barely wider than the button that opened it,
+ * so the sideways spill had nothing to do and had to be *given* some distance. A
+ * toolbar has the opposite problem. It grows from 38px to two or three hundred, so the
+ * width already has more to cover than the eye can follow, and pinching to 0.45 of a
+ * 38px patch would draw it down to a 17px slit — an object disappearing, not an object
+ * gathering.
+ *
+ * So this is anticipation and nothing else: 5px of draw-in on a `md` trigger, which is
+ * the smallest movement backwards that still makes the movement forwards look
+ * intended. `release` outlasts the pinch itself for the same reason the menu's does —
+ * the width is still coming out of it while the bar is extending, so the two read as
+ * one continuous release rather than as a squash followed by a stretch.
+ */
+export const TOOLBAR_MORPH_GATHER = { scale: 0.86, release: 0.24 } as const;
+
+/**
+ * The volume a toolbar displaces as it extends, as multipliers on the shell's height,
+ * timed in seconds from the end of the lead.
+ *
+ * Structurally identical to {@link MENU_MORPH_VOLUME} and driven by the same physical
+ * claim — liquid does not change how much of itself there is, so the axis that is not
+ * spreading has to answer for the axis that is. It `swell`s while the gather draws the
+ * patch narrow, `flatten`s as that column shoots sideways, and comes back to square as
+ * the bar settles.
+ *
+ * The magnitudes are half the menu's because the geometry gives them ten times the
+ * leverage. A menu grows sixfold on the axis that carries its volume cue; a toolbar
+ * does not grow on that axis *at all* — the height is constant by construction, so
+ * every percent here is a percent of the final bar rather than a percent of a 38px
+ * patch on its way to 230. At 1.12/0.90 that is a 4px swell and a 4px flatten on a
+ * `md` bar: a surface that visibly breathes as it extends, where the menu's 1.1/0.84
+ * would be a bar that wobbles.
+ */
+export const TOOLBAR_MORPH_VOLUME = {
+	swell: 1.12,
+	flatten: 0.9,
+	dip: 0.06,
+	release: 0.28
+} as const;
+
+/**
+ * Fraction of the unroll each item spends fading in.
+ *
+ * The stagger itself is not timed — it is *geometric*. Every item knows the width the
+ * bar has to reach before there is room for it (see the component's `measureItems`),
+ * expressed as a fraction of the total extension, and its reveal ramps over this much
+ * of the unroll starting from there. So the items are lit by the leading edge passing
+ * over them at whatever speed the spring actually runs, and there is no per-item delay
+ * constant to fall out of step with the spread when either is retuned.
+ *
+ * It also means the collapse gets its reverse stagger for free: the unroll runs
+ * backwards, so the last item in is the first out, which is what a bar retracting into
+ * a button has to look like.
+ *
+ * The ramp *starts* at the threshold rather than ending there, and that is what keeps
+ * the first item from being visible on the frame the trigger is swapped away. On a
+ * `md` bar the collapsed patch is 38px wide and the first well needs 34 — it genuinely
+ * fits, so a ramp that ended at the threshold would have it already lit at rest, and
+ * the swap would read as one glyph replacing another rather than as a bar starting to
+ * unroll. Each threshold is scaled by `1 − fade` so the last item still finishes
+ * exactly as the bar settles.
+ */
+export const TOOLBAR_ITEM_FADE = 0.22;
+
+/**
+ * How small an item is drawn before its reveal starts, as a scale.
+ *
+ * The wells ride a counter-scale that holds them at their settled size and position
+ * throughout the unroll (see the component), so without this they would simply
+ * cross-fade in place — correct, and inert. Scaling them up as they light is the
+ * whole difference between a bar that unrolls and a bar that appears with its
+ * contents already in it.
+ *
+ * Not zero: an icon that grows from nothing draws attention to its own arrival, and
+ * there are up to six of them arriving in a fifth of a second.
+ */
+export const TOOLBAR_ITEM_RISE = 0.55;
+
+/**
+ * The retraction, on both axes at once.
+ *
+ * A duration rather than a spring, for exactly the reasons set out on
+ * {@link MENU_COLLAPSE} — the collapsed patch is not a state anything rests in, it is
+ * hidden the instant it is reached, so an overshoot has nothing to justify it and a
+ * spring's tail delays the hiding.
+ *
+ * Shorter than the menu's 170ms because there is less to undo: one axis, no rise, no
+ * sequencing. The whole opening is a lead plus a spread, and an exit should not take
+ * longer than the entrance it is reversing.
+ */
+export const TOOLBAR_COLLAPSE = { duration: 0.15, ease: 'easeIn' } as const;
 
 /** Arrow-key step for keyboard-driven dragging, in CSS pixels. */
 export const KEYBOARD_STEP = 12;

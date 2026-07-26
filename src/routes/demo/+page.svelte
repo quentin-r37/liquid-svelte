@@ -9,22 +9,29 @@
 		LiquidSlider,
 		LiquidSwitch,
 		LiquidTabs,
+		LiquidToolbar,
 		glassSupport,
 		reducedMotion,
 		setGlassModeOverride,
 		type CornerShape,
 		type GlassMode,
 		type LiquidMenuItem,
-		type LiquidTab
+		type LiquidTab,
+		type LiquidToolbarItem
 	} from '$lib/liquid-glass/index.js';
 	import {
 		ChevronLeft,
+		Copy,
 		Ellipsis,
 		Play,
+		RefreshCw,
 		Search,
+		Share2,
 		Shuffle,
 		SkipBack,
-		SkipForward
+		SkipForward,
+		Star,
+		Trash2
 	} from '@lucide/svelte';
 	import Backdrop, { BACKDROP_KINDS, type BackdropKind } from '../Backdrop.svelte';
 
@@ -80,6 +87,30 @@
 		legacy: ''
 	};
 
+	let starred = $state(false);
+	let lastToolbarAction = $state('—');
+
+	/**
+	 * Icons ride the items as snippets rather than being switched on the id inside a body
+	 * snippet, which is what keeps a five-item bar a five-line array.
+	 *
+	 * `$derived` rather than a plain `const` for two reasons: `starred` has to reach the
+	 * `selected` flag, and a derived is evaluated lazily — at render time, by which point
+	 * the snippets declared in the template below exist.
+	 */
+	const toolbarItems: LiquidToolbarItem[] = $derived([
+		{ id: 'copy', label: 'Duplicate', icon: copyIcon },
+		{ id: 'share', label: 'Share', icon: shareIcon },
+		{ id: 'star', label: 'Add to favourites', icon: starIcon, selected: starred },
+		{ id: 'locked', label: 'Regenerate', icon: refreshIcon, disabled: true },
+		{ id: 'delete', label: 'Delete', icon: trashIcon, destructive: true, separated: true }
+	]);
+
+	function onToolbarAction(id: string) {
+		lastToolbarAction = id;
+		if (id === 'star') starred = !starred;
+	}
+
 	let lensStage = $state<HTMLElement | null>(null);
 
 	let navScroller = $state<HTMLElement | null>(null);
@@ -102,6 +133,17 @@
 </svelte:head>
 
 <Backdrop kind={backdrop} {scheme} fixed />
+
+<!--
+	Declared at the top level of the template, not inside `.page`: a snippet is scoped to
+	the block it is written in, and these have to be reachable from the `toolbarItems`
+	derived in the script.
+-->
+{#snippet copyIcon()}<Copy />{/snippet}
+{#snippet shareIcon()}<Share2 />{/snippet}
+{#snippet starIcon()}<Star />{/snippet}
+{#snippet refreshIcon()}<RefreshCw />{/snippet}
+{#snippet trashIcon()}<Trash2 />{/snippet}
 
 <div class="page" data-scheme={scheme}>
 	<header>
@@ -283,6 +325,86 @@
 				<LiquidMenu items={menuItems} {cornerShape} disabled>Disabled</LiquidMenu>
 			</div>
 			<p class="readout">selected: <strong>{lastMenuChoice}</strong></p>
+		</section>
+
+		<section class="span">
+			<h2>LiquidToolbar</h2>
+			<p class="note">
+				A circular button that <strong>stretches into a bar</strong> and back. The same swap as
+				<code>LiquidMenu</code> — the trigger is not drawn for as long as the bar is out, so what
+				moves is one object changing shape — but on one axis, and with the collapsed state as a
+				place the control genuinely <em>rests</em> rather than a puddle nobody sees. That difference
+				sets most of the design. The bar is laid out at its full width and drawn at a fraction of
+				it, since width is the displacement map's cache key and animating it would rasterise a PNG
+				per frame; so the shell and the trigger are locked to the same height by
+				<code>TOOLBAR_SIZES</code>, which is what leaves exactly one axis to scale and makes the
+				collapsed patch the button's box <em>exactly</em>. Its corner is asked for pre-divided by
+				that scale, from half the shorter <em>drawn</em> side — one <code>min</code>, so the capsule
+				survives turning through ninety degrees during the gather instead of having its ends
+				flattened by CSS's radius clamp. The refraction is absent while the shell is squeezed and
+				grows in with the unroll, because the map is baked for the settled bar and its end caps
+				cannot survive being compressed sevenfold. The items neither fade on a timer nor ride the
+				scale: the row
+				<strong>cancels</strong> it, holding every well at its settled size and position from the first
+				frame, and each one is lit when the unrolling edge reaches the width that has room for it. That
+				threshold is geometry, so the stagger cannot drift from the spring — and the retraction plays
+				it backwards for free. One style write per frame drives all of it.
+			</p>
+			<div class="row">
+				<LiquidToolbar
+					items={toolbarItems}
+					label="Document actions"
+					triggerLabel="More actions"
+					onaction={onToolbarAction}
+				>
+					<Ellipsis />
+				</LiquidToolbar>
+				<LiquidToolbar
+					items={toolbarItems}
+					anchor="center"
+					size="lg"
+					label="Document actions, centred"
+					triggerLabel="More actions"
+					onaction={onToolbarAction}
+				>
+					<Ellipsis />
+				</LiquidToolbar>
+				<LiquidToolbar
+					items={toolbarItems}
+					anchor="end"
+					size="sm"
+					label="Document actions, end-anchored"
+					triggerLabel="More actions"
+					onaction={onToolbarAction}
+				>
+					<Ellipsis />
+				</LiquidToolbar>
+				<LiquidToolbar
+					items={[
+						{ id: 'cancel', label: 'Cancel' },
+						{ id: 'save', label: 'Save', separated: true }
+					]}
+					label="Editing actions"
+					triggerLabel="Edit"
+					onaction={onToolbarAction}
+				>
+					<Ellipsis />
+				</LiquidToolbar>
+				<LiquidToolbar items={toolbarItems} disabled triggerLabel="More actions">
+					<Ellipsis />
+				</LiquidToolbar>
+			</div>
+			<p class="note">
+				Acting on an item leaves the bar open, which is the whole difference from a menu: these are
+				repeatable actions against something still on screen, not one choice that dismisses what
+				asked for it. Favourites toggles in place. Arrows move between wells, Home/End jump, Escape
+				and an outside press retract — and Tab falls through and takes focus out, as the ARIA
+				toolbar pattern requires, which collapses the bar behind it.
+			</p>
+			<p class="readout">
+				last action: <strong>{lastToolbarAction}</strong> · favourite:
+				<strong>{starred ? 'on' : 'off'}</strong>
+			</p>
 		</section>
 
 		<section>

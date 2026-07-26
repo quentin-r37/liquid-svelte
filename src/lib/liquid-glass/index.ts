@@ -26,6 +26,8 @@ export { default as LiquidTabs } from './LiquidTabs.svelte';
 export type { LiquidTab } from './LiquidTabs.svelte';
 export { default as LiquidMenu } from './LiquidMenu.svelte';
 export type { LiquidMenuItem, MenuPlacement } from './LiquidMenu.svelte';
+export { default as LiquidToolbar } from './LiquidToolbar.svelte';
+export type { LiquidToolbarItem, ToolbarAnchor } from './LiquidToolbar.svelte';
 export { default as LiquidNavBar } from './LiquidNavBar.svelte';
 export type { NavBarPosition } from './LiquidNavBar.svelte';
 export { default as LiquidScrollEdge } from './LiquidScrollEdge.svelte';
@@ -76,9 +78,16 @@ export {
 	NAVBAR_GEOMETRY,
 	QUALITY_PRESETS,
 	SCROLL_EDGE,
-	SPECULAR_SUPERSAMPLE_MAX
+	SPECULAR_SUPERSAMPLE_MAX,
+	TABS_GLASS_ACTIVE,
+	TABS_GLASS_REST,
+	TOOLBAR_BEZEL_RATIO,
+	TOOLBAR_GLASS_OPEN,
+	TOOLBAR_GLASS_REST,
+	TOOLBAR_SHADOW,
+	TOOLBAR_SIZES
 } from './runtime/glassTokens.js';
-export type { DropletVisual, QualityPreset } from './runtime/glassTokens.js';
+export type { DropletVisual, QualityPreset, ToolbarSize } from './runtime/glassTokens.js';
 
 export { DropletMorph } from './runtime/dropletMorph.svelte.js';
 
@@ -112,6 +121,12 @@ export {
 	REDUCED_MOTION_TRANSITION,
 	SPRINGS,
 	springFor,
-	MAX_STRETCH
+	MAX_STRETCH,
+	TOOLBAR_COLLAPSE,
+	TOOLBAR_ITEM_FADE,
+	TOOLBAR_ITEM_RISE,
+	TOOLBAR_MORPH_GATHER,
+	TOOLBAR_MORPH_LEAD,
+	TOOLBAR_MORPH_VOLUME
 } from './runtime/motionTokens.js';
 export type { SpringName } from './runtime/motionTokens.js';

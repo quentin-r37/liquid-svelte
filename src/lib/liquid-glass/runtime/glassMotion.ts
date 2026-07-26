@@ -272,6 +272,22 @@ export interface DragRelease {
 
 export interface DragOptions extends SharedOptions {
 	axis?: 'x' | 'y' | 'both';
+	/**
+	 * The element whose transform channels the gesture drives, when that is not the
+	 * element the gesture is listened on. Defaults to the listened element, which is
+	 * the ordinary case.
+	 *
+	 * The two come apart when the thing being moved cannot be the thing being
+	 * grabbed. A segmented control's selection bubble sits *underneath* the tab
+	 * labels — it has to, or a translucent capsule would be laid over the text of
+	 * the very segment it marks — so it can never be the pointer target. The gesture
+	 * is listened on the selected tab and drives the bubble.
+	 *
+	 * Only the channels come from here, and with them `will-change`, which has to
+	 * follow the transform. Pointer capture and the event listeners stay on the
+	 * element that was passed in.
+	 */
+	surface?: HTMLElement;
 	/** Evaluated on every drag start, so it can follow a resized container. */
 	bounds?: () => DragBounds | null;
 	/**
@@ -315,6 +331,7 @@ function clamp(value: number, min: number, max: number): number {
 export function applyDrag(element: HTMLElement, options: DragOptions = {}): () => void {
 	const {
 		axis = 'both',
+		surface,
 		bounds,
 		overshoot = 0,
 		restScale = DRAG_REST_SCALE,
@@ -330,7 +347,7 @@ export function applyDrag(element: HTMLElement, options: DragOptions = {}): () =
 
 	if (disabled) return () => {};
 
-	const transform = acquireGlassTransform(element);
+	const transform = acquireGlassTransform(surface ?? element);
 	const allowX = axis !== 'y';
 	const allowY = axis !== 'x';
 

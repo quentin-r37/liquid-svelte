@@ -231,6 +231,127 @@ export const MENU_GEOMETRY = {
 } as const;
 
 /**
+ * Toolbar geometry per size, in CSS pixels.
+ *
+ * Three numbers per size, and two arithmetic laws between them that the whole
+ * component rests on.
+ *
+ * **`padding × 2 + well = height`, and `height` is {@link BUTTON_CIRCLE_SIZES}.**
+ * The collapsed toolbar is a circular `LiquidButton` and the expanded one is a
+ * capsule; they morph into each other by scaling on *one* axis, which is only true
+ * if the two boxes are exactly the same height. Break this and the shell has a
+ * vertical scale to cover as well — at which point the collapsed patch is not the
+ * trigger's box, the swap is visible, and the corner compensation has two axes of
+ * error rather than one. It is checked at runtime in dev; see the component.
+ *
+ * **`well − icon` is even.** The same parity argument as `LiquidButton`'s circles,
+ * for the same reason: the glyph is flex-centred in the well, so an odd difference
+ * puts it on a half CSS pixel, and a half pixel that is *animated* — the wells ride
+ * a counter-scale for the whole unroll — rounds one way on one frame and the other
+ * way on the next. 24/14, 30/18, 36/22.
+ *
+ * The `gap` is between wells, not between glyphs: the visible spacing is
+ * `gap + (well − icon)`, so 2px of gap reads as 14px of air at `md`. The wells are
+ * hit targets and want to stay adjacent; iOS spaces the *glyphs*, not the taps.
+ */
+export const TOOLBAR_SIZES = {
+	sm: { height: 30, padding: 3, well: 24, icon: 14, gap: 2 },
+	md: { height: 38, padding: 4, well: 30, icon: 18, gap: 2 },
+	lg: { height: 46, padding: 5, well: 36, icon: 22, gap: 3 }
+} as const satisfies {
+	/*
+	 * The first law above, enforced by the compiler rather than by this comment: the
+	 * height is typed as the *literal* diameter `LiquidButton` lays its circle out at,
+	 * so a table that drifts out of agreement stops type-checking instead of shipping a
+	 * toolbar whose collapsed patch is not the trigger's box. `npm run check` is the
+	 * only automated gate this repo has; this is how a geometric invariant gets to use
+	 * it.
+	 */
+	[K in keyof typeof BUTTON_CIRCLE_SIZES]: {
+		height: (typeof BUTTON_CIRCLE_SIZES)[K];
+		padding: number;
+		well: number;
+		icon: number;
+		gap: number;
+	};
+};
+
+export type ToolbarSize = keyof typeof TOOLBAR_SIZES;
+
+/**
+ * Refracting rim of the toolbar shell, as a fraction of its height.
+ *
+ * Deliberately the same figure as {@link BUTTON_CIRCLE_BEZEL_RATIO}, restated rather
+ * than imported, because the two are the same *law* arrived at independently and
+ * either could move without the other. The law is that the flat centre the rim
+ * leaves — `height × (1 − 2 × 0.26)`, i.e. `height × 0.48` — has to be the glyph
+ * well, or the icon sits in continuous distortion and reads as a smudge instead of
+ * as something seen *through* a lens.
+ *
+ * It holds at all three sizes and that is not luck: {@link TOOLBAR_SIZES} picks its
+ * icons at the largest even integer under `height × 0.48`, which is the same
+ * constraint `LiquidButton` solves for its circles. 30 × 0.48 = 14.4 against an 18px
+ * glyph in a 30px well — the *well* is what the rim has to clear, and the glyph
+ * inside it has room to spare.
+ */
+export const TOOLBAR_BEZEL_RATIO = 0.26;
+
+/**
+ * The collapsed toolbar shell: glass with no lens in it.
+ *
+ * `displacementRatio: 0` is not a stylistic choice here, it is the one thing that
+ * makes the morph legal. The displacement and specular maps are rasterised for the
+ * *expanded* capsule — that is the whole point, since geometry in the cache key must
+ * never be animated — and the collapsed patch draws that same texture squeezed to a
+ * seventh of its width. The top and bottom bezel bands survive it (they are
+ * unchanged in Y), but the two end caps do not: their arcs compress into vertical
+ * smears. So the lens fades in *with* the unroll, and by the time the ends are wide
+ * enough to be read as arcs they are being drawn at close to the width they were
+ * baked for.
+ *
+ * Everything else here is pinned to what `LiquidButton` looks like rather than to
+ * what a puddle looks like, which is where this parts company with
+ * {@link MENU_GLASS_REST}. A menu panel is milky at rest and nobody minds, because
+ * the panel is hidden at that moment and only ever seen on its way to being a panel.
+ * A toolbar's collapsed state is a *resting, visible, long-lived* state that has to
+ * pass as an ordinary glass button, and it is swapped for a real one on the frame the
+ * morph begins. Tint 0.14 against the button's 0.05 is the compensation for having no
+ * refraction — enough to keep the surface present without flashing white at the swap.
+ *
+ * `blur` is equal at both ends rather than near-zero, so `feGaussianBlur` neither
+ * enters nor leaves the chain mid-morph. Same precaution as the droplet, arrived at
+ * from the other side: there is no reason for a toolbar to change its frosting.
+ */
+export const TOOLBAR_GLASS_REST: DropletVisual = {
+	displacementRatio: 0,
+	opacity: 0.14,
+	saturation: 1.5,
+	blur: 0.5,
+	specularIntensity: 0.4,
+	scale: 1
+};
+
+/** The unrolled bar: clear, refracting, brightly rimmed. */
+export const TOOLBAR_GLASS_OPEN: DropletVisual = {
+	displacementRatio: DISPLACEMENT_PER_BEZEL,
+	opacity: 0.06,
+	saturation: 1.9,
+	blur: 0.5,
+	specularIntensity: 0.9,
+	scale: 1
+};
+
+/**
+ * Drop shadow at either end of the unroll.
+ *
+ * A collapsed patch standing in for a button carries the button's elevation; the
+ * unrolled bar is a larger object floating further off the page and casts more.
+ * Riding the unroll rather than being switched is what makes the bar look like it
+ * lifts as it extends.
+ */
+export const TOOLBAR_SHADOW = { rest: 0.5, open: 0.65 } as const;
+
+/**
  * The scroll edge effect: a band of *progressive blur* pinned to one edge of a
  * scroller, strongest at the edge and gone a few dozen pixels in.
  *
@@ -482,6 +603,156 @@ export const SWITCH_SIZES = {
 } as const;
 
 export type SwitchSize = keyof typeof SWITCH_SIZES;
+
+/**
+ * The segmented control's rail — and the reason it, rather than the selection
+ * bubble, is the glass in this component.
+ *
+ * iOS puts the material on the *container* and the selection on a plain, lightly
+ * tinted capsule riding inside it. That is not an aesthetic preference, it falls
+ * out of the same constraint the switch's track does: nested `backdrop-filter`
+ * does not compose, so only one of the two surfaces can refract, and it has to be
+ * the one underneath. Making the bubble the glass — which is what this component
+ * used to do — meant the rail could only ever be flat CSS, so the control as a
+ * whole never read as a piece of material with something moving inside it; it read
+ * as a lozenge of glass sliding on a painted groove.
+ *
+ * The bezel is a quarter of the rail's height rather than half, for the reason it
+ * is everywhere else in this library: half turns the entire capsule into bezel and
+ * a surface that refracts across its whole face reads as a smudge. At 0.26 the
+ * distortion is a band along the top and bottom rims with a flat clear middle, and
+ * the middle is exactly where the labels sit.
+ */
+export const TABS_RAIL = {
+	/** Refracting band, as a fraction of the rail's measured height. */
+	bezelRatio: 0.26,
+	/** Floor on that band, in CSS pixels, so a very short control still has a rim. */
+	bezelMin: 8
+} as const;
+
+/**
+ * The selection bubble: the switch knob's mechanism at a segmented control's
+ * proportions.
+ *
+ * It is the same object in every respect that matters. An opaque tinted tile at
+ * rest that melts into a lens when grabbed (see `runtime/dropletMorph.svelte.ts`,
+ * whose default endpoints this uses unchanged), laid out at its *swollen* size and
+ * drawn scaled down, so the swell costs nothing — width and height are displacement
+ * map cache keys, and animating them would rasterise a fresh PNG every frame,
+ * whereas scaling is free.
+ *
+ * That layout trick is also what fixes the position: an element scaled about its
+ * own centre sits half its slack to the right of where it was placed, so the bubble
+ * is offset left by that half — exactly as {@link SWITCH_THUMB} makes the switch do
+ * through `geometry.inset`.
+ */
+export const TABS_BUBBLE = {
+	/**
+	 * Idle scale, and therefore the whole size of the swell: the bubble spends
+	 * nearly all its life here, so this is the size the selection actually reads as,
+	 * and the number only decides how much larger the laid-out box behind it is.
+	 *
+	 * The knob's equivalent is 0.5 — it doubles when grabbed — and nothing like that
+	 * is available here. A knob is a small object with empty track on all four sides;
+	 * this is a tile in a row of tiles, and every pixel it gains sideways is a pixel
+	 * of the neighbouring segment it covers. 0.88 spends the swell where there is
+	 * room for it: ~7px onto each side, which lands in the neighbouring label's own
+	 * padding rather than on its text, and ~2.5px above and below, which is most of
+	 * the rail's inset. Enough that the selection visibly inflates under the finger,
+	 * which is the point; more and it reads as covering two tabs at once.
+	 *
+	 * Uniform rather than per-axis, though a taller-than-wider swell would bulge past
+	 * the rail more convincingly. A capsule scaled uniformly stays a capsule — its
+	 * saturated radius scales with its box — whereas a non-uniform one needs the
+	 * `--lg-radius-x` / `--lg-radius-y` compensation `LiquidMenu` carries, to stop the
+	 * fully-rounded ends coming out as flattened ellipses.
+	 */
+	restScale: 0.88,
+	/**
+	 * Grabbed. Exactly 1, for the reason {@link SWITCH_THUMB.activeScale} is: past it
+	 * the displacement map rasterised for the laid-out box would be magnified, which
+	 * visibly softens the rim.
+	 */
+	activeScale: 1,
+	/**
+	 * Refracting band, as a fraction of the laid-out height. The knob's ratio, and
+	 * for the knob's reason: a half-height bezel turns the whole capsule into bezel,
+	 * and a surface that refracts everywhere reads as a smudge rather than as a lens
+	 * with a clear centre.
+	 */
+	bezelRatio: 0.22,
+	/**
+	 * How far past the first and last segment the bubble may be pulled, as a
+	 * fraction of one segment's width. See {@link DRAG_OVERSHOOT_DECAY} for why a
+	 * bound wants give rather than a hard stop.
+	 */
+	overshootRatio: 0.3,
+	/**
+	 * How far a release velocity is projected before deciding which segment was
+	 * aimed at, in seconds.
+	 *
+	 * Twice {@link DRAG_INERTIA_SECONDS}, deliberately. That figure is tuned for a
+	 * free glide, where the projection *is* the resting place; here it only has to
+	 * decide a winner between detents, and a flick has to be able to carry the
+	 * bubble a whole segment or it is not a flick. At 0.12 a 900px/s push clears a
+	 * ~110px segment, which is about the speed a deliberate throw lands at.
+	 */
+	flickSeconds: 0.12,
+	/**
+	 * Floor on how long the rail is held at full melt, in milliseconds. Same
+	 * argument, and the same figure, as {@link SWITCH_THUMB.meltFloorMs}: an
+	 * ordinary click is over in ~80ms and the droplet spring is nowhere near its
+	 * target by then, so without this the common case shows half the effect.
+	 */
+	meltFloorMs: 180
+} as const;
+
+/**
+ * The rail at rest.
+ *
+ * Unlike a knob — which is an opaque tinted blob until you grab it, see
+ * {@link DROPLET_REST} — a container is glass the whole time it is on screen, so
+ * the refraction is at full strength here rather than at zero. What the morph
+ * carries is not glass appearing, it is glass *waking up*: the same surface
+ * saturating and brightening under the hand.
+ *
+ * Tinted and blurred a little more than a knob for the reason the menu panel is:
+ * this is a surface with small text sitting directly on it, and a perfectly clear
+ * one is unreadable over busy content.
+ */
+export const TABS_GLASS_REST: DropletVisual = {
+	displacementRatio: DISPLACEMENT_PER_BEZEL,
+	opacity: 0.08,
+	saturation: 1.5,
+	blur: 0.4,
+	specularIntensity: 0.7,
+	scale: 1
+};
+
+/**
+ * The rail while the control is being worked.
+ *
+ * The displacement goes *past* {@link DISPLACEMENT_PER_BEZEL} rather than up to
+ * it, which is safe — it is a live filter attribute, scaling the same map harder,
+ * not a geometry change — and it is what makes the rims visibly bow as the bubble
+ * travels.
+ *
+ * `blur` rises rather than falls, against the knob's instinct. The knob has
+ * nothing written on it; this does, and the moment the backdrop saturates by 60%
+ * the labels need the extra frost to stay legible against it.
+ *
+ * `scale` is pinned at 1 in both endpoints and never read: the rail is the
+ * component's layout box, and scaling it would move the segments the bubble is
+ * measured against out from under it.
+ */
+export const TABS_GLASS_ACTIVE: DropletVisual = {
+	displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
+	opacity: 0.05,
+	saturation: 2.4,
+	blur: 0.6,
+	specularIntensity: 1,
+	scale: 1
+};
 
 /** Samples in the 1-D magnitude LUT. 128 keeps a smooth gradient at 8-bit depth. */
 export const LUT_SAMPLES = 128;
