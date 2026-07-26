@@ -77,6 +77,12 @@ export interface SpecularMapParams {
 	cornerShape?: CornerShape;
 	/** Width of the bright hairline in CSS pixels. */
 	rimWidth: number;
+	/**
+	 * Device pixels per CSS pixel, used to pick a supersampling factor so the rim
+	 * is not upscaled by `feImage`. Defaults to `1`; pass
+	 * `devicePixelRatio.current` to keep it correct across zoom.
+	 */
+	pixelRatio?: number;
 }
 
 /** A generated, cacheable texture fed to `<feImage href>`. */

@@ -2,7 +2,12 @@
 	import type { Snippet } from 'svelte';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 	import LiquidGlass from './LiquidGlass.svelte';
-	import type { GlassMode, GlassQuality, LiquidGlassProps } from './liquidGlass.types.js';
+	import type {
+		CornerShape,
+		GlassMode,
+		GlassQuality,
+		LiquidGlassProps
+	} from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { applyHover, applyPress } from './runtime/glassMotion.js';
 	import {
@@ -29,6 +34,16 @@
 		 */
 		shape?: ButtonShape;
 		borderRadius?: number;
+		/**
+		 * Corner outline. Worth knowing what it does against the default
+		 * `borderRadius` of 999: that radius exists to be clamped to half the box, and
+		 * a clamped `squircle` is not a capsule with squircle corners, it is a lozenge
+		 * with flat ends. So `squircle` is for a button given an explicit, smaller
+		 * radius — or for `shape="circle"`, where clamping a squircle to half a square
+		 * box produces exactly the iOS app-icon silhouette, which is the shape the
+		 * whole `corner-shape` property was standardised for.
+		 */
+		cornerShape?: CornerShape;
 		bezel?: number;
 		quality?: GlassQuality;
 		mode?: GlassMode;
@@ -49,6 +64,7 @@
 		size = 'md',
 		shape = 'pill',
 		borderRadius = 999,
+		cornerShape = 'round',
 		bezel,
 		quality = GLASS_DEFAULTS.quality,
 		mode = 'auto',
@@ -136,6 +152,7 @@
 	tag="button"
 	bind:element
 	{borderRadius}
+	{cornerShape}
 	bezel={resolvedBezel}
 	opacity={tone === 'prominent' ? 0.14 : GLASS_DEFAULTS.opacity}
 	{specularIntensity}

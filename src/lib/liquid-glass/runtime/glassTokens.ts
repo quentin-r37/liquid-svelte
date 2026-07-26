@@ -520,6 +520,24 @@ export const SPECULAR_WIDTH_MAX = 4;
 export const SPECULAR_LIGHT_ANGLE = Math.PI / 3;
 
 /**
+ * Ceiling on how many map texels the specular rim is rasterised at per CSS pixel.
+ *
+ * One texel per CSS pixel is the obvious choice and it is wrong on any display
+ * whose device pixel ratio is not 1: `feImage` has to upscale, and a hairline
+ * 1.5–4 px thick following a curve becomes a visible staircase. It is mild on a
+ * 2× panel and unmissable under browser zoom, which is the case that actually
+ * gets reported. Matching the ratio removes the upscale entirely.
+ *
+ * Capped at 3 because the cost is quadratic and the return is not: past three
+ * texels per CSS pixel the residual error is below a device pixel on any display
+ * that exists, while the rasterisation is already 9× the work of the 1× map. The
+ * *displacement* map deliberately does not do this — it is a smooth field that
+ * survives being stretched, which is why `QualityPreset.resolution` can go the
+ * other way and generate it at half scale.
+ */
+export const SPECULAR_SUPERSAMPLE_MAX = 3;
+
+/**
  * Geometry is rounded to this many CSS pixels before it becomes a cache key, so
  * a continuous resize only rebuilds the maps when it crosses a step.
  */

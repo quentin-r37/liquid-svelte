@@ -12,6 +12,7 @@
 		resolveGlassSupport,
 		resolveTier
 	} from './runtime/capabilities.svelte.js';
+	import { devicePixelRatio, resolveDevicePixelRatio } from './runtime/devicePixelRatio.svelte.js';
 	import {
 		DISPLACEMENT_PER_BEZEL,
 		GLASS_DEFAULTS,
@@ -62,6 +63,12 @@
 	// Detection is client-only and idempotent, so the first client render matches
 	// the server output and hydration stays quiet.
 	$effect(resolveGlassSupport);
+
+	// Same shape, and for the same reason: reading the ratio during SSR would be a
+	// guess, so it stays at 1 until the client says otherwise. Both effects flush
+	// together, and the `full` tier this feeds is gated on the one above, so the
+	// specular map is never rasterised at the placeholder ratio.
+	$effect(resolveDevicePixelRatio);
 
 	/** Measured border-box size, quantised so sub-pixel resize noise is inert. */
 	let measured = $state({ width: 0, height: 0 });
@@ -146,7 +153,11 @@
 					height: resolvedHeight,
 					radius: clampedRadius,
 					cornerShape: effectiveCornerShape,
-					rimWidth: specularWidthFor(clampedBezel)
+					rimWidth: specularWidthFor(clampedBezel),
+					// Part of the cache key, and legitimately so: the ratio only moves
+					// when the user zooms or the window changes monitor, so this stays on
+					// the geometry side of the regenerate/animate line.
+					pixelRatio: devicePixelRatio.current
 				})
 			: null
 	);

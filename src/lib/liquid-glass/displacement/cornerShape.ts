@@ -39,7 +39,16 @@ const KEYWORD_K = {
 function resolveK(shape: CornerShape): number {
 	if (typeof shape !== 'number') return KEYWORD_K[shape];
 	if (Number.isNaN(shape)) return KEYWORD_K.round;
-	return Math.min(CORNER_K_MAX, Math.max(CORNER_K_MIN, shape));
+	const clamped = Math.min(CORNER_K_MAX, Math.max(CORNER_K_MIN, shape));
+	/*
+	 * Rounded here, once, rather than when either output is formatted. `LiquidMenu`
+	 * eases K per frame, so an unrounded value would emit
+	 * `superellipse(1.4000000000000001)` — harmless in itself, but rounding only the
+	 * CSS side would let the token and the field's exponent describe curves that
+	 * differ in the fourth decimal, and this file's entire contract is that they
+	 * cannot differ at all. Four decimals is far below one device pixel of outline.
+	 */
+	return Math.round(clamped * 1e4) / 1e4;
 }
 
 /**

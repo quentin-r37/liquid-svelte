@@ -3,7 +3,8 @@
 	import { untrack, type Snippet } from 'svelte';
 	import LiquidButton, { type ButtonShape } from './LiquidButton.svelte';
 	import LiquidGlass from './LiquidGlass.svelte';
-	import type { GlassMode, GlassQuality } from './liquidGlass.types.js';
+	import { cornerExponent, cornerShapeCss } from './displacement/cornerShape.js';
+	import type { CornerShape, GlassMode, GlassQuality } from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { DropletMorph } from './runtime/dropletMorph.svelte.js';
 	import { acquireGlassTransform, type GlassTransform } from './runtime/glassMotion.js';
@@ -75,6 +76,17 @@
 		morph?: boolean;
 		/** Accessible name for the menu. Defaults to being labelled by the trigger. */
 		menuLabel?: string;
+		/**
+		 * Corner outline of the *panel*, once it has settled.
+		 *
+		 * Deliberately not forwarded to the trigger. In `morph` mode the panel opens as
+		 * a copy of the trigger's box, so the two silhouettes have to agree at the
+		 * handoff — and they do, because the panel opens at `round` whatever this is set
+		 * to and only eases to it as the reveal completes. Giving the trigger a squircle
+		 * would break that agreement at the one frame it matters; a trigger that wants
+		 * one can be styled through `triggerShape` and its own button.
+		 */
+		cornerShape?: CornerShape;
 		quality?: GlassQuality;
 		mode?: GlassMode;
 		class?: string;
@@ -96,6 +108,7 @@
 		triggerSize = 'md',
 		morph = true,
 		menuLabel,
+		cornerShape = 'round',
 		quality = 'high',
 		mode = 'auto',
 		class: className = '',
@@ -301,6 +314,19 @@
 	 * past half the box, supplying the pill end of that range for free and for any
 	 * trigger size.
 	 *
+	 * That last mechanism is also why `cornerShape` cannot simply be handed to the
+	 * primitive and left there. The pill comes from the clamp, and the clamp only
+	 * yields a pill for a *round* corner: a squircle clamped to half the box is a
+	 * lozenge with flat ends, which is precisely the rectangle the roundness above
+	 * exists to avoid. So the corner shape is eased alongside the roundness rather
+	 * than held constant — `round` while the patch is a lozenge, reaching the settled
+	 * shape exactly as the reveal does. Both are driven off `settled`, so the two
+	 * cannot fall out of step.
+	 *
+	 * `--lg-corner-shape-live` rather than `--lg-corner-shape` for the same reason the
+	 * radius uses `-x`/`-y`: the un-suffixed property is the primitive's, written from
+	 * the prop, and writing over it here would leave nothing to fall back to.
+	 *
 	 * `revealY` alone measures the progress, not the composed scale: the deformation
 	 * channels are a wobble on top of the reveal, not part of how far along it is, and
 	 * feeding them back in here would make the corner flutter with the volume.
@@ -321,6 +347,15 @@
 		const panel = panelElement;
 		if (!transform || !panel) return;
 
+		/*
+		 * `superellipse()` K of the settled panel: 1 for `round`, 2 for `squircle`.
+		 * Taken from the exponent so there is one definition of the mapping, and left
+		 * un-gated on `corner-shape` support on purpose — an engine that lacks the
+		 * property drops the declaration, and the primitive has already built both maps
+		 * round to match. The gate belongs where the maps are chosen, not here.
+		 */
+		const settledK = cornerExponent(cornerShape) / 2;
+
 		const write = () => {
 			const scaleX = transform.revealX.get() * transform.stretchX.get();
 			const scaleY = transform.revealY.get() * transform.stretchY.get();
@@ -330,6 +365,15 @@
 			// write `Infinity px`, which is not a length and drops the declaration.
 			panel.style.setProperty('--lg-radius-x', `${radius / Math.max(scaleX, 0.01)}px`);
 			panel.style.setProperty('--lg-radius-y', `${radius / Math.max(scaleY, 0.01)}px`);
+
+			// Skipped outright for a round panel, which is the default: the eased value
+			// would be a constant `round` and this is a per-frame path.
+			if (settledK !== 1) {
+				panel.style.setProperty(
+					'--lg-corner-shape-live',
+					cornerShapeCss(1 + (settledK - 1) * settled)
+				);
+			}
 		};
 
 		write();
@@ -342,10 +386,11 @@
 
 		return () => {
 			for (const stop of unsubscribe) stop();
-			// Back to the plain `--lg-radius` the primitive writes, rather than to a
-			// computed copy of it.
+			// Back to the plain `--lg-radius` / `--lg-corner-shape` the primitive writes,
+			// rather than to a computed copy of either.
 			panel.style.removeProperty('--lg-radius-x');
 			panel.style.removeProperty('--lg-radius-y');
+			panel.style.removeProperty('--lg-corner-shape-live');
 		};
 	});
 
@@ -711,6 +756,7 @@
 	<LiquidGlass
 		bind:element={panelElement}
 		borderRadius={MENU_GEOMETRY.radius}
+		{cornerShape}
 		bezel={MENU_GEOMETRY.bezel}
 		displacement={MENU_GEOMETRY.bezel * droplet.visual.displacementRatio}
 		opacity={droplet.visual.opacity}

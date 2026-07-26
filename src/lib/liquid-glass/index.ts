@@ -60,6 +60,8 @@ export {
 	setGlassModeOverride
 } from './runtime/capabilities.svelte.js';
 
+export { devicePixelRatio, resolveDevicePixelRatio } from './runtime/devicePixelRatio.svelte.js';
+
 export {
 	CORNER_K_MAX,
 	CORNER_K_MIN,
@@ -73,7 +75,8 @@ export {
 	MENU_GLASS_REST,
 	NAVBAR_GEOMETRY,
 	QUALITY_PRESETS,
-	SCROLL_EDGE
+	SCROLL_EDGE,
+	SPECULAR_SUPERSAMPLE_MAX
 } from './runtime/glassTokens.js';
 export type { DropletVisual, QualityPreset } from './runtime/glassTokens.js';
 

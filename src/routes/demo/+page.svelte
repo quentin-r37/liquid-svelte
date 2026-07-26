@@ -12,6 +12,7 @@
 		glassSupport,
 		reducedMotion,
 		setGlassModeOverride,
+		type CornerShape,
 		type GlassMode,
 		type LiquidMenuItem,
 		type LiquidTab
@@ -30,6 +31,13 @@
 	let scheme = $state<'light' | 'dark'>('dark');
 	let backdrop = $state<BackdropKind>('grid');
 	let tierOverride = $state<GlassMode>('auto');
+	/**
+	 * Applied to every component that accepts it, so the two silhouettes can be
+	 * compared on the same page rather than across a reload. `round` by default —
+	 * which is also the library's default, so the gallery is the shipped look until
+	 * this is touched.
+	 */
+	let cornerShape = $state<CornerShape>('round');
 
 	$effect(() => {
 		setGlassModeOverride(tierOverride);
@@ -126,9 +134,26 @@
 					<option value="light">light</option>
 				</select>
 			</label>
+			<label>
+				<span>corner</span>
+				<select bind:value={cornerShape} disabled={!glassSupport.cornerShape}>
+					<option value="round">round</option>
+					<option value="squircle">squircle</option>
+				</select>
+			</label>
 			<p class="meta">
-				reduced motion: <strong>{reducedMotion.current ? 'on' : 'off'}</strong> ·
+				reduced motion: <strong>{reducedMotion.current ? 'on' : 'off'}</strong> · corner-shape:
+				<strong>{glassSupport.cornerShape ? 'supported' : 'unsupported'}</strong> ·
 				<a href={resolve('/probe')}>optics probe</a>
+			</p>
+			<p class="meta">
+				<strong>squircle</strong> is worth watching in two places. Open a menu and the corner is
+				<em>round</em> for the whole spill and only reaches the superellipse as the panel settles —
+				because the puddle's pill comes from CSS clamping the radius to half the box, and a clamped
+				squircle has flat ends. And the circular buttons become the iOS app-icon shape, which is
+				what
+				<code>corner-shape</code> was standardised for. The pills, by the same clamp, lose their round
+				ends: that is the shape asked for, not a bug.
 			</p>
 		</div>
 	</header>
@@ -141,12 +166,12 @@
 				Space and Enter compress it exactly like a click. Tab to it and try.
 			</p>
 			<div class="row">
-				<LiquidButton size="sm" onclick={() => (pressed += 1)}>Small</LiquidButton>
-				<LiquidButton onclick={() => (pressed += 1)}>Medium</LiquidButton>
-				<LiquidButton size="lg" tone="prominent" onclick={() => (pressed += 1)}>
+				<LiquidButton size="sm" {cornerShape} onclick={() => (pressed += 1)}>Small</LiquidButton>
+				<LiquidButton {cornerShape} onclick={() => (pressed += 1)}>Medium</LiquidButton>
+				<LiquidButton size="lg" tone="prominent" {cornerShape} onclick={() => (pressed += 1)}>
 					Prominent
 				</LiquidButton>
-				<LiquidButton disabled>Disabled</LiquidButton>
+				<LiquidButton {cornerShape} disabled>Disabled</LiquidButton>
 			</div>
 			<p class="note">
 				<code>shape="circle"</code> is not a pill with equal padding: it is laid out at a literal
@@ -155,13 +180,17 @@
 				a fixed bezel would turn the whole disc into rim and the glyph would sit in continuous distortion.
 			</p>
 			<div class="row">
-				<LiquidButton shape="circle" size="sm" aria-label="Previous"><SkipBack /></LiquidButton>
-				<LiquidButton shape="circle" aria-label="Play"><Play /></LiquidButton>
-				<LiquidButton shape="circle" size="lg" tone="prominent" aria-label="Next">
+				<LiquidButton shape="circle" size="sm" {cornerShape} aria-label="Previous">
+					<SkipBack />
+				</LiquidButton>
+				<LiquidButton shape="circle" {cornerShape} aria-label="Play"><Play /></LiquidButton>
+				<LiquidButton shape="circle" size="lg" tone="prominent" {cornerShape} aria-label="Next">
 					<SkipForward />
 				</LiquidButton>
-				<LiquidButton shape="circle" disabled aria-label="Shuffle"><Shuffle /></LiquidButton>
-				<LiquidButton><Play />Play all</LiquidButton>
+				<LiquidButton shape="circle" {cornerShape} disabled aria-label="Shuffle">
+					<Shuffle />
+				</LiquidButton>
+				<LiquidButton {cornerShape}><Play />Play all</LiquidButton>
 			</div>
 			<p class="readout">presses: <strong>{pressed}</strong></p>
 		</section>
@@ -192,18 +221,24 @@
 				spreads. Three frames later it spills sideways — flattening as it goes, because the volume
 				has to be somewhere — and then rises into its own shape, the refraction growing in as it
 				deepens, since a shallow puddle has no thickness to bend light through. Its corner is driven
-				<em>against</em> the scale throughout: as round as the box allows while it is small, easing to
-				the panel's own radius only as it settles, which is the difference between liquid finding its
-				edges and a rectangle being enlarged. Two scale channels, two deformation channels and a translation
-				— no size animation, so the displacement map is rasterised once before the menu is ever opened.
-				Arrows, Home/End, Escape, Tab and an outside press all behave; pointing at an item moves focus
-				to it, as a native menu does.
+				<em>against</em> the scale throughout: as round as the box allows while it is small, easing
+				to the panel's own radius only as it settles, which is the difference between liquid finding
+				its edges and a rectangle being enlarged. With <code>cornerShape="squircle"</code> the outline
+				eases on that same schedule and for the same reason: the pill comes from CSS clamping the radius
+				to half the box, and a clamped squircle has flat ends — so the panel spills round and only becomes
+				a superellipse once it has somewhere to put one. Two scale channels, two deformation channels
+				and a translation — no size animation, so the displacement map is rasterised once before the menu
+				is ever opened. Arrows, Home/End, Escape, Tab and an outside press all behave; pointing at an
+				item moves focus to it, as a native menu does.
 			</p>
 			<div class="row">
-				<LiquidMenu items={menuItems} onselect={(id) => (lastMenuChoice = id)}>Actions</LiquidMenu>
+				<LiquidMenu items={menuItems} {cornerShape} onselect={(id) => (lastMenuChoice = id)}>
+					Actions
+				</LiquidMenu>
 				<LiquidMenu
 					items={menuItems}
 					placement="bottom-end"
+					{cornerShape}
 					onselect={(id) => (lastMenuChoice = id)}
 				>
 					End-aligned
@@ -211,14 +246,20 @@
 				<LiquidMenu
 					items={menuItems}
 					placement="top-start"
+					{cornerShape}
 					onselect={(id) => (lastMenuChoice = id)}
 				>
 					Upwards
 				</LiquidMenu>
-				<LiquidMenu items={menuItems} morph={false} onselect={(id) => (lastMenuChoice = id)}>
+				<LiquidMenu
+					items={menuItems}
+					morph={false}
+					{cornerShape}
+					onselect={(id) => (lastMenuChoice = id)}
+				>
 					No morph
 				</LiquidMenu>
-				<LiquidMenu items={menuItems} disabled>Disabled</LiquidMenu>
+				<LiquidMenu items={menuItems} {cornerShape} disabled>Disabled</LiquidMenu>
 			</div>
 			<p class="readout">selected: <strong>{lastMenuChoice}</strong></p>
 		</section>
@@ -251,7 +292,7 @@
 				<code>tablist</code> / <code>tab</code> / <code>tabpanel</code> with roving focus and manual activation.
 				Arrow keys move, Home and End jump, the disabled tab is skipped.
 			</p>
-			<LiquidTabs {tabs} bind:value={activeTab} label="Documentation sections">
+			<LiquidTabs {tabs} bind:value={activeTab} {cornerShape} label="Documentation sections">
 				{#snippet panel(id)}
 					<p class="panel">{tabCopy[id]}</p>
 				{/snippet}
@@ -283,14 +324,17 @@
 					bind:progress={navProgress}
 				>
 					{#snippet leading()}
-						<LiquidButton shape="circle" aria-label="Back"><ChevronLeft /></LiquidButton>
+						<LiquidButton shape="circle" {cornerShape} aria-label="Back">
+							<ChevronLeft />
+						</LiquidButton>
 					{/snippet}
 					{#snippet trailing()}
-						<LiquidButton shape="circle" aria-label="Search"><Search /></LiquidButton>
+						<LiquidButton shape="circle" {cornerShape} aria-label="Search"><Search /></LiquidButton>
 						<LiquidMenu
 							items={menuItems}
 							placement="bottom-end"
 							triggerShape="circle"
+							{cornerShape}
 							onselect={(id) => (lastMenuChoice = id)}
 						>
 							<Ellipsis />
@@ -341,7 +385,12 @@
 					</p>
 				</div>
 
-				<LiquidLens container={lensStage} label="Magnifier" style="left: 8%; top: 24%;" />
+				<LiquidLens
+					container={lensStage}
+					{cornerShape}
+					label="Magnifier"
+					style="left: 8%; top: 24%;"
+				/>
 			</div>
 		</section>
 
@@ -351,34 +400,52 @@
 				Everything above composes this. It takes content through a snippet and exposes the geometry
 				and optics as typed props.
 			</p>
+			<p class="note">
+				These four vary <code>profile</code> — the height of the glass <em>surface</em> across the
+				bezel, which is what bends the light. The <strong>corner</strong> control in the header
+				varies
+				<code>cornerShape</code>, the <em>outline</em>. Two unrelated axes that both have a squircle
+				in them, hence the labels: the first tile is the default quartic <em>surface</em>, and it
+				keeps that surface whatever the outline is set to.
+			</p>
 			<div class="row wrap">
-				<LiquidGlass width={150} height={150} borderRadius={75} bezel={40} interactive>
-					<span class="tile-label">squircle</span>
+				<LiquidGlass
+					width={150}
+					height={150}
+					borderRadius={75}
+					{cornerShape}
+					bezel={40}
+					interactive
+				>
+					<span class="tile-label">squircle profile</span>
 				</LiquidGlass>
 				<LiquidGlass
 					width={150}
 					height={150}
 					borderRadius={28}
+					{cornerShape}
 					bezel={30}
 					profile="concave"
 					interactive
 				>
-					<span class="tile-label">concave</span>
+					<span class="tile-label">concave profile</span>
 				</LiquidGlass>
 				<LiquidGlass
 					width={150}
 					height={150}
 					borderRadius={40}
+					{cornerShape}
 					bezel={34}
 					profile="lip"
 					interactive
 				>
-					<span class="tile-label">lip</span>
+					<span class="tile-label">lip profile</span>
 				</LiquidGlass>
 				<LiquidGlass
 					width={150}
 					height={150}
 					borderRadius={20}
+					{cornerShape}
 					bezel={26}
 					chromaticAberration={0.16}
 					interactive

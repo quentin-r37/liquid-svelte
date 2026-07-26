@@ -41,10 +41,10 @@
  * ## Custom properties
  *
  * Set by the component:
- *   --lg-radius, --lg-bezel, --lg-tint, --lg-specular, --lg-shadow,
- *   --lg-backdrop, --lg-elevation
+ *   --lg-radius, --lg-corner-shape, --lg-bezel, --lg-tint, --lg-specular,
+ *   --lg-shadow, --lg-backdrop, --lg-elevation
  * Set by a surface that is being scaled non-uniformly (see LiquidMenu):
- *   --lg-radius-x, --lg-radius-y
+ *   --lg-radius-x, --lg-radius-y, --lg-corner-shape-live
  * Set by pointer tracking (see runtime/pointerTracking.ts):
  *   --pointer-x, --pointer-y, --velocity-x, --velocity-y,
  *   --highlight-x, --highlight-y, --pointer-inside
@@ -90,12 +90,38 @@
 	 * the correct outcome precisely because the maps were built round to match.
 	 */
 	--lg-corner-shape: round;
+	/*
+	 * The corner actually drawn, split from the one above for exactly the reason
+	 * `--lg-radius-x` is split from `--lg-radius`: a surface mid-deformation needs a
+	 * *rendered* shape that differs from its settled one, and it cannot get there by
+	 * overwriting the property the primitive owns.
+	 *
+	 * `LiquidMenu` drives this per frame. Its puddle depends on CSS clamping the
+	 * radius to half the box to produce a pill, and a pill is a `round` corner by
+	 * definition — clamp a squircle to half the box and the ends come out flat,
+	 * which is the rectangle the whole morph exists to not be. So the panel opens at
+	 * `round` and eases to its settled shape as the reveal completes. See the
+	 * `--lg-radius-x` writer in `LiquidMenu.svelte`.
+	 */
+	--lg-corner-shape-live: var(--lg-corner-shape);
 	--lg-bezel: 24px;
 	--lg-tint: 0.05;
 	--lg-specular: 0.8;
 	--lg-shadow: 0.5;
 	--lg-elevation: 4px;
 	--lg-border-width: 1px;
+	/*
+	 * Thickness of the pointer-driven rim glow (see `.lg-specular`).
+	 *
+	 * Deliberately a small multiple of the edge line rather than a fraction of the
+	 * bezel: the glow is meant to read as *the existing hairline brightening* where
+	 * the pointer is near it, not as a second, thicker outline drawn on top. Scaling
+	 * it with the bezel would make a large panel light up with a fat band, which is
+	 * the one thing the reference never does — an edge light stays a hairline
+	 * whatever the surface measures, because it is a reflection off a corner radius,
+	 * not off an area.
+	 */
+	--lg-specular-band: calc(var(--lg-border-width) * 2);
 	--lg-light-angle: 145deg;
 
 	/* Scheme-agnostic base: a very low-alpha white sheet plus soft inner shading
@@ -110,7 +136,7 @@
 	justify-content: center;
 	box-sizing: border-box;
 	border-radius: var(--lg-radius-x) / var(--lg-radius-y);
-	corner-shape: var(--lg-corner-shape);
+	corner-shape: var(--lg-corner-shape-live);
 	background: transparent;
 	-webkit-tap-highlight-color: transparent;
 
@@ -184,7 +210,7 @@
 	position: absolute;
 	inset: 0;
 	border-radius: inherit;
-	corner-shape: var(--lg-corner-shape);
+	corner-shape: var(--lg-corner-shape-live);
 	pointer-events: none;
 }
 
@@ -216,7 +242,7 @@
 	position: absolute;
 	inset: 0;
 	border-radius: inherit;
-	corner-shape: var(--lg-corner-shape);
+	corner-shape: var(--lg-corner-shape-live);
 	pointer-events: none;
 }
 
@@ -274,7 +300,7 @@
 	initial-value: 0;
 }
 
-/* 6. Specular — pointer-driven glow. */
+/* 6. Specular — pointer-driven glow, carried by the rim rather than the face. */
 .lg {
 	transition: --pointer-inside 260ms cubic-bezier(0.2, 0.7, 0.3, 1);
 }
@@ -284,16 +310,65 @@
 	--lg-glow: calc(var(--lg-specular) + var(--lg-specular-boost, 0));
 
 	overflow: hidden;
-	/* Gated on `--pointer-inside` inside the colour rather than via the layer's
-	   opacity: at rest the SVG rim *is* the highlight, and a static blob layered on
-	   top of it just looks foggy. */
-	background: radial-gradient(
-		circle at var(--highlight-x, 50%) var(--highlight-y, 50%),
-		rgb(var(--lg-rim) / calc(0.3 * var(--lg-glow) * var(--pointer-inside, 0))) 0%,
-		rgb(var(--lg-rim) / calc(0.08 * var(--lg-glow) * var(--pointer-inside, 0))) 38%,
-		rgb(var(--lg-rim) / 0) 68%
-	);
 	mix-blend-mode: screen;
+}
+
+/*
+ * The glow rides the edge, not the surface.
+ *
+ * This used to be a radial blob painted across the whole face — the pointer
+ * dragged a soft white cloud around inside the button. It is the obvious reading
+ * of "specular highlight", and it is the wrong one for this material: a slab of
+ * glass laid over a backdrop has a flat, nearly parallel front face, so the only
+ * geometry that can bounce a light source back at the viewer is the *curved*
+ * part — the bezel rolling over into the silhouette. That is why the reference
+ * lights its border and leaves the middle of a control alone, and why the blob
+ * version reads as a hover state painted onto glass rather than as light landing
+ * on it. The middle of the surface already has its job: showing the refracted
+ * backdrop, which a white wash on top only mutes.
+ *
+ * So the same pointer-tracked gradient is kept and simply masked down to a band
+ * along the outline. The bright arc lands on whichever stretch of edge the
+ * pointer is nearest, sweeps around it as the pointer moves, and fades where the
+ * edge runs away — which is the whole effect.
+ *
+ * `farthest-side` rather than the default `farthest-corner` keeps the falloff
+ * tight: the nearest edge should be well inside the bright core while the
+ * opposite one is already dark, and sizing to the corner stretches the gradient
+ * so far that on a wide pill the entire outline lights at once.
+ *
+ * Alphas are much higher than the face version carried because the lit area is
+ * now a hairline instead of a disc — the same numbers here would be invisible.
+ *
+ * Gated on `--pointer-inside` inside the colour rather than via the layer's
+ * opacity: at rest the SVG rim *is* the highlight, and anything static layered on
+ * top of it just thickens it.
+ */
+.lg-specular::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	corner-shape: var(--lg-corner-shape-live);
+	padding: var(--lg-specular-band);
+	background: radial-gradient(
+		circle farthest-side at var(--highlight-x, 50%) var(--highlight-y, 50%),
+		rgb(var(--lg-rim) / calc(0.85 * var(--lg-glow) * var(--pointer-inside, 0))) 0%,
+		rgb(var(--lg-rim) / calc(0.34 * var(--lg-glow) * var(--pointer-inside, 0))) 34%,
+		rgb(var(--lg-rim) / 0) 74%
+	);
+	/* The band: paint the whole box, then punch out the content box. Same ring
+	   trick as `.lg-edge::before`, and it matters that it is that one and not an
+	   inset rectangle — a content-box clip keeps the rounded corners, so the band
+	   holds an even width all the way round instead of pooling at the corners. */
+	-webkit-mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	mask:
+		linear-gradient(#000 0 0) content-box,
+		linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
 }
 
 /*
@@ -306,7 +381,7 @@
 	position: absolute;
 	inset: 0;
 	border-radius: inherit;
-	corner-shape: var(--lg-corner-shape);
+	corner-shape: var(--lg-corner-shape-live);
 	padding: calc(var(--lg-bezel) * 0.4);
 	background: linear-gradient(
 		var(--lg-light-angle),
