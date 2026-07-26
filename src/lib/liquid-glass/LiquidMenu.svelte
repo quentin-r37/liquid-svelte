@@ -8,7 +8,12 @@
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { DropletMorph } from './runtime/dropletMorph.svelte.js';
 	import { acquireGlassTransform, type GlassTransform } from './runtime/glassMotion.js';
-	import { MENU_GEOMETRY, MENU_GLASS_OPEN, MENU_GLASS_REST } from './runtime/glassTokens.js';
+	import {
+		GLASS_DEFAULTS,
+		MENU_GEOMETRY,
+		MENU_GLASS_OPEN,
+		MENU_GLASS_REST
+	} from './runtime/glassTokens.js';
 	import {
 		MENU_COLLAPSE,
 		MENU_MORPH_GATHER,
@@ -77,14 +82,14 @@
 		/** Accessible name for the menu. Defaults to being labelled by the trigger. */
 		menuLabel?: string;
 		/**
-		 * Corner outline of the *panel*, once it has settled.
+		 * Corner outline of the *panel*, once it has settled. `squircle` by default,
+		 * because a context menu is one of the surfaces iOS gives a continuous corner to.
 		 *
-		 * Deliberately not forwarded to the trigger. In `morph` mode the panel opens as
-		 * a copy of the trigger's box, so the two silhouettes have to agree at the
-		 * handoff — and they do, because the panel opens at `round` whatever this is set
-		 * to and only eases to it as the reveal completes. Giving the trigger a squircle
-		 * would break that agreement at the one frame it matters; a trigger that wants
-		 * one can be styled through `triggerShape` and its own button.
+		 * Deliberately not forwarded to the trigger, which is a capsule and would demote
+		 * to `round` anyway. That happens to be exactly what `morph` mode needs: the
+		 * panel opens as a copy of the trigger's box, so the two silhouettes have to
+		 * agree at the handoff — and they do, because the panel opens at `round` whatever
+		 * this is set to and only eases to the superellipse as the reveal completes.
 		 */
 		cornerShape?: CornerShape;
 		quality?: GlassQuality;
@@ -108,7 +113,7 @@
 		triggerSize = 'md',
 		morph = true,
 		menuLabel,
-		cornerShape = 'round',
+		cornerShape = GLASS_DEFAULTS.cornerShape,
 		quality = 'high',
 		mode = 'auto',
 		class: className = '',

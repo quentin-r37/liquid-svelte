@@ -14,16 +14,25 @@ import type {
 export const GLASS_DEFAULTS = {
 	borderRadius: 28,
 	/**
-	 * The plain `border-radius` corner, deliberately.
+	 * The continuous corner, matching iOS.
 	 *
-	 * `squircle` is the better-looking shape and it is what iOS actually draws, but
-	 * it is opt-in because it is not free: `corner-shape` is Chromium 139+, so on an
-	 * older Chromium — which still renders the `full` tier perfectly well — the
-	 * surface would silently drop back to a round outline, and a library whose
-	 * default silhouette depends on the browser version is a library whose designs
-	 * do not reproduce. Opting in makes that a decision with a known blast radius.
+	 * This is the default rather than an opt-in because it does not mean "make
+	 * everything a squircle". `LiquidGlass` demotes it to `round` for any surface
+	 * whose radius saturates at half its box — every button, switch knob, slider
+	 * thumb and pill tab in the library — because a capsule and a superellipse cannot
+	 * both be had (see `isCapsule` there). What is left is precisely the set iOS
+	 * gives continuous corners to: cards, sheets, panels, context menus.
+	 *
+	 * So one default expresses the whole convention, and a consumer only reaches for
+	 * the prop to opt *out* or to push K past 2.
+	 *
+	 * Browsers without `corner-shape` (anything but Chromium 139+) fall back to
+	 * `round` together with their maps, so the silhouette degrades rather than tearing
+	 * — the cost being that a card's corner does depend on the engine. That is the
+	 * trade this default accepts, and it is the same one `backdrop-filter: url()`
+	 * already forces on the refraction itself.
 	 */
-	cornerShape: 'round' as CornerShape,
+	cornerShape: 'squircle' as CornerShape,
 	bezel: 24,
 	/**
 	 * Peak refraction offset in CSS pixels. `undefined` means "derive it from the

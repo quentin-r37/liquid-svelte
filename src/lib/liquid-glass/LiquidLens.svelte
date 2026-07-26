@@ -40,7 +40,9 @@
 		width = 200,
 		height = 140,
 		borderRadius = 70,
-		cornerShape = 'round',
+		// Left to the library default. A lens is 200×140 with a radius of 70, i.e. a
+		// capsule, so the primitive demotes it to `round` regardless.
+		cornerShape,
 		bezel = 30,
 		displacement,
 		profile = 'convex-squircle',

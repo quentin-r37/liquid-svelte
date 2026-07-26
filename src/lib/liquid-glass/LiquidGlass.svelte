@@ -105,16 +105,46 @@
 	const clampedBezel = $derived(hasGeometry ? Math.min(bezel, limit) : bezel);
 
 	/**
+	 * Whether a *capsule* was asked for — a saturated radius on a box that is not
+	 * square.
+	 *
+	 * This is a geometric law rather than a style preference, and it is the reason the
+	 * iOS convention needs no per-component opt-in. When the radius reaches half the
+	 * shorter side, that axis is fully consumed while the longer one still has straight
+	 * edge left over, and the only curve that meets those flats without a corner is the
+	 * semicircle. A superellipse there is not a fully-rounded end, it is a lozenge with
+	 * flat sides — so the shape is demoted to `round` whatever `cornerShape` says. That
+	 * catches every button, switch knob, slider thumb, pill tab and lens in the library
+	 * without any of them asking.
+	 *
+	 * A *square* saturated box is excluded, and that exclusion matters: there both axes
+	 * are consumed, so `round` gives a circle and `squircle` gives the app-icon
+	 * superellipse. Both are real shapes and iOS uses both — a circular icon button is
+	 * a circle, an app icon is not — so geometry cannot pick, and the choice stays with
+	 * the caller. `LiquidButton` makes it for its own circles.
+	 *
+	 * Before measurement this reads `true`, deliberately. Auto-sized surfaces are
+	 * overwhelmingly buttons, and one frame of a square-ended pill is obvious where one
+	 * frame of a round-cornered card is not. Surfaces given explicit `width`/`height`
+	 * never see it, having geometry on the first render.
+	 */
+	const isCapsule = $derived(
+		!hasGeometry || (clampedRadius >= limit && resolvedWidth !== resolvedHeight)
+	);
+
+	/**
 	 * The corner the surface will actually be *clipped* to — which is the only
 	 * corner the maps may be built for.
 	 *
-	 * Falling back in one place, before either the field or the stylesheet sees the
-	 * value, is what makes the two incapable of disagreeing. Resolving them
-	 * separately would produce the failure this whole feature has to avoid: a
-	 * squircle field inside a circular clip, which leaves four crescents of
-	 * unrefracted backdrop at the corners, on exactly the browsers nobody tests on.
+	 * Resolving in one place, before either the field or the stylesheet sees the
+	 * value, is what makes the two incapable of disagreeing. Doing it separately
+	 * would produce the failure this whole feature has to avoid: a squircle field
+	 * inside a circular clip, which leaves four crescents of unrefracted backdrop at
+	 * the corners, on exactly the browsers nobody tests on.
 	 */
-	const effectiveCornerShape = $derived(glassSupport.cornerShape ? cornerShape : 'round');
+	const effectiveCornerShape = $derived(
+		glassSupport.cornerShape && !isCapsule ? cornerShape : 'round'
+	);
 
 	/**
 	 * A fixed pixel figure stops looking right the moment the bezel changes, so the

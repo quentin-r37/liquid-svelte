@@ -35,13 +35,21 @@
 		shape?: ButtonShape;
 		borderRadius?: number;
 		/**
-		 * Corner outline. Worth knowing what it does against the default
-		 * `borderRadius` of 999: that radius exists to be clamped to half the box, and
-		 * a clamped `squircle` is not a capsule with squircle corners, it is a lozenge
-		 * with flat ends. So `squircle` is for a button given an explicit, smaller
-		 * radius — or for `shape="circle"`, where clamping a squircle to half a square
-		 * box produces exactly the iOS app-icon silhouette, which is the shape the
-		 * whole `corner-shape` property was standardised for.
+		 * Corner outline.
+		 *
+		 * Has no effect on a `pill`, and that is correct rather than a limitation: the
+		 * default radius of 999 saturates on a box that is not square, so the button is a
+		 * capsule and the primitive demotes the corner to `round`. iOS buttons are
+		 * capsules; there is no squircle form of one.
+		 *
+		 * On a `circle` it *would* bite — a saturated square box is the app-icon case,
+		 * where `round` gives a circle and `squircle` gives the superellipse — so this
+		 * component pins it to `round` there, because an iOS circular button is a
+		 * circle, not a small app icon. Pass `squircle` explicitly to override that; it
+		 * is the one place in the library where the two are both available.
+		 *
+		 * Where it applies without asking is a button given an explicit, smaller radius —
+		 * a rounded-rect button, which iOS does give a continuous corner.
 		 */
 		cornerShape?: CornerShape;
 		bezel?: number;
@@ -64,7 +72,7 @@
 		size = 'md',
 		shape = 'pill',
 		borderRadius = 999,
-		cornerShape = 'round',
+		cornerShape,
 		bezel,
 		quality = GLASS_DEFAULTS.quality,
 		mode = 'auto',
@@ -112,6 +120,15 @@
 	 * constant, because its radius *is* half its size and a fixed figure turns the
 	 * whole disc into rim.
 	 */
+	/**
+	 * A circle is a saturated *square* box, which is the one case the primitive cannot
+	 * decide on its own — see `isCapsule` there. An iOS circular button is a circle, so
+	 * that is what an unset `cornerShape` means here, and an explicit value still wins.
+	 */
+	const resolvedCornerShape = $derived(
+		cornerShape ?? (shape === 'circle' ? 'round' : GLASS_DEFAULTS.cornerShape)
+	);
+
 	const resolvedBezel = $derived(
 		bezel ??
 			(diameter !== undefined
@@ -152,7 +169,7 @@
 	tag="button"
 	bind:element
 	{borderRadius}
-	{cornerShape}
+	cornerShape={resolvedCornerShape}
 	bezel={resolvedBezel}
 	opacity={tone === 'prominent' ? 0.14 : GLASS_DEFAULTS.opacity}
 	{specularIntensity}

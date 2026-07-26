@@ -32,12 +32,16 @@
 	let backdrop = $state<BackdropKind>('grid');
 	let tierOverride = $state<GlassMode>('auto');
 	/**
-	 * Applied to every component that accepts it, so the two silhouettes can be
-	 * compared on the same page rather than across a reload. `round` by default —
-	 * which is also the library's default, so the gallery is the shipped look until
-	 * this is touched.
+	 * Applied to every component that accepts it, so the convention can be compared
+	 * against a uniformly round gallery on the same page rather than across a reload.
+	 *
+	 * `squircle` is the library default, and it does not mean everything becomes a
+	 * squircle: any surface whose radius saturates at half its box is a capsule and
+	 * gets demoted to `round` by the primitive. Flipping this to `round` therefore only
+	 * changes the surfaces that had a straight edge to spare — the cards, the menu
+	 * panels — which is exactly the set iOS treats differently.
 	 */
-	let cornerShape = $state<CornerShape>('round');
+	let cornerShape = $state<CornerShape>('squircle');
 
 	$effect(() => {
 		setGlassModeOverride(tierOverride);
@@ -137,8 +141,8 @@
 			<label>
 				<span>corner</span>
 				<select bind:value={cornerShape} disabled={!glassSupport.cornerShape}>
-					<option value="round">round</option>
-					<option value="squircle">squircle</option>
+					<option value="squircle">squircle — iOS default</option>
+					<option value="round">round everywhere</option>
 				</select>
 			</label>
 			<p class="meta">
@@ -147,13 +151,15 @@
 				<a href={resolve('/probe')}>optics probe</a>
 			</p>
 			<p class="meta">
-				<strong>squircle</strong> is worth watching in two places. Open a menu and the corner is
-				<em>round</em> for the whole spill and only reaches the superellipse as the panel settles —
-				because the puddle's pill comes from CSS clamping the radius to half the box, and a clamped
-				squircle has flat ends. And the circular buttons become the iOS app-icon shape, which is
-				what
-				<code>corner-shape</code> was standardised for. The pills, by the same clamp, lose their round
-				ends: that is the shape asked for, not a bug.
+				The corner follows iOS: <strong
+					>buttons, switches, sliders and tabs stay fully rounded</strong
+				>,
+				<strong>cards, panels and context menus get the continuous curve</strong>. Nothing here opts
+				in per component — a capsule has no straight edge for a superellipse to meet, so the
+				primitive demotes those to <code>round</code> on its own. Flipping this control to
+				<em>round everywhere</em> therefore only changes the menu panels and the primitive tiles below;
+				every pill and circle on the page is identical either way, which is the convention working rather
+				than the control failing.
 			</p>
 		</div>
 	</header>
@@ -165,13 +171,21 @@
 				Native <code>&lt;button&gt;</code>. Motion's <code>press</code> covers keyboard activation, so
 				Space and Enter compress it exactly like a click. Tab to it and try.
 			</p>
+			<!--
+				No `cornerShape` on any button here, deliberately: every one of them is a pill
+				or a circle, so all of them resolve to `round` whatever the header control says
+				— the pills because a capsule cannot be a superellipse, the circles because
+				`LiquidButton` pins them. Threading the control through would have suggested it
+				does something, and passing it to a circle would in fact *defeat* that pin and
+				turn it into a small app icon.
+			-->
 			<div class="row">
-				<LiquidButton size="sm" {cornerShape} onclick={() => (pressed += 1)}>Small</LiquidButton>
-				<LiquidButton {cornerShape} onclick={() => (pressed += 1)}>Medium</LiquidButton>
-				<LiquidButton size="lg" tone="prominent" {cornerShape} onclick={() => (pressed += 1)}>
+				<LiquidButton size="sm" onclick={() => (pressed += 1)}>Small</LiquidButton>
+				<LiquidButton onclick={() => (pressed += 1)}>Medium</LiquidButton>
+				<LiquidButton size="lg" tone="prominent" onclick={() => (pressed += 1)}>
 					Prominent
 				</LiquidButton>
-				<LiquidButton {cornerShape} disabled>Disabled</LiquidButton>
+				<LiquidButton disabled>Disabled</LiquidButton>
 			</div>
 			<p class="note">
 				<code>shape="circle"</code> is not a pill with equal padding: it is laid out at a literal
@@ -180,18 +194,22 @@
 				a fixed bezel would turn the whole disc into rim and the glyph would sit in continuous distortion.
 			</p>
 			<div class="row">
-				<LiquidButton shape="circle" size="sm" {cornerShape} aria-label="Previous">
-					<SkipBack />
-				</LiquidButton>
-				<LiquidButton shape="circle" {cornerShape} aria-label="Play"><Play /></LiquidButton>
-				<LiquidButton shape="circle" size="lg" tone="prominent" {cornerShape} aria-label="Next">
+				<LiquidButton shape="circle" size="sm" aria-label="Previous"><SkipBack /></LiquidButton>
+				<LiquidButton shape="circle" aria-label="Play"><Play /></LiquidButton>
+				<LiquidButton shape="circle" size="lg" tone="prominent" aria-label="Next">
 					<SkipForward />
 				</LiquidButton>
-				<LiquidButton shape="circle" {cornerShape} disabled aria-label="Shuffle">
-					<Shuffle />
-				</LiquidButton>
-				<LiquidButton {cornerShape}><Play />Play all</LiquidButton>
+				<LiquidButton shape="circle" disabled aria-label="Shuffle"><Shuffle /></LiquidButton>
+				<LiquidButton><Play />Play all</LiquidButton>
 			</div>
+			<p class="note">
+				A circle is the one shape in the library where geometry cannot pick the corner: its box is
+				square <em>and</em> its radius saturates, so <code>round</code> gives a circle and
+				<code>squircle</code> gives the app-icon superellipse — both real, and iOS uses both for
+				different things. <code>LiquidButton</code> pins its circles to <code>round</code>, because
+				an iOS circular button is a circle; <code>cornerShape="squircle"</code> opts into the icon shape.
+				The 150×150 tile at the bottom of the page is that shape.
+			</p>
 			<p class="readout">presses: <strong>{pressed}</strong></p>
 		</section>
 
@@ -223,13 +241,16 @@
 				deepens, since a shallow puddle has no thickness to bend light through. Its corner is driven
 				<em>against</em> the scale throughout: as round as the box allows while it is small, easing
 				to the panel's own radius only as it settles, which is the difference between liquid finding
-				its edges and a rectangle being enlarged. With <code>cornerShape="squircle"</code> the outline
-				eases on that same schedule and for the same reason: the pill comes from CSS clamping the radius
-				to half the box, and a clamped squircle has flat ends — so the panel spills round and only becomes
-				a superellipse once it has somewhere to put one. Two scale channels, two deformation channels
-				and a translation — no size animation, so the displacement map is rasterised once before the menu
-				is ever opened. Arrows, Home/End, Escape, Tab and an outside press all behave; pointing at an
-				item moves focus to it, as a native menu does.
+				its edges and a rectangle being enlarged. The corner <em>shape</em> eases on that same
+				schedule and for the same reason: while the patch is a lozenge its radius is saturated, and
+				a saturated corner has to be round, so the panel spills round and only becomes the
+				superellipse once it has somewhere to put one. The radius is compensated for that shape as
+				well — 22 is the
+				<em>round</em> panel's radius, and the squircle gets the ~40 that reads as equally curved, since
+				a superellipse at equal radius looks tighter rather than rounder. Two scale channels, two deformation
+				channels and a translation — no size animation, so the displacement map is rasterised once before
+				the menu is ever opened. Arrows, Home/End, Escape, Tab and an outside press all behave; pointing
+				at an item moves focus to it, as a native menu does.
 			</p>
 			<div class="row">
 				<LiquidMenu items={menuItems} {cornerShape} onselect={(id) => (lastMenuChoice = id)}>
@@ -292,7 +313,7 @@
 				<code>tablist</code> / <code>tab</code> / <code>tabpanel</code> with roving focus and manual activation.
 				Arrow keys move, Home and End jump, the disabled tab is skipped.
 			</p>
-			<LiquidTabs {tabs} bind:value={activeTab} {cornerShape} label="Documentation sections">
+			<LiquidTabs {tabs} bind:value={activeTab} label="Documentation sections">
 				{#snippet panel(id)}
 					<p class="panel">{tabCopy[id]}</p>
 				{/snippet}
@@ -324,12 +345,10 @@
 					bind:progress={navProgress}
 				>
 					{#snippet leading()}
-						<LiquidButton shape="circle" {cornerShape} aria-label="Back">
-							<ChevronLeft />
-						</LiquidButton>
+						<LiquidButton shape="circle" aria-label="Back"><ChevronLeft /></LiquidButton>
 					{/snippet}
 					{#snippet trailing()}
-						<LiquidButton shape="circle" {cornerShape} aria-label="Search"><Search /></LiquidButton>
+						<LiquidButton shape="circle" aria-label="Search"><Search /></LiquidButton>
 						<LiquidMenu
 							items={menuItems}
 							placement="bottom-end"

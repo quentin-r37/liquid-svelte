@@ -2,8 +2,7 @@
 	import { animate } from 'motion';
 	import type { Snippet } from 'svelte';
 	import LiquidGlass from './LiquidGlass.svelte';
-	import { cornerShapeCss } from './displacement/cornerShape.js';
-	import type { CornerShape, GlassMode, GlassQuality } from './liquidGlass.types.js';
+	import type { GlassMode, GlassQuality } from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { acquireGlassTransform, type GlassTransform } from './runtime/glassMotion.js';
 	import { springFor } from './runtime/motionTokens.js';
@@ -23,20 +22,13 @@
 		/** Accessible name for the tab list. */
 		label?: string;
 		labelledBy?: string;
-		/**
-		 * Corner outline of the sliding bubble *and* of the rail it slides in.
-		 *
-		 * Both, because they cannot differ. The rail is plain translucent CSS rather
-		 * than glass — nested `backdrop-filter` does not compose — so it takes the shape
-		 * through a custom property instead of through the primitive, and a squircle
-		 * bubble sitting in a capsule rail is the one combination that reads as broken.
-		 *
-		 * The same caveat as `LiquidButton` applies, with more force: both radii are 999
-		 * and therefore clamped to half their box, and a clamped squircle has flat ends
-		 * rather than a capsule's round ones. This turns a pill of tabs into a
-		 * rounded-rectangle of tabs, which is a real design change and not a subtle one.
+		/*
+		 * No `cornerShape` here on purpose. Both the rail and the sliding bubble are
+		 * capsules — radius 999, saturated at half their box — and a capsule has no
+		 * straight edge for a superellipse to meet, so the primitive would demote the
+		 * corner to `round` whatever was passed. iOS segmented controls are capsules
+		 * too. A prop that provably cannot change the output is worse than no prop.
 		 */
-		cornerShape?: CornerShape;
 		quality?: GlassQuality;
 		mode?: GlassMode;
 		class?: string;
@@ -51,7 +43,6 @@
 		value = $bindable(tabs[0]?.id ?? ''),
 		label,
 		labelledBy,
-		cornerShape = 'round',
 		quality = 'high',
 		mode = 'auto',
 		class: className = '',
@@ -174,7 +165,6 @@
 		aria-label={labelledBy ? undefined : label}
 		aria-labelledby={labelledBy}
 		class="lg-tabs-list"
-		style:--lg-tabs-corner={cornerShapeCss(cornerShape)}
 	>
 		<span class="lg-tabs-rail"></span>
 
@@ -184,7 +174,6 @@
 				width={segment.width}
 				height={segment.height}
 				borderRadius={999}
-				{cornerShape}
 				bezel={Math.max(8, segment.height / 2.6)}
 				opacity={0.1}
 				saturation={1.9}
@@ -248,12 +237,6 @@
 		max-width: 100%;
 		padding: 4px;
 		border-radius: 999px;
-		/*
-		 * Written by the `cornerShape` prop, defaulting here rather than in the markup so
-		 * the stylesheet still stands on its own. Restated on the rail below because
-		 * `corner-shape` does not inherit — only the custom property does.
-		 */
-		corner-shape: var(--lg-tabs-corner, round);
 		box-sizing: border-box;
 	}
 
@@ -261,7 +244,6 @@
 		position: absolute;
 		inset: 0;
 		border-radius: inherit;
-		corner-shape: var(--lg-tabs-corner, round);
 		background: rgb(255 255 255 / 0.08);
 		box-shadow:
 			inset 0 1px 2px rgb(0 0 0 / 0.2),
