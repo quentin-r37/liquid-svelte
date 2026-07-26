@@ -655,19 +655,29 @@ export const TABS_BUBBLE = {
 	 * The knob's equivalent is 0.5 — it doubles when grabbed — and nothing like that
 	 * is available here. A knob is a small object with empty track on all four sides;
 	 * this is a tile in a row of tiles, and every pixel it gains sideways is a pixel
-	 * of the neighbouring segment it covers. 0.88 spends the swell where there is
-	 * room for it: ~7px onto each side, which lands in the neighbouring label's own
-	 * padding rather than on its text, and ~2.5px above and below, which is most of
-	 * the rail's inset. Enough that the selection visibly inflates under the finger,
-	 * which is the point; more and it reads as covering two tabs at once.
+	 * of the neighbouring segment it covers.
 	 *
-	 * Uniform rather than per-axis, though a taller-than-wider swell would bulge past
-	 * the rail more convincingly. A capsule scaled uniformly stays a capsule — its
-	 * saturated radius scales with its box — whereas a non-uniform one needs the
-	 * `--lg-radius-x` / `--lg-radius-y` compensation `LiquidMenu` carries, to stop the
-	 * fully-rounded ends coming out as flattened ellipses.
+	 * What sets the ceiling is therefore not taste but two measurable clearances, and
+	 * 0.78 is where they run out together. On a default control — segments around
+	 * 95×38, rail inset 4px, labels padded 1.15rem — a 28% swell puts the bubble
+	 * ~13px onto each neighbouring cell, which is still inside that cell's own
+	 * padding and so never reaches its text, and ~5px above and below, which clears
+	 * the rail's rim by about a pixel. That lip is the knob's signature: the droplet
+	 * is supposed to bulge out of its groove, and a swell that stays politely inside
+	 * the container reads as a tile being resized rather than as something liquid
+	 * being squeezed.
+	 *
+	 * Past this the horizontal edge starts landing on the neighbour's glyphs, which is
+	 * the one thing a selection indicator may never do — so if it still wants to be
+	 * bigger, the honest lever is the label padding in `LiquidTabs.svelte`, not this.
+	 *
+	 * Uniform rather than per-axis, though a taller-than-wider swell would spend the
+	 * budget better — all of it on the axis with room. A capsule scaled uniformly
+	 * stays a capsule, its saturated radius scaling with its box, whereas a
+	 * non-uniform one needs the `--lg-radius-x` / `--lg-radius-y` compensation
+	 * `LiquidMenu` carries, or the fully-rounded ends come out as flattened ellipses.
 	 */
-	restScale: 0.88,
+	restScale: 0.58,
 	/**
 	 * Grabbed. Exactly 1, for the reason {@link SWITCH_THUMB.activeScale} is: past it
 	 * the displacement map rasterised for the laid-out box would be magnified, which
@@ -681,6 +691,24 @@ export const TABS_BUBBLE = {
 	 * with a clear centre.
 	 */
 	bezelRatio: 0.22,
+	/**
+	 * Corner radius, as a fraction of the laid-out height. A half is a capsule, and the
+	 * capsule is deliberate: the bubble matches the pill shape of the tabs it sits
+	 * behind and of the rail around them, so the control is one shape at three scales
+	 * rather than a rectangle rattling around inside a pill.
+	 *
+	 * This was briefly a third — a rounded rectangle, on the reading that a pill inside
+	 * a pill reads as a slider rather than as one cell of a row being lit. On the page
+	 * it did not: what it actually read as was a mismatch, because the tab hit areas it
+	 * covers are pills too. Kept as a ratio rather than inlined so the shape is stated
+	 * once and stays next to the argument for it.
+	 *
+	 * At exactly a half the primitive's `isCapsule` test fires, which forces the corner
+	 * to `round` whatever `cornerShape` says — a capsule and a superellipse cannot both
+	 * be had. So there is nothing to pass and nothing to compensate; see
+	 * {@link matchedRadius} for what that compensation would have been.
+	 */
+	cornerRatio: 0.5,
 	/**
 	 * How far past the first and last segment the bubble may be pulled, as a
 	 * fraction of one segment's width. See {@link DRAG_OVERSHOOT_DECAY} for why a
@@ -750,6 +778,53 @@ export const TABS_GLASS_ACTIVE: DropletVisual = {
 	opacity: 0.05,
 	saturation: 2.4,
 	blur: 0.6,
+	specularIntensity: 1,
+	scale: 1
+};
+
+/**
+ * The selection bubble at rest: a quiet fill, not an opaque knob.
+ *
+ * This departs from {@link DROPLET_REST}, and the departure is the whole difference
+ * between a switch and a segmented control. A knob at 0.92 reads as a solid white
+ * object because that is what it is — the only thing on its track, with nothing
+ * behind it worth seeing. A selection fill is a *state applied to one cell of a row*,
+ * and at that alpha it stops looking like a marked segment and starts looking like a
+ * white sticker laid over the control, bright enough to out-shout the rail it is
+ * supposed to be sitting in.
+ *
+ * The tint colour is set per scheme by `LiquidTabs` rather than here, since a
+ * `DropletVisual` carries alphas and not colours. It is the one surface in the
+ * library tinted *against* its backdrop instead of with it — see `--lg-tint-color`
+ * in `liquidGlass.css`.
+ *
+ * What is left to carry the melt is therefore not the tint. It is the refraction
+ * arriving, the backdrop saturating, the rim lighting, and the 28% swell — which is
+ * more than enough, and is arguably the more honest reading of the effect anyway:
+ * glass appearing, rather than paint being wiped off.
+ */
+export const TABS_BUBBLE_REST: DropletVisual = {
+	displacementRatio: 0,
+	opacity: 0.1,
+	saturation: 1,
+	blur: 0.05,
+	specularIntensity: 0.25,
+	scale: 1
+};
+
+/**
+ * Grabbed: a real lens.
+ *
+ * Less saturated than {@link DROPLET_ACTIVE}'s 2.8 because this one has a label
+ * sitting on it and a knob does not — the same argument {@link MENU_GLASS_OPEN}
+ * makes. `blur` stays a hair above zero at both ends so `feGaussianBlur` never
+ * leaves and re-enters the filter chain mid-morph.
+ */
+export const TABS_BUBBLE_ACTIVE: DropletVisual = {
+	displacementRatio: DISPLACEMENT_PER_BEZEL,
+	opacity: 0.06,
+	saturation: 2.4,
+	blur: 0.4,
 	specularIntensity: 1,
 	scale: 1
 };

@@ -14,6 +14,8 @@
 	} from './runtime/glassMotion.js';
 	import {
 		TABS_BUBBLE,
+		TABS_BUBBLE_ACTIVE,
+		TABS_BUBBLE_REST,
 		TABS_GLASS_ACTIVE,
 		TABS_GLASS_REST,
 		TABS_RAIL
@@ -37,10 +39,10 @@
 		labelledBy?: string;
 		/*
 		 * No `cornerShape` here on purpose. Both the rail and the bubble are capsules —
-		 * radius 999, saturated at half their box — and a capsule has no straight edge
-		 * for a superellipse to meet, so the primitive would demote the corner to
-		 * `round` whatever was passed. iOS segmented controls are capsules too. A prop
-		 * that provably cannot change the output is worse than no prop.
+		 * radius saturated at half their box — and a capsule has no straight edge for a
+		 * superellipse to meet, so the primitive would demote the corner to `round`
+		 * whatever was passed. iOS segmented controls are capsules too. A prop that
+		 * provably cannot change the output is worse than no prop.
 		 */
 		quality?: GlassQuality;
 		mode?: GlassMode;
@@ -120,6 +122,7 @@
 	});
 
 	const bubbleBezel = $derived(Math.max(4, Math.round(laidOut.height * TABS_BUBBLE.bezelRatio)));
+	const bubbleRadius = $derived(Math.round(laidOut.height * TABS_BUBBLE.cornerRatio));
 
 	/**
 	 * Where the laid-out box has to sit for the *scaled* one to land on its segment.
@@ -231,10 +234,10 @@
 	});
 
 	/**
-	 * The bubble is the switch knob: an opaque tinted tile at rest that melts into a
-	 * lens when the control is touched. Constructed with no endpoints, so it uses
-	 * `DROPLET_REST` / `DROPLET_ACTIVE` unchanged — this really is the same object as
-	 * the knob, not a lookalike tuned separately.
+	 * The bubble is the switch knob's morph at a selection fill's weight: a quiet
+	 * tinted tile at rest that melts into a lens when the control is touched. Same
+	 * mechanism, endpoints of its own — see {@link TABS_BUBBLE_REST} for why the knob's
+	 * near-opaque rest state is wrong for one cell of a row.
 	 *
 	 * That it can be glass at all is the whole reason it is not a child of the rail.
 	 * A `backdrop-filter` inside another does not compose: the inner one's backdrop
@@ -244,7 +247,7 @@
 	 * the page with the rail's own output composited onto it, which is exactly what a
 	 * lens sliding across a glass surface should be sampling.
 	 */
-	const droplet = new DropletMorph();
+	const droplet = new DropletMorph({ rest: TABS_BUBBLE_REST, active: TABS_BUBBLE_ACTIVE });
 
 	/**
 	 * The rail's own, much smaller morph. A container does not *become* glass the way
@@ -267,27 +270,51 @@
 	/**
 	 * The melt, published to CSS so the selected label can follow it.
 	 *
-	 * An opaque tile is the knob's defining rest state, and it is also the one thing
-	 * a knob never has to deal with: text sitting on it. At rest the bubble is a
-	 * near-white capsule, so the label on it has to be dark; melted, it is clear glass
-	 * over the page, so the label has to be whatever the page's own ink is. Neither
-	 * colour works for the other state, and the morph is continuous, so the colour has
-	 * to be too — see the `color-mix` in the styles.
-	 *
-	 * `setProperty` rather than a `style:` directive for the reason everything else in
-	 * this library uses it: the value is written once per frame for the length of the
-	 * morph, and an attribute rewrite is the wrong tool for that.
-	 */
-	$effect(() => {
-		if (!rowElement) return;
-		setGlassProperties(rowElement, { '--lg-tabs-melt': String(droplet.progress) });
-	});
-
 	/** Whether the control is currently melted, so repeat engagements are no-ops. */
 	let melted = false;
 	let meltedAt = 0;
 	/** Set while a release is waiting out {@link TABS_BUBBLE.meltFloorMs}. */
 	let meltTimer: ReturnType<typeof setTimeout> | null = null;
+
+	/**
+	 * Why the control is currently melted. The surface only freezes back once no
+	 * reason is left.
+	 *
+	 * A single boolean was not enough, and the way it failed is worth keeping written
+	 * down. `LiquidSwitch` gets away with one because it *is* one element: the only
+	 * things that can end its melt are a pointer release and a blur of the switch
+	 * itself. A tablist is several focusable elements, and `blur` fires on whichever
+	 * one is losing focus — which, when a press lands on a tab that is not the focused
+	 * one, is a *different* tab from the one being pressed. So the second drag of a
+	 * session (the first having moved the selection, and left focus behind on the tab
+	 * it started from) went: press → melt engaged → browser moves focus → blur on the
+	 * old tab → melt released → floor timer armed → 180ms later the bubble deflated
+	 * with the finger still down.
+	 *
+	 * Flags rather than a count, because the two pointer engagements — the row's own
+	 * `pointerdown` and the drag's `onStart` — are the same physical press reaching
+	 * this from two places, so the first release of that press must end it. Two
+	 * separate *kinds* of engagement, pointer and keyboard, genuinely can overlap.
+	 *
+	 * Plain fields, not `$state` and not a `SvelteSet`: nothing reads them but the two
+	 * functions below, they are written from event handlers rather than from effects,
+	 * and making them reactive would schedule a render pass per press for a value that
+	 * never reaches the template — the same reason `melted` and `suppressClick` are
+	 * ordinary locals.
+	 */
+	type MeltReason = 'pointer' | 'key';
+	const meltReasons = { pointer: false, key: false };
+
+	function engageMelt(reason: MeltReason) {
+		meltReasons[reason] = true;
+		melt(true);
+	}
+
+	function releaseMelt(reason: MeltReason) {
+		if (!meltReasons[reason]) return;
+		meltReasons[reason] = false;
+		if (!meltReasons.pointer && !meltReasons.key) melt(false);
+	}
 
 	/**
 	 * Idempotent in both directions, and floored on the way out, for exactly the
@@ -296,6 +323,9 @@
 	 * drag's `onStart` *and* from the row's own pointer handler, and a held arrow key
 	 * repeats `keydown`), and an unfloored release lets an ordinary click show only
 	 * the first third of the morph.
+	 *
+	 * Not called directly — go through {@link engageMelt} / {@link releaseMelt}, which
+	 * are what know whether anything still wants the surface melted.
 	 */
 	function melt(engaged: boolean) {
 		if (engaged) {
@@ -478,12 +508,12 @@
 
 			onStart: () => {
 				dragging = true;
-				melt(true);
+				engageMelt('pointer');
 			},
 
 			onEnd: ({ x, distance }) => {
 				dragging = false;
-				melt(false);
+				releaseMelt('pointer');
 
 				if (distance < TAP_THRESHOLD) return;
 
@@ -498,7 +528,7 @@
 
 			onCancel: () => {
 				dragging = false;
-				melt(false);
+				releaseMelt('pointer');
 				suppressClick = true;
 			}
 		});
@@ -543,10 +573,10 @@
 
 		const onPointerDown = (event: PointerEvent) => {
 			if (event.button !== 0) return;
-			melt(true);
+			engageMelt('pointer');
 
 			const release = () => {
-				melt(false);
+				releaseMelt('pointer');
 				window.removeEventListener('pointerup', release);
 				window.removeEventListener('pointercancel', release);
 			};
@@ -581,7 +611,7 @@
 		event.preventDefault();
 		// Keyboard travel gets the same melt a press does. The floor on the release is
 		// what makes it visible at all, since a keystroke has no held phase.
-		melt(true);
+		engageMelt('key');
 		const tab = enabled[next];
 		select(tab);
 		buttons[tab.id]?.focus();
@@ -624,7 +654,7 @@
 				bind:element={bubbleElement}
 				width={laidOut.width}
 				height={laidOut.height}
-				borderRadius={laidOut.height / 2}
+				borderRadius={bubbleRadius}
 				bezel={bubbleBezel}
 				displacement={bubbleBezel * droplet.visual.displacementRatio}
 				opacity={droplet.visual.opacity}
@@ -659,8 +689,8 @@
 					class="lg-tabs-tab"
 					onclick={() => onClick(tab)}
 					onkeydown={onKeyDown}
-					onkeyup={() => melt(false)}
-					onblur={() => melt(false)}
+					onkeyup={() => releaseMelt('key')}
+					onblur={() => releaseMelt('key')}
 				>
 					{tab.label}
 				</button>
@@ -720,6 +750,28 @@
 		position: absolute;
 		z-index: 1;
 		pointer-events: none;
+		/*
+		 * The one surface in the library tinted *against* its backdrop rather than with
+		 * it. Every other piece of glass is a lighter patch of what is behind it, which
+		 * is what a sheet of glass over a backdrop is; this is a fill marking one cell of
+		 * a row, and it only reads as marked if it contrasts with the rail it sits in.
+		 *
+		 * Hence the scheme flip, which the rest of the library never needs: on a light
+		 * material the selected cell is a shade darker, on a dark one a shade lighter.
+		 * That is what iOS does, and it is the same reason its own fill colours are
+		 * defined as "system fill" rather than as a grey.
+		 *
+		 * Only the *face* is recoloured — `--lg-tint-color`, not `--lg-rim`, so the rim
+		 * hairline and the specular stay light in both schemes. They are reflections off
+		 * a curved edge and have no business following the fill.
+		 */
+		--lg-tint-color: 60 60 67;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.lg-tabs :global(.lg-tabs-bubble) {
+			--lg-tint-color: 255 255 255;
+		}
 	}
 
 	/*
@@ -761,38 +813,23 @@
 	}
 
 	/*
-	 * The selected label sits on the bubble, and the bubble changes from a near-opaque
-	 * light tile to clear glass and back every time the control is touched. So the ink
-	 * travels with it: `--lg-tabs-melt` is the morph's own progress, written per frame
-	 * by the effect above.
+	 * The selected label is the accent colour, and that is what carries the selection
+	 * as much as the fill does — a quiet tile alone is a weak signal, which is exactly
+	 * why iOS pairs the two.
 	 *
-	 * `currentColor` on the `color` property resolves to the *inherited* colour, which
-	 * is what makes this expressible at all — one end of the mix is whatever ink the
-	 * consumer's page uses, without the component ever having to be told.
-	 *
-	 * `--lg-tabs-selected-color` is the other end, and it is a fixed near-black rather
-	 * than scheme-dependent on purpose: the tile is a white tint in both schemes (the
-	 * primitive's `--lg-rim` is white throughout), so what sits on it is dark in both
-	 * too. That is also what iOS does — a segmented control's selected label does not
-	 * follow the system scheme, it follows its own indicator.
-	 *
-	 * The fallback is `1`, not `0`, and that is the no-JS case rather than a taste:
-	 * the bubble is only rendered once the segments have been measured, so before
-	 * that — on the server, and forever on a client with scripting off — there is no
-	 * tile for a dark label to sit on, and the ink has to be the page's. The effect
-	 * writes the property the moment the morph exists, in both directions.
+	 * It is also what let the whole morph-tracking colour machinery go. When the fill
+	 * was a near-opaque white tile the ink had to travel with the melt — dark on the
+	 * tile, page-ink over clear glass — which meant publishing the morph's progress to
+	 * CSS and mixing against it every frame. A fill this quiet never obscures the
+	 * label at either end of the morph, so the colour is simply constant.
 	 *
 	 * No text shadow, unlike the unselected labels' old one: that was there to hold
-	 * the text off a moving backdrop, and over a light tile it only muddies it.
+	 * the text off a moving backdrop, and over a tinted fill it only muddies it.
 	 */
 	.lg-tabs-tab[aria-selected='true'] {
 		opacity: 1;
 		cursor: grab;
-		color: color-mix(
-			in oklab,
-			currentColor calc(var(--lg-tabs-melt, 1) * 100%),
-			var(--lg-tabs-selected-color, rgb(24 24 27))
-		);
+		color: var(--lg-tabs-accent, rgb(0 122 255));
 		/*
 		 * Only the selected tab suppresses touch scrolling, and only because it is the
 		 * one `applyDrag` listens on — the browser would otherwise claim a horizontal
