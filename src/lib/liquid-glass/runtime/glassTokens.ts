@@ -206,6 +206,15 @@ export const BUTTON_CIRCLE_BEZEL_RATIO = 0.26;
  * from the trigger — enough for the panel's own shadow to separate the two.
  */
 export const MENU_GEOMETRY = {
+	/**
+	 * Radius of the *round* panel, and the reference the other corner shapes are
+	 * matched against rather than a figure they share.
+	 *
+	 * A superellipse at a given radius reads as less rounded than a circle at the
+	 * same one, so `LiquidMenu` scales this through `matchedRadius` — a squircle panel
+	 * ends up near 40. Copying 22 across unchanged is what makes a squircle menu look
+	 * squarer than the round one it replaced.
+	 */
 	radius: 22,
 	bezel: 16,
 	gap: 10,

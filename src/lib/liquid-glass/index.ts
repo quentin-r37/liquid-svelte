@@ -50,7 +50,7 @@ export { clearGlassMapCaches, getGlassMapStats, quantiseSize } from './displacem
 export { getMagnitudeLut, sampleLut } from './displacement/surfaceProfiles.js';
 export { sampleRoundedBox } from './displacement/roundedBoxSdf.js';
 export type { EdgeSample } from './displacement/roundedBoxSdf.js';
-export { cornerExponent, cornerShapeCss } from './displacement/cornerShape.js';
+export { cornerExponent, cornerShapeCss, matchedRadius } from './displacement/cornerShape.js';
 
 export {
 	glassSupport,

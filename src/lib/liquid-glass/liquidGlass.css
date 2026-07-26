@@ -120,8 +120,15 @@
 	 * the one thing the reference never does — an edge light stays a hairline
 	 * whatever the surface measures, because it is a reflection off a corner radius,
 	 * not off an area.
+	 *
+	 * 1.25 rather than 2: at twice the liseré the lit band separated from it and read
+	 * as its own stroke — a glowing outline sitting on the edge instead of the edge
+	 * itself catching the light. Just over one device pixel at 1dppx keeps it fused
+	 * with the hairline underneath, which is the whole illusion. The alphas in
+	 * `.lg-specular::after` are what to reach for if it needs more presence; widening
+	 * this is what makes it look drawn on.
 	 */
-	--lg-specular-band: calc(var(--lg-border-width) * 2);
+	--lg-specular-band: calc(var(--lg-border-width) * 1.25);
 	--lg-light-angle: 145deg;
 
 	/* Scheme-agnostic base: a very low-alpha white sheet plus soft inner shading

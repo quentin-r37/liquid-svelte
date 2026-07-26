@@ -60,6 +60,34 @@ export function cornerExponent(shape: CornerShape): number {
 }
 
 /**
+ * The radius at which `shape` looks as rounded as a `round` corner of `radius`.
+ *
+ * A superellipse hugs the box edges for longer than a circle does and then turns
+ * harder near the diagonal, so at equal radius it reads as *less* rounded, not
+ * more. Measuring the outline's cutback from the box corner along the 45° diagonal
+ * gives `√2 · (1 − 2^(−1/n))` per unit of radius — `0.414 r` for a circle against
+ * `0.225 r` for a quartic squircle. The ratio of those is the factor here: ×1.84
+ * for `squircle`, ×2.68 for `superellipse(3)`.
+ *
+ * Which is why swapping the keyword in and leaving the radius alone looks like the
+ * property did nothing, or made the corner squarer. It is also why iOS icons carry
+ * a radius near half their side: a squircle needs a big radius to read as curved at
+ * all.
+ *
+ * Not applied by the primitive — `borderRadius` means the radius, and quietly
+ * multiplying it would make the prop lie. Components that own their own geometry
+ * token call this themselves; see `LiquidMenu`. Note the result can exceed
+ * `min(w, h) / 2`, in which case the usual clamp takes over and no compensation is
+ * possible — which is the case for every pill and circle in the library, since
+ * their radius already saturates.
+ */
+export function matchedRadius(radius: number, shape: CornerShape): number {
+	const n = cornerExponent(shape);
+	if (n === 2) return radius;
+	return (radius * (1 - 2 ** -0.5)) / (1 - 2 ** (-1 / n));
+}
+
+/**
  * The matching `corner-shape` value.
  *
  * Keywords are emitted for the two common cases rather than `superellipse(1)` and

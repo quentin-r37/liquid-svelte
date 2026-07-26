@@ -3,7 +3,7 @@
 	import { untrack, type Snippet } from 'svelte';
 	import LiquidButton, { type ButtonShape } from './LiquidButton.svelte';
 	import LiquidGlass from './LiquidGlass.svelte';
-	import { cornerExponent, cornerShapeCss } from './displacement/cornerShape.js';
+	import { cornerExponent, cornerShapeCss, matchedRadius } from './displacement/cornerShape.js';
 	import type { CornerShape, GlassMode, GlassQuality } from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { DropletMorph } from './runtime/dropletMorph.svelte.js';
@@ -327,6 +327,16 @@
 	 * radius uses `-x`/`-y`: the un-suffixed property is the primitive's, written from
 	 * the prop, and writing over it here would leave nothing to fall back to.
 	 *
+	 * The radius is also *compensated* for the corner shape, through
+	 * {@link matchedRadius}. A superellipse at a given radius reads as less rounded
+	 * than a circle at the same radius, not more — so leaving
+	 * {@link MENU_GEOMETRY.radius} at 22 and swapping the keyword in produced a panel
+	 * whose corner was visibly *squarer* than the round one, which is the opposite of
+	 * what asking for a squircle means. 22 is therefore the radius of the *round*
+	 * panel, and the squircle gets the ~40 that matches it. The same factor is applied
+	 * to `borderRadius` on the primitive below, so the map is rasterised for the corner
+	 * the panel actually settles into.
+	 *
 	 * `revealY` alone measures the progress, not the composed scale: the deformation
 	 * channels are a wobble on top of the reveal, not part of how far along it is, and
 	 * feeding them back in here would make the corner flutter with the volume.
@@ -360,7 +370,21 @@
 			const scaleX = transform.revealX.get() * transform.stretchX.get();
 			const scaleY = transform.revealY.get() * transform.stretchY.get();
 			const settled = Math.min(1, Math.max(0, transform.revealY.get()));
-			const radius = MENU_GEOMETRY.radius * (1 + (MENU_PUDDLE_ROUNDNESS - 1) * (1 - settled));
+
+			// Eased alongside the roundness, so the corner is `round` while the patch is a
+			// lozenge and reaches the settled shape exactly as the reveal does.
+			const k = 1 + (settledK - 1) * settled;
+
+			/*
+			 * Compensated against `k`, not against the settled shape — the factor exists
+			 * to cancel the squircle's tighter corner, so it has to arrive *with* the
+			 * squircle rather than ahead of it. At k = 1 it is exactly 1, which is what
+			 * keeps the round panel's geometry untouched.
+			 */
+			const radius =
+				matchedRadius(MENU_GEOMETRY.radius, k) *
+				(1 + (MENU_PUDDLE_ROUNDNESS - 1) * (1 - settled));
+
 			// Guarding the divisor, not the result: a channel at zero would otherwise
 			// write `Infinity px`, which is not a length and drops the declaration.
 			panel.style.setProperty('--lg-radius-x', `${radius / Math.max(scaleX, 0.01)}px`);
@@ -369,10 +393,7 @@
 			// Skipped outright for a round panel, which is the default: the eased value
 			// would be a constant `round` and this is a per-frame path.
 			if (settledK !== 1) {
-				panel.style.setProperty(
-					'--lg-corner-shape-live',
-					cornerShapeCss(1 + (settledK - 1) * settled)
-				);
+				panel.style.setProperty('--lg-corner-shape-live', cornerShapeCss(k));
 			}
 		};
 
@@ -755,7 +776,7 @@
 	-->
 	<LiquidGlass
 		bind:element={panelElement}
-		borderRadius={MENU_GEOMETRY.radius}
+		borderRadius={matchedRadius(MENU_GEOMETRY.radius, cornerShape)}
 		{cornerShape}
 		bezel={MENU_GEOMETRY.bezel}
 		displacement={MENU_GEOMETRY.bezel * droplet.visual.displacementRatio}
