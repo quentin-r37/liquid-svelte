@@ -389,7 +389,7 @@ export const SWITCH_THUMB = {
 	 * held fixed by the track: this number only decides how much larger the laid-out
 	 * box behind it is, i.e. how far it swells.
 	 *
-	 * 0.62 puts the grabbed knob at 1.25× the track height, which is the reference's
+	 * 0.50 puts the grabbed knob at 1.25× the track height, which is the reference's
 	 * bulge, at the price of a 1.6× swell from an idle knob that starts smaller than
 	 * the reference's. Between matching the reference's ratio and matching what it
 	 * looks like, this matches what it looks like.
