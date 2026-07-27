@@ -316,7 +316,8 @@
 	});
 
 	/**
-	 * `superellipse()` K of the settled panel: 1 for `round`, 2 for `squircle`.
+	 * `superellipse()` K of the settled panel: 1 for `round`, 1.3 for the default
+	 * `continuous`, 2 for `squircle`.
 	 * Taken from the exponent so there is one definition of the mapping, and left
 	 * un-gated on `corner-shape` support on purpose — an engine that lacks the
 	 * property drops the declaration, and the primitive has already built both maps
@@ -389,10 +390,14 @@
 	 * than a circle at the same radius, not more — so leaving
 	 * {@link MENU_GEOMETRY.radius} at 22 and swapping the keyword in produced a panel
 	 * whose corner was visibly *squarer* than the round one, which is the opposite of
-	 * what asking for a squircle means. 22 is therefore the radius of the *round*
-	 * panel, and the squircle gets the ~40 that matches it. The same factor is applied
-	 * to `borderRadius` on the primitive below, so the map is rasterised for the corner
-	 * the panel actually settles into. Compensated against {@link renderedK}, not the
+	 * what asking for a softer corner means. 22 is therefore the radius of the *round*
+	 * panel, and the settled shape gets what matches it — ~27.5 for the default
+	 * `continuous`, ~40 for a `squircle`. For `continuous` this is doubly right: the
+	 * compensation factor is within 1% of the radius scale that makes K = 1.3 coincide
+	 * with Apple's own curve, so the settled panel corner *is* an iOS menu corner of
+	 * radius 22 (see `matchedRadius` in `displacement/cornerShape.ts`). The same factor
+	 * is applied to `borderRadius` on the primitive below, so the map is rasterised for
+	 * the corner the panel actually settles into. Compensated against {@link renderedK}, not the
 	 * settled shape: the factor exists to cancel the squircle's tighter corner, so it
 	 * has to arrive *with* the squircle — in the same write — rather than ahead of it.
 	 *

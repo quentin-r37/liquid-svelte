@@ -15,25 +15,34 @@ import type {
 export const GLASS_DEFAULTS = {
 	borderRadius: 28,
 	/**
-	 * The continuous corner, matching iOS.
+	 * The continuous corner, matching iOS — literally, not by reputation. This was
+	 * `squircle` (K = 2) on the folk belief that iOS draws quartic squircles; measured
+	 * against the SDK's own curve it missed by 19% of the radius and read visibly
+	 * squarer than any iOS panel. Apple's continuous curve fits `superellipse(1.3)`
+	 * to a third of a percent — see `KEYWORD_K` in `displacement/cornerShape.ts` for
+	 * the measurement.
 	 *
 	 * This is the default rather than an opt-in because it does not mean "make
-	 * everything a squircle". `LiquidGlass` demotes it to `round` for any surface
+	 * everything a superellipse". `LiquidGlass` demotes it to `round` for any surface
 	 * whose radius saturates at half its box — every button, switch knob, slider
 	 * thumb and pill tab in the library — because a capsule and a superellipse cannot
-	 * both be had (see `isCapsule` there). What is left is precisely the set iOS
-	 * gives continuous corners to: cards, sheets, panels, context menus.
+	 * both be had (see `isCapsule` there). And that demotion is itself faithful: iOS
+	 * uses true circular capsules where the radius saturates. What is left is
+	 * precisely the set iOS gives continuous corners to: cards, sheets, panels,
+	 * context menus.
 	 *
 	 * So one default expresses the whole convention, and a consumer only reaches for
-	 * the prop to opt *out* or to push K past 2.
+	 * the prop to opt *out* or to push K towards square.
 	 *
 	 * Browsers without `corner-shape` (anything but Chromium 139+) fall back to
 	 * `round` together with their maps, so the silhouette degrades rather than tearing
 	 * — the cost being that a card's corner does depend on the engine. That is the
 	 * trade this default accepts, and it is the same one `backdrop-filter: url()`
-	 * already forces on the refraction itself.
+	 * already forces on the refraction itself. It is also mild here: at K = 1.3 the
+	 * round fallback is within ~1.4% of the radius of the real curve, so the tear
+	 * between engines is a fraction of what the squircle default cost.
 	 */
-	cornerShape: 'squircle' as CornerShape,
+	cornerShape: 'continuous' as CornerShape,
 	bezel: 24,
 	/**
 	 * Peak refraction offset in CSS pixels. `undefined` means "derive it from the

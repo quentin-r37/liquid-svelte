@@ -17,9 +17,34 @@ import { CORNER_K_MAX, CORNER_K_MIN } from '../runtime/glassTokens.js';
  * the corner SDF exists to avoid (see `roundedBoxSdf.ts`).
  */
 
-/** `superellipse()` arguments for the keywords this library accepts. */
+/**
+ * `superellipse()` arguments for the keywords this library accepts.
+ *
+ * `continuous` is the odd one out: it is not a CSS keyword but Apple's
+ * `.continuous` corner curve, the one every iOS menu, card and sheet is drawn
+ * with. That curve is a fixed chain of three cubic Béziers per corner, not a
+ * superellipse — but measured against the SDK output
+ * (`RoundedRectangle(cornerRadius:style:.continuous)`, macOS 26 SDK), a
+ * superellipse at `K = 1.3` with the radius scaled by ~1.24 sits within 0.33% of
+ * the radius of it, at every scale tested (r = 13…120, rects 250×44…400×400).
+ * Sub-pixel below ~180px of radius, which is everything this library draws.
+ *
+ * The number people expect here is 2 — "iOS uses squircles" — and it is wrong in
+ * a specific, measurable way: Apple's curve spreads its transition over 1.5287·r
+ * of edge but cuts the 45° diagonal back by only 0.4123·r, which is a hair less
+ * than a plain circle's 0.4142·r. Same corner depth as a circle, much longer
+ * ease-in. A quartic squircle at the same radius misses it by 19% of the radius
+ * and reads distinctly squarer; even radius-compensated through
+ * {@link matchedRadius} it fits no better than the circle does (~1.5%).
+ *
+ * The keyword deliberately encodes only the exponent. The ×1.24 radius factor is
+ * {@link matchedRadius}'s job (its analytic ×1.2517 lands within 1% of the
+ * fitted factor), and the primitive's contract that `borderRadius` means the
+ * radius holds for this keyword like any other.
+ */
 const KEYWORD_K = {
 	round: 1,
+	continuous: 1.3,
 	squircle: 2
 } as const;
 
@@ -66,8 +91,14 @@ export function cornerExponent(shape: CornerShape): number {
  * harder near the diagonal, so at equal radius it reads as *less* rounded, not
  * more. Measuring the outline's cutback from the box corner along the 45° diagonal
  * gives `√2 · (1 − 2^(−1/n))` per unit of radius — `0.414 r` for a circle against
- * `0.225 r` for a quartic squircle. The ratio of those is the factor here: ×1.84
- * for `squircle`, ×2.68 for `superellipse(3)`.
+ * `0.225 r` for a quartic squircle. The ratio of those is the factor here: ×1.25
+ * for `continuous`, ×1.84 for `squircle`, ×2.68 for `superellipse(3)`.
+ *
+ * For `continuous` this compensation is also what makes the keyword *fit*: the
+ * best-fit superellipse to Apple's curve is `K = 1.3` at ×1.2375 the nominal
+ * radius, and this formula's ×1.2517 lands within 1% of that — so
+ * `matchedRadius(r, 'continuous')` reproduces an iOS corner of radius `r` to a
+ * third of a percent without a dedicated factor (see {@link KEYWORD_K}).
  *
  * Which is why swapping the keyword in and leaving the radius alone looks like the
  * property did nothing, or made the corner squarer. It is also why iOS icons carry
@@ -90,8 +121,9 @@ export function matchedRadius(radius: number, shape: CornerShape): number {
 /**
  * The matching `corner-shape` value.
  *
- * Keywords are emitted for the two common cases rather than `superellipse(1)` and
- * `superellipse(2)`, so the computed style stays legible in devtools.
+ * Keywords are emitted for the two CSS-native cases rather than `superellipse(1)`
+ * and `superellipse(2)`, so the computed style stays legible in devtools.
+ * `continuous` has no CSS keyword and comes out as `superellipse(1.3)`.
  */
 export function cornerShapeCss(shape: CornerShape): string {
 	const k = resolveK(shape);

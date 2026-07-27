@@ -16,9 +16,14 @@ export type SurfaceProfile = 'convex-squircle' | 'convex-circle' | 'concave' | '
  *
  * Orthogonal to {@link SurfaceProfile}, which shapes the glass surface inside the
  * bezel. This one shapes the silhouette: `round` is the quarter-ellipse of plain
- * `border-radius`, `squircle` is the continuous superellipse iOS draws. A number
- * is CSS's `superellipse()` argument `K` directly — `1` is `round`, `2` is
- * `squircle`, larger is squarer, and values are clamped to `[1, 10]`.
+ * `border-radius`, `continuous` is Apple's continuous corner curve — the one iOS
+ * menus, cards and sheets actually use, a superellipse at `K = 1.3` to within a
+ * third of a percent of the radius (measured against the SDK; see
+ * `displacement/cornerShape.ts`) — and `squircle` is the quartic superellipse of
+ * CSS `corner-shape: squircle`, which is distinctly squarer than anything iOS
+ * draws. A number is CSS's `superellipse()` argument `K` directly — `1` is
+ * `round`, `1.3` is `continuous`, `2` is `squircle`, larger is squarer, and
+ * values are clamped to `[1, 10]`.
  *
  * Concave corners (`bevel`, `scoop`, `notch`, i.e. `K ≤ 0`) are not supported;
  * see `displacement/cornerShape.ts` for why they need a different field rather
@@ -28,7 +33,7 @@ export type SurfaceProfile = 'convex-squircle' | 'convex-circle' | 'concave' | '
  * (Chromium 139+). Where it does not, `LiquidGlass` falls back to `round` for the
  * generated maps *and* the stylesheet together, so the two can never disagree.
  */
-export type CornerShape = 'round' | 'squircle' | number;
+export type CornerShape = 'round' | 'continuous' | 'squircle' | number;
 
 /**
  * Quality preset. Trades displacement-map resolution and SVG filter
