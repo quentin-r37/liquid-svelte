@@ -466,6 +466,43 @@ export const TOOLBAR_ITEM_RISE = 0.55;
  */
 export const TOOLBAR_COLLAPSE = { duration: 0.15, ease: 'easeIn' } as const;
 
+/**
+ * The search field's morph — a circular trigger unrolling into the capsule field —
+ * is the toolbar's class of movement exactly: constant height by the same
+ * `BUTTON_CIRCLE_SIZES` law, one axis of scale, a circular `LiquidButton` standing
+ * where the collapsed patch will be.
+ *
+ * The constants are nonetheless restated rather than imported, per the rule stated
+ * on {@link TOOLBAR_MORPH_LEAD}: they are the same *figures*, not the same
+ * *quantity*. A field could plausibly want a softer landing than an action bar —
+ * its settling is what the placeholder fades in over — and the moment either is
+ * retuned the sharing would have been a bug. That they agree today is both of them
+ * being the toolbar's answer to the same geometry.
+ *
+ * The gather is the shallow one, for the toolbar's reason restated: the field
+ * grows from ~38px to a few hundred, so the width has more travel than the eye can
+ * follow and the pinch is pure anticipation — a deep menu-style gather would draw
+ * the patch down to a slit. The volume figures are the toolbar's for the same
+ * leverage argument: the height never grows, so every percent is a percent of the
+ * final bar.
+ */
+export const SEARCH_MORPH_LEAD = 0.045;
+export const SEARCH_MORPH_GATHER = { scale: 0.86, release: 0.24 } as const;
+export const SEARCH_MORPH_VOLUME = {
+	swell: 1.12,
+	flatten: 0.9,
+	dip: 0.06,
+	release: 0.28
+} as const;
+
+/**
+ * The field's retraction: a duration, not a spring, for {@link MENU_COLLAPSE}'s
+ * reason — the collapsed patch is hidden the instant it is reached, so an
+ * overshoot has nothing to justify it and a spring's tail delays the hiding.
+ * The toolbar's figure, because it is the same one-axis exit.
+ */
+export const SEARCH_COLLAPSE = { duration: 0.15, ease: 'easeIn' } as const;
+
 /** Arrow-key step for keyboard-driven dragging, in CSS pixels. */
 export const KEYBOARD_STEP = 12;
 /** Larger step when Shift is held. */

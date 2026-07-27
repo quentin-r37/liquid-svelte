@@ -27,7 +27,7 @@ export type { LiquidTab } from './LiquidTabs.svelte';
 export { default as LiquidMenu } from './LiquidMenu.svelte';
 export type { LiquidMenuItem, MenuPlacement } from './LiquidMenu.svelte';
 export { default as LiquidSearchField } from './LiquidSearchField.svelte';
-export type { SearchFieldSize } from './LiquidSearchField.svelte';
+export type { SearchAnchor, SearchFieldSize } from './LiquidSearchField.svelte';
 export { default as LiquidToolbar } from './LiquidToolbar.svelte';
 export type { LiquidToolbarItem, ToolbarAnchor } from './LiquidToolbar.svelte';
 export { default as LiquidNavBar } from './LiquidNavBar.svelte';
@@ -131,6 +131,10 @@ export {
 	SPRINGS,
 	springFor,
 	MAX_STRETCH,
+	SEARCH_COLLAPSE,
+	SEARCH_MORPH_GATHER,
+	SEARCH_MORPH_LEAD,
+	SEARCH_MORPH_VOLUME,
 	TOOLBAR_COLLAPSE,
 	TOOLBAR_ITEM_FADE,
 	TOOLBAR_ITEM_RISE,

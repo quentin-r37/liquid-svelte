@@ -137,6 +137,7 @@
 	let pressed = $state(0);
 	let query = $state('');
 	let submitted = $state('');
+	let morphQuery = $state('');
 
 	const menuItems: LiquidMenuItem[] = [
 		{ id: 'duplicate', label: 'Duplicate', hint: 'Copy with the same optics' },
@@ -620,6 +621,33 @@
 			<p class="readout">
 				query: <strong>{query || '—'}</strong> · submitted: <strong>{submitted || '—'}</strong>
 			</p>
+			<p class="note">
+				<code>expandable</code> is the toolbar's unroll with a text field inside: a circular search
+				button that <strong>becomes</strong> the input — the trigger is not drawn while the field is
+				out, the collapsed patch is its exact box, and the capsule unrolls from whichever edge
+				<code>anchor</code> pins. The morph is legal by the same law as the toolbar's: the field's
+				height <em>is</em> the circle's diameter, so one axis scales and the other holds. Focus lands
+				in the input on expansion; Escape steps back down the ladder — clear, then retract — and a field
+				holding a query stays out through outside clicks, because an active search is a state, not a transient.
+			</p>
+			<div class="col wide">
+				<LiquidSearchField
+					{variant}
+					{quality}
+					expandable
+					anchor="end"
+					bind:value={morphQuery}
+					placeholder="Search"
+				/>
+				<LiquidSearchField
+					{variant}
+					{quality}
+					expandable
+					anchor="start"
+					size="lg"
+					placeholder="Search library"
+				/>
+			</div>
 		</section>
 
 		<section>
