@@ -12,6 +12,8 @@
 	import { LiquidMenu, type LiquidMenuItem } from '$lib';
 
 	const scheme = $derived(page.url.searchParams.get('scheme') === 'dark' ? 'dark' : 'light');
+	/** No-glass reference for veil measurement — same stage, menus omitted. */
+	const bare = $derived(page.url.searchParams.get('bare') === '1');
 
 	const items: LiquidMenuItem[] = [
 		{ id: 'new', label: 'Nouveau dossier' },
@@ -64,16 +66,18 @@
 		{/each}
 	</div>
 
-	<div class="menus">
-		<div class="slot">
-			<LiquidMenu {items} bind:open={openRegular} variant="regular">Regular</LiquidMenu>
-			<span class="caption">regular</span>
+	{#if !bare}
+		<div class="menus">
+			<div class="slot">
+				<LiquidMenu {items} bind:open={openRegular} variant="regular">Regular</LiquidMenu>
+				<span class="caption">regular</span>
+			</div>
+			<div class="slot">
+				<LiquidMenu {items} bind:open={openClear} variant="clear">Clear</LiquidMenu>
+				<span class="caption">clear</span>
+			</div>
 		</div>
-		<div class="slot">
-			<LiquidMenu {items} bind:open={openClear} variant="clear">Clear</LiquidMenu>
-			<span class="caption">clear</span>
-		</div>
-	</div>
+	{/if}
 </div>
 
 <style>

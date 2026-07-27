@@ -87,14 +87,23 @@ export interface MaterialVariant {
  * identical backdrop (same gradient, same text lines — see the comparison the
  * numbers were tuned from).
  *
- * `regular` is the frost. Apple's version blurs the backdrop into illegibility
- * and lifts its luminance toward a milky veil; only colour and large shapes
- * survive. That frost is not decoration — it is what lets the violent edge
- * refraction read as *liquid* rather than as noise, because every ripple in the
- * bezel band is smoothed before it is displaced, and it is what buys label
- * legibility over busy content. The blur runs an order of magnitude past the
- * `clear` figure; the tint stays well under an opaque slab because the SVG
- * chain's saturation and the scheme boost (`--lg-tint-boost`) sit on top of it.
+ * `regular` is the frost. Apple's version lifts the backdrop's luminance toward
+ * a milky veil until only colour and large shapes survive — and it is the veil
+ * doing the obliterating, not the radius. Measured over the /compare-ios
+ * stripes in the iOS 26.5 simulator (2026-07-28, 25–75% edge walk on the
+ * stripe boundaries behind an auto-opened `UIMenu`): the native panel blurs at
+ * only σ ≈ 5–7pt while compositing a ~68% white veil over the result
+ * (teal-stripe luminance 159→225, saturation 0.64→0.17). The blur figure here
+ * is that σ; it shipped at 12 for a while, which was radius compensating for a
+ * veil that still dipped at the panel's centre — the frosted menu flattens the
+ * dip now (see `LiquidMenu.svelte`), so the compensation is gone. The frost is
+ * still not decoration: every ripple in the bezel band is smoothed before it
+ * is displaced, which is what lets the edge refraction read as *liquid* rather
+ * than as noise. The tint stays well under the measured veil because the
+ * scheme boost (`--lg-tint-boost`) and the edge layers stack on top of it —
+ * 0.24 measured out to a 61% effective veil on the settled panel, 0.27 is the
+ * step onto the native 68%. The stack is nonlinear in the alpha, so tune this
+ * by measuring on /compare-ios/menu, never by scaling.
  *
  * `clear` is the previous default of this library, unchanged: near-zero frost,
  * the backdrop legible through the glass, all the visual work done by the
@@ -112,7 +121,7 @@ export interface MaterialVariant {
  * `opacity` or `saturation` explicitly and the variant leaves that prop alone.
  */
 export const MATERIAL_VARIANTS: Record<GlassVariant, MaterialVariant> = {
-	regular: { blur: 12, opacity: 0.24, saturation: 1.05 },
+	regular: { blur: 6, opacity: 0.27, saturation: 1.05 },
 	clear: { blur: 0.5, opacity: 0.05, saturation: 1.3 }
 };
 
@@ -246,18 +255,18 @@ export const DROPLET_ACTIVE: DropletVisual = {
  * trigger's place on a frame, so any optical daylight between the two at that
  * moment is a visible pop — the patch has to wear the trigger's own material.
  *
- * `regular` wears {@link MATERIAL_VARIANTS}' figures at rest — the patch has to
- * be optically the trigger it replaces, and the trigger is the stock material —
- * but the *settled* panel runs its blur at 8 rather than the material's 12.
- * Both figures are measured, not taste: sampled across a stripe boundary behind
- * a native `UIMenu` in the simulator (10–90% transition ≈ 2.56σ), the panel
- * blurs at only σ ≈ 6–8pt. What obliterates the backdrop there is the *veil* —
- * ~60% alpha and uniform, which is what the flattened tint gradient on the
- * panel supplies (see `LiquidMenu.svelte`) — and matching the obliteration
- * with radius while the veil still dipped to half that at the panel's centre
- * is how the blur ended up half again the native figure. The morph animates
- * 12 → 8 along with the rest of the optics; both ends sit far from zero, so
- * `feGaussianBlur` stays structurally in the chain across the whole morph.
+ * `regular` wears {@link MATERIAL_VARIANTS}' figures at both ends — the rest
+ * patch has to be optically the trigger it replaces, the trigger is the stock
+ * material, and the stock material now *is* the measured native panel (σ ≈
+ * 5–7pt under a ~68% veil — see the variant's own comment for the session the
+ * figures come from). The settled end briefly carried its own blur, 8 against
+ * the variant's then-12: the variant figure was radius compensating for a veil
+ * that still dipped at the panel's centre, and the panel had to undercut it to
+ * sit nearer the reference. Retuning the variant to the measurement dissolved
+ * the disagreement, so the override went with it. Blur is therefore constant
+ * across the morph and far from zero, which keeps `feGaussianBlur`
+ * structurally in the chain throughout; what the morph animates is the
+ * refraction arriving and the rim lighting.
  *
  * `clear` keeps the hand-tuned figures the menu shipped with when the whole
  * library was clear glass. The rest tint runs *denser* than the settled
@@ -284,7 +293,7 @@ export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
 			opacity: MATERIAL_VARIANTS.regular.opacity,
 			saturation: MATERIAL_VARIANTS.regular.saturation,
-			blur: 8,
+			blur: MATERIAL_VARIANTS.regular.blur,
 			// A settled panel, so it sits on the resting specular scale — brighter
 			// than the 0.35 default because the rim is most of what separates the
 			// panel from the page, but nowhere near the transient-grab 1.0.
