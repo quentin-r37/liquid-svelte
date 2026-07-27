@@ -246,12 +246,18 @@ export const DROPLET_ACTIVE: DropletVisual = {
  * trigger's place on a frame, so any optical daylight between the two at that
  * moment is a visible pop — the patch has to wear the trigger's own material.
  *
- * `regular` wears {@link MATERIAL_VARIANTS}' figures at both ends, and exactly
- * them: iOS context menus are the frosted material, the frost is what carries
- * item legibility over busy content, and holding it constant leaves the morph
- * the one thing that legitimately grows — the refraction. Blur sitting at the
- * material's figure at both ends also keeps `feGaussianBlur` structurally in
- * the chain across the whole morph.
+ * `regular` wears {@link MATERIAL_VARIANTS}' figures at rest — the patch has to
+ * be optically the trigger it replaces, and the trigger is the stock material —
+ * but the *settled* panel runs its blur at 8 rather than the material's 12.
+ * Both figures are measured, not taste: sampled across a stripe boundary behind
+ * a native `UIMenu` in the simulator (10–90% transition ≈ 2.56σ), the panel
+ * blurs at only σ ≈ 6–8pt. What obliterates the backdrop there is the *veil* —
+ * ~60% alpha and uniform, which is what the flattened tint gradient on the
+ * panel supplies (see `LiquidMenu.svelte`) — and matching the obliteration
+ * with radius while the veil still dipped to half that at the panel's centre
+ * is how the blur ended up half again the native figure. The morph animates
+ * 12 → 8 along with the rest of the optics; both ends sit far from zero, so
+ * `feGaussianBlur` stays structurally in the chain across the whole morph.
  *
  * `clear` keeps the hand-tuned figures the menu shipped with when the whole
  * library was clear glass. The rest tint runs *denser* than the settled
@@ -259,7 +265,10 @@ export const DROPLET_ACTIVE: DropletVisual = {
  * visible with; the settled panel carries more tint, saturation and frost than
  * the clear material itself because it is the one clear surface with small text
  * sitting directly on it. Blur a hair above zero rather than at it, for the
- * same chain-stability reason stated the other way round.
+ * same chain-stability reason stated the other way round. The settled 1.7 is
+ * the native `.glassEffect(.clear)` measured the same way as `regular`'s: at
+ * the old 1, an 11px line behind the panel stayed fully legible where the
+ * platform ghosts it.
  */
 export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: DropletVisual }> = {
 	regular: {
@@ -275,7 +284,7 @@ export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
 			opacity: MATERIAL_VARIANTS.regular.opacity,
 			saturation: MATERIAL_VARIANTS.regular.saturation,
-			blur: MATERIAL_VARIANTS.regular.blur,
+			blur: 8,
 			// A settled panel, so it sits on the resting specular scale — brighter
 			// than the 0.35 default because the rim is most of what separates the
 			// panel from the page, but nowhere near the transient-grab 1.0.
@@ -296,7 +305,7 @@ export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
 			opacity: 0.12,
 			saturation: 1.7,
-			blur: 1,
+			blur: 1.7,
 			specularIntensity: 0.5,
 			scale: 1
 		}
