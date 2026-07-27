@@ -57,6 +57,7 @@
 		"@sveltejs/package": "^2.5.8",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"@types/node": "^26",
+		"@vitejs/plugin-basic-ssl": "^2.3.0",
 		"eslint": "^10.8.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.22.0",
