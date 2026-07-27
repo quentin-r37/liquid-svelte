@@ -81,6 +81,21 @@
 	);
 
 	/**
+	 * Output pad, in CSS pixels, for the refraction passes' primitive subregions.
+	 *
+	 * The enlarged filter region is an *input* requirement — displaced samples land
+	 * up to `sampleReach` outside the element — but no primitive after the source
+	 * blur needs to *produce* pixels much beyond the border-box, because
+	 * `backdrop-filter` clips the output to it. Left unbounded, every pass fills
+	 * the whole region, which the margins make several times the element's area,
+	 * per frame. The refraction results are still read past the box by the rim
+	 * antialias blur (3σ, σ capped at {@link RIM_ANTIALIAS_MAX}), so they keep a
+	 * pad covering that; a constant, so a displacement animation never rewrites
+	 * subregion attributes.
+	 */
+	const OUTPUT_PAD = Math.ceil(RIM_ANTIALIAS_MAX * 3) + 4;
+
+	/**
 	 * Region margins, per axis, in objectBoundingBox units.
 	 *
 	 * `FILTER_REGION_MARGIN` is a *floor*, not the whole story: a percentage margin
@@ -165,6 +180,13 @@
 					Chromatic aberration: displace three times at slightly different
 					scales, keep one channel from each pass, recombine additively.
 					Three passes over the backdrop, so this is `quality: 'high'` only.
+
+					Every primitive from here on carries an explicit subregion — the
+					refraction passes at box + OUTPUT_PAD (the rim antialias reads them
+					past the box edge), everything after the antialias at the box itself.
+					The enlarged region is for their *inputs*; producing pixels the
+					border-box clip then discards is pure fill-rate waste, several box
+					areas' worth per pass per frame. See OUTPUT_PAD.
 				-->
 				<feDisplacementMap
 					in={refractionSource}
@@ -172,6 +194,10 @@
 					scale={scaleRed}
 					xChannelSelector="R"
 					yChannelSelector="G"
+					x={-OUTPUT_PAD}
+					y={-OUTPUT_PAD}
+					width={width + OUTPUT_PAD * 2}
+					height={height + OUTPUT_PAD * 2}
 					result="passRed"
 				/>
 				<feColorMatrix
@@ -181,6 +207,10 @@
 					        0 0 0 0 0
 					        0 0 0 0 0
 					        0 0 0 1 0"
+					x={-OUTPUT_PAD}
+					y={-OUTPUT_PAD}
+					width={width + OUTPUT_PAD * 2}
+					height={height + OUTPUT_PAD * 2}
 					result="channelRed"
 				/>
 
@@ -190,6 +220,10 @@
 					scale={baseScale}
 					xChannelSelector="R"
 					yChannelSelector="G"
+					x={-OUTPUT_PAD}
+					y={-OUTPUT_PAD}
+					width={width + OUTPUT_PAD * 2}
+					height={height + OUTPUT_PAD * 2}
 					result="passGreen"
 				/>
 				<feColorMatrix
@@ -199,6 +233,10 @@
 					        0 1 0 0 0
 					        0 0 0 0 0
 					        0 0 0 1 0"
+					x={-OUTPUT_PAD}
+					y={-OUTPUT_PAD}
+					width={width + OUTPUT_PAD * 2}
+					height={height + OUTPUT_PAD * 2}
 					result="channelGreen"
 				/>
 
@@ -208,6 +246,10 @@
 					scale={scaleBlue}
 					xChannelSelector="R"
 					yChannelSelector="G"
+					x={-OUTPUT_PAD}
+					y={-OUTPUT_PAD}
+					width={width + OUTPUT_PAD * 2}
+					height={height + OUTPUT_PAD * 2}
 					result="passBlue"
 				/>
 				<feColorMatrix
@@ -217,11 +259,33 @@
 					        0 0 0 0 0
 					        0 0 1 0 0
 					        0 0 0 1 0"
+					x={-OUTPUT_PAD}
+					y={-OUTPUT_PAD}
+					width={width + OUTPUT_PAD * 2}
+					height={height + OUTPUT_PAD * 2}
 					result="channelBlue"
 				/>
 
-				<feBlend in="channelRed" in2="channelGreen" mode="screen" result="channelRedGreen" />
-				<feBlend in="channelRedGreen" in2="channelBlue" mode="screen" result="refracted" />
+				<feBlend
+					in="channelRed"
+					in2="channelGreen"
+					mode="screen"
+					x={-OUTPUT_PAD}
+					y={-OUTPUT_PAD}
+					width={width + OUTPUT_PAD * 2}
+					height={height + OUTPUT_PAD * 2}
+					result="channelRedGreen"
+				/>
+				<feBlend
+					in="channelRedGreen"
+					in2="channelBlue"
+					mode="screen"
+					x={-OUTPUT_PAD}
+					y={-OUTPUT_PAD}
+					width={width + OUTPUT_PAD * 2}
+					height={height + OUTPUT_PAD * 2}
+					result="refracted"
+				/>
 			{:else}
 				<feDisplacementMap
 					in={refractionSource}
@@ -229,6 +293,10 @@
 					scale={baseScale}
 					xChannelSelector="R"
 					yChannelSelector="G"
+					x={-OUTPUT_PAD}
+					y={-OUTPUT_PAD}
+					width={width + OUTPUT_PAD * 2}
+					height={height + OUTPUT_PAD * 2}
 					result="refracted"
 				/>
 			{/if}
@@ -242,6 +310,16 @@
 				magnitude the map itself carries in its blue channel as the mask. The
 				flat centre keeps the untouched refraction; see
 				RIM_ANTIALIAS_PER_DISPLACEMENT for why this is not the pre-blur's job.
+
+				From here down every primitive carries an explicit x/y/width/height
+				subregion pinned to the element's box. The enlarged filter region exists
+				for the *inputs* — displaced samples land well outside the element — but
+				`backdrop-filter` clips the output to the border-box, so any pixel these
+				primitives produce outside it is thrown away. Without the subregion each
+				one fills the whole region, which the margins make several times the
+				element's area, every frame. `refracted` itself stays region-sized: the
+				blur reads it past the box edge (up to 3σ), and starving that read would
+				ring the rim with a half-transparent seam.
 			-->
 			<feColorMatrix
 				in="displacementField"
@@ -250,16 +328,50 @@
 				        0 0 0 0 0
 				        0 0 0 0 0
 				        0 0 1 0 0"
+				x="0"
+				y="0"
+				{width}
+				{height}
 				result="rimMask"
 			/>
-			<feGaussianBlur in="refracted" stdDeviation={rimBlur} result="rimSoft" />
-			<feComposite in="rimSoft" in2="rimMask" operator="in" result="rimBand" />
-			<feComposite in="rimBand" in2="refracted" operator="over" result="antialiased" />
+			<feGaussianBlur
+				in="refracted"
+				stdDeviation={rimBlur}
+				x="0"
+				y="0"
+				{width}
+				{height}
+				result="rimSoft"
+			/>
+			<feComposite
+				in="rimSoft"
+				in2="rimMask"
+				operator="in"
+				x="0"
+				y="0"
+				{width}
+				{height}
+				result="rimBand"
+			/>
+			<feComposite
+				in="rimBand"
+				in2="refracted"
+				operator="over"
+				x="0"
+				y="0"
+				{width}
+				{height}
+				result="antialiased"
+			/>
 
 			<feColorMatrix
 				in="antialiased"
 				type="saturate"
 				values={String(saturation)}
+				x="0"
+				y="0"
+				{width}
+				{height}
 				result="saturated"
 			/>
 
@@ -279,10 +391,17 @@
 					preserveAspectRatio="none"
 					result="specularField"
 				/>
-				<feComponentTransfer in="specularField" result="specularFaded">
+				<feComponentTransfer
+					in="specularField"
+					x="0"
+					y="0"
+					{width}
+					{height}
+					result="specularFaded"
+				>
 					<feFuncA type="linear" slope={specularIntensity} />
 				</feComponentTransfer>
-				<feBlend in="specularFaded" in2="saturated" mode="screen" />
+				<feBlend in="specularFaded" in2="saturated" mode="screen" x="0" y="0" {width} {height} />
 			{/if}
 		</filter>
 	</defs>
