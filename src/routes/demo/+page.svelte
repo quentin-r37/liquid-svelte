@@ -413,11 +413,13 @@
 				a saturated corner has to be round, so the panel spills round and only becomes the
 				superellipse once it has somewhere to put one. The radius is compensated for that shape as
 				well — 22 is the
-				<em>round</em> panel's radius, and the squircle gets the ~40 that reads as equally curved, since
-				a superellipse at equal radius looks tighter rather than rounder. Two scale channels, two deformation
-				channels and a translation — no size animation, so the displacement map is rasterised once before
-				the menu is ever opened. Arrows, Home/End, Escape, Tab and an outside press all behave; pointing
-				at an item moves focus to it, as a native menu does.
+				<em>round</em> panel's radius, and the continuous corner gets the ~27.5 that reads as
+				equally curved, since a superellipse at equal radius looks tighter rather than rounder. That
+				compensated pair is also, measurably, an iOS menu corner: Apple's continuous curve
+				<em>is</em> a superellipse(1.3) at ×1.25 the radius, to a third of a percent. Two scale channels,
+				two deformation channels and a translation — no size animation, so the displacement map is rasterised
+				once before the menu is ever opened. Arrows, Home/End, Escape, Tab and an outside press all behave;
+				pointing at an item moves focus to it, as a native menu does.
 			</p>
 			<div class="row">
 				<LiquidMenu
