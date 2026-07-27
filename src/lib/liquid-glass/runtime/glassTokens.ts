@@ -223,57 +223,75 @@ export const DROPLET_ACTIVE: DropletVisual = {
 };
 
 /**
- * A menu panel as a shallow puddle: the trigger's own material, with no lens in
- * it yet.
+ * The menu panel's morph endpoints — a shallow puddle melting into the settled
+ * panel — keyed by the material variant of the trigger.
  *
  * The same rest → liquid morph as the droplet, with endpoints suited to a large
  * sheet instead of a knob. A puddle 6% of its final height has no meaningful
- * thickness, so `displacementRatio: 0` is physical rather than decorative — the
- * refraction *grows* as the liquid deepens, which is most of why the opening reads
- * as a volume of liquid rather than a growing rectangle.
+ * thickness, so `displacementRatio: 0` at rest is physical rather than
+ * decorative — the refraction *grows* as the liquid deepens, which is most of
+ * why the opening reads as a volume of liquid rather than a growing rectangle.
  *
- * The other three optics are {@link MATERIAL_VARIANTS}' `regular`, and exactly
- * it, because of what this state *is*: the patch of glass standing where a
- * `regular` `LiquidButton` trigger just was. The panel takes the trigger's place
- * on a frame, so any optical daylight between the two at that moment is a
- * visible pop — the patch has to wear the button's frost, tint and saturation
- * from its first frame, leaving the refraction as the one thing the morph grows.
- * This used to be a hand-tuned milky start (tint 0.3 over near-zero blur)
- * matched against the old *clear* button; the material is the match now.
+ * Keyed by variant because of what the rest state *is*: the patch of glass
+ * standing where the trigger `LiquidButton` just was. The panel takes the
+ * trigger's place on a frame, so any optical daylight between the two at that
+ * moment is a visible pop — the patch has to wear the trigger's own material.
  *
- * `blur` sitting at the material's figure at both ends keeps `feGaussianBlur`
- * structurally in the chain across the whole morph — the stronger form of the
- * "a hair above zero" precaution this token used to carry.
+ * `regular` wears {@link MATERIAL_VARIANTS}' figures at both ends, and exactly
+ * them: iOS context menus are the frosted material, the frost is what carries
+ * item legibility over busy content, and holding it constant leaves the morph
+ * the one thing that legitimately grows — the refraction. Blur sitting at the
+ * material's figure at both ends also keeps `feGaussianBlur` structurally in
+ * the chain across the whole morph.
+ *
+ * `clear` keeps the hand-tuned figures the menu shipped with when the whole
+ * library was clear glass. The rest tint runs *denser* than the settled
+ * panel's, because a clear puddle with no lens in it yet has nothing else to be
+ * visible with; the settled panel carries more tint, saturation and frost than
+ * the clear material itself because it is the one clear surface with small text
+ * sitting directly on it. Blur a hair above zero rather than at it, for the
+ * same chain-stability reason stated the other way round.
  */
-export const MENU_GLASS_REST: DropletVisual = {
-	displacementRatio: 0,
-	opacity: MATERIAL_VARIANTS.regular.opacity,
-	saturation: MATERIAL_VARIANTS.regular.saturation,
-	blur: MATERIAL_VARIANTS.regular.blur,
-	specularIntensity: 0.2,
-	scale: 1
-};
-
-/**
- * The settled panel: plain `regular` material.
- *
- * iOS context menus are built from the frosted material, and the frost is what
- * carries item legibility over busy content — the job the old clear-glass
- * version of this token did with extra tint (0.12) and a 1.7 saturation boost.
- * Deriving from {@link MATERIAL_VARIANTS} rather than restating numbers means a
- * retune of the material moves the menu with it, and keeps the panel identical
- * to the buttons it grew out of.
- */
-export const MENU_GLASS_OPEN: DropletVisual = {
-	displacementRatio: DISPLACEMENT_PER_BEZEL,
-	opacity: MATERIAL_VARIANTS.regular.opacity,
-	saturation: MATERIAL_VARIANTS.regular.saturation,
-	blur: MATERIAL_VARIANTS.regular.blur,
-	// A settled panel, so it sits on the resting specular scale — brighter than
-	// the 0.35 default because the rim is most of what separates the panel from
-	// the page, but nowhere near the transient-grab 1.0.
-	specularIntensity: 0.5,
-	scale: 1
+export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: DropletVisual }> = {
+	regular: {
+		rest: {
+			displacementRatio: 0,
+			opacity: MATERIAL_VARIANTS.regular.opacity,
+			saturation: MATERIAL_VARIANTS.regular.saturation,
+			blur: MATERIAL_VARIANTS.regular.blur,
+			specularIntensity: 0.2,
+			scale: 1
+		},
+		active: {
+			displacementRatio: DISPLACEMENT_PER_BEZEL,
+			opacity: MATERIAL_VARIANTS.regular.opacity,
+			saturation: MATERIAL_VARIANTS.regular.saturation,
+			blur: MATERIAL_VARIANTS.regular.blur,
+			// A settled panel, so it sits on the resting specular scale — brighter
+			// than the 0.35 default because the rim is most of what separates the
+			// panel from the page, but nowhere near the transient-grab 1.0.
+			specularIntensity: 0.5,
+			scale: 1
+		}
+	},
+	clear: {
+		rest: {
+			displacementRatio: 0,
+			opacity: 0.3,
+			saturation: 1,
+			blur: 0.05,
+			specularIntensity: 0.2,
+			scale: 1
+		},
+		active: {
+			displacementRatio: DISPLACEMENT_PER_BEZEL,
+			opacity: 0.12,
+			saturation: 1.7,
+			blur: 1,
+			specularIntensity: 0.5,
+			scale: 1
+		}
+	}
 };
 
 /**
@@ -410,61 +428,79 @@ export type ToolbarSize = keyof typeof TOOLBAR_SIZES;
 export const TOOLBAR_BEZEL_RATIO = 0.26;
 
 /**
- * The collapsed toolbar shell: glass with no lens in it.
+ * The toolbar's morph endpoints — collapsed shell to unrolled bar — keyed by the
+ * material variant of the trigger.
  *
- * `displacementRatio: 0` is not a stylistic choice here, it is the one thing that
- * makes the morph legal. The displacement and specular maps are rasterised for the
- * *expanded* capsule — that is the whole point, since geometry in the cache key must
- * never be animated — and the collapsed patch draws that same texture squeezed to a
- * seventh of its width. The top and bottom bezel bands survive it (they are
- * unchanged in Y), but the two end caps do not: their arcs compress into vertical
- * smears. So the lens fades in *with* the unroll, and by the time the ends are wide
- * enough to be read as arcs they are being drawn at close to the width they were
- * baked for.
+ * `displacementRatio: 0` at rest is not a stylistic choice, it is the one thing
+ * that makes the morph legal, in both variants. The displacement and specular
+ * maps are rasterised for the *expanded* capsule — that is the whole point, since
+ * geometry in the cache key must never be animated — and the collapsed patch
+ * draws that same texture squeezed to a seventh of its width. The top and bottom
+ * bezel bands survive it (they are unchanged in Y), but the two end caps do not:
+ * their arcs compress into vertical smears. So the lens fades in *with* the
+ * unroll, and by the time the ends are wide enough to be read as arcs they are
+ * being drawn at close to the width they were baked for.
  *
- * Everything else here is pinned to what `LiquidButton` looks like rather than to
- * what a puddle looks like. A toolbar's collapsed state is a *resting, visible,
- * long-lived* state that has to pass as an ordinary glass button, and it is
- * swapped for a real one on the frame the morph begins — so the optics are
- * {@link MATERIAL_VARIANTS}' `regular`, which is exactly what a plain button
- * renders. This token used to carry a 0.14-over-0.05 tint compensation for the
- * missing refraction; that mattered when the button was *clear* glass whose lens
- * was most of its presence. Under a 12px frost the lens is barely visible, so
- * the material's own tint is the match and the compensation is gone.
+ * Everything else is pinned to what the trigger `LiquidButton` looks like in the
+ * same variant, because the collapsed state is a *resting, visible, long-lived*
+ * state that has to pass as an ordinary glass button — it is swapped for a real
+ * one on the frame the morph begins.
  *
- * `blur` is equal at both ends, so `feGaussianBlur` neither enters nor leaves
- * the chain mid-morph. Same precaution as the droplet, arrived at from the other
- * side: there is no reason for a toolbar to change its frosting.
+ * `regular` is {@link MATERIAL_VARIANTS}' figures at both ends: under a 12px
+ * frost the missing lens is barely visible, so the material's own tint is the
+ * match, and the unroll animates only the lens and the rim (0.35 — the plain
+ * button's resting `GLASS_DEFAULTS.specularIntensity` — up to 0.5, the settled
+ * scale). Constant optics also mean the retract drains nothing: the bar simply
+ * becomes the button again.
  *
- * `specularIntensity` 0.35 is `GLASS_DEFAULTS.specularIntensity` — the resting
- * rim of the plain button this state impersonates.
+ * `clear` keeps the figures the toolbar shipped with as clear glass: rest tint
+ * 0.14 against the clear button's 0.05 was the compensation for having no
+ * refraction — a clear button's lens is most of its presence — and the bar
+ * settles at 0.06 with a saturation boost doing the legibility work the frost
+ * does in `regular`.
+ *
+ * `blur` is equal at both ends of each variant, so `feGaussianBlur` neither
+ * enters nor leaves the chain mid-morph. Same precaution as the droplet, arrived
+ * at from the other side: there is no reason for a toolbar to change its
+ * frosting.
  */
-export const TOOLBAR_GLASS_REST: DropletVisual = {
-	displacementRatio: 0,
-	opacity: MATERIAL_VARIANTS.regular.opacity,
-	saturation: MATERIAL_VARIANTS.regular.saturation,
-	blur: MATERIAL_VARIANTS.regular.blur,
-	specularIntensity: 0.35,
-	scale: 1
-};
-
-/**
- * The unrolled bar: the same `regular` material as the shell, so the unroll is
- * purely geometry plus the two things that legitimately change — the lens
- * fading in with the width it needs (see the rest state) and the rim
- * brightening to 0.5, the settled-surface scale (see
- * `GLASS_DEFAULTS.specularIntensity`) rather than the transient-grab 1.0 the
- * droplet uses. Tint, frost and saturation are constant across the morph, which
- * also means the retract drains nothing — the bar simply becomes the button
- * again.
- */
-export const TOOLBAR_GLASS_OPEN: DropletVisual = {
-	displacementRatio: DISPLACEMENT_PER_BEZEL,
-	opacity: MATERIAL_VARIANTS.regular.opacity,
-	saturation: MATERIAL_VARIANTS.regular.saturation,
-	blur: MATERIAL_VARIANTS.regular.blur,
-	specularIntensity: 0.5,
-	scale: 1
+export const TOOLBAR_GLASS: Record<GlassVariant, { rest: DropletVisual; active: DropletVisual }> = {
+	regular: {
+		rest: {
+			displacementRatio: 0,
+			opacity: MATERIAL_VARIANTS.regular.opacity,
+			saturation: MATERIAL_VARIANTS.regular.saturation,
+			blur: MATERIAL_VARIANTS.regular.blur,
+			specularIntensity: 0.35,
+			scale: 1
+		},
+		active: {
+			displacementRatio: DISPLACEMENT_PER_BEZEL,
+			opacity: MATERIAL_VARIANTS.regular.opacity,
+			saturation: MATERIAL_VARIANTS.regular.saturation,
+			blur: MATERIAL_VARIANTS.regular.blur,
+			specularIntensity: 0.5,
+			scale: 1
+		}
+	},
+	clear: {
+		rest: {
+			displacementRatio: 0,
+			opacity: 0.14,
+			saturation: 1.5,
+			blur: 0.5,
+			specularIntensity: 0.35,
+			scale: 1
+		},
+		active: {
+			displacementRatio: DISPLACEMENT_PER_BEZEL,
+			opacity: 0.06,
+			saturation: 1.9,
+			blur: 0.5,
+			specularIntensity: 0.5,
+			scale: 1
+		}
+	}
 };
 
 /**
@@ -865,55 +901,69 @@ export const TABS_BUBBLE = {
 } as const;
 
 /**
- * The rail at rest: `regular` material, refracting at full strength.
+ * The rail's morph endpoints, keyed by the material variant.
  *
  * Unlike a knob — which is an opaque tinted blob until you grab it, see
  * {@link DROPLET_REST} — a container is glass the whole time it is on screen, so
- * the refraction is at full strength here rather than at zero.
+ * the refraction is at full strength at rest rather than at zero. The active
+ * displacement then goes *past* {@link DISPLACEMENT_PER_BEZEL}, which is safe —
+ * a live filter attribute, scaling the same map harder, not a geometry change —
+ * and is what makes the rims visibly bow as the bubble travels.
  *
- * The optics are {@link MATERIAL_VARIANTS}' `regular` for the reason the menu
- * panel's and the toolbar's are: iOS builds its segmented control from the
- * frosted material, and the frost is what carries label legibility over busy
- * content — the job this token used to do with a hand-tuned extra tint (0.08)
- * and a 1.5 saturation boost on otherwise clear glass. The labels themselves
- * are painted *above* the rail, so the frost never softens them; only the
- * backdrop under the control goes milky.
- */
-export const TABS_GLASS_REST: DropletVisual = {
-	displacementRatio: DISPLACEMENT_PER_BEZEL,
-	opacity: MATERIAL_VARIANTS.regular.opacity,
-	saturation: MATERIAL_VARIANTS.regular.saturation,
-	blur: MATERIAL_VARIANTS.regular.blur,
-	specularIntensity: 0.35,
-	scale: 1
-};
-
-/**
- * The rail while the control is being worked.
+ * `regular` holds {@link MATERIAL_VARIANTS}' figures constant across the morph,
+ * the same shape the toolbar's endpoints settled into: iOS builds its segmented
+ * control from the frosted material, the frost carries label legibility (the
+ * labels themselves are painted *above* the rail, so it never softens them),
+ * and the surface waking up is the lens deepening and the rim lighting — not
+ * the material changing.
  *
- * The displacement goes *past* {@link DISPLACEMENT_PER_BEZEL} rather than up to
- * it, which is safe — it is a live filter attribute, scaling the same map harder,
- * not a geometry change — and it is what makes the rims visibly bow as the bubble
- * travels.
+ * `clear` keeps the clear-glass-era tuning: a small resting tint (0.08) and a
+ * saturation boost doing the legibility work, traded at full melt for a 2.4
+ * saturation spike over near-zero tint — the clear-glass reading of "awake" —
+ * with blur *rising* under the gesture because the moment the backdrop
+ * saturates by 60% the labels need the extra frost to stay legible against it.
  *
- * Tint, frost and saturation are the material's, constant across the morph, the
- * same shape the toolbar's endpoints settled into: the surface waking up is the
- * lens deepening and the rim lighting, not the material changing. The old
- * endpoints traded the veil away for a 2.4 saturation spike here — a clear-glass
- * reading of "awake" that under a 12px frost would read as the rail losing its
- * material mid-gesture.
- *
- * `scale` is pinned at 1 in both endpoints and never read: the rail is the
+ * `scale` is pinned at 1 in every endpoint and never read: the rail is the
  * component's layout box, and scaling it would move the segments the bubble is
  * measured against out from under it.
  */
-export const TABS_GLASS_ACTIVE: DropletVisual = {
-	displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
-	opacity: MATERIAL_VARIANTS.regular.opacity,
-	saturation: MATERIAL_VARIANTS.regular.saturation,
-	blur: MATERIAL_VARIANTS.regular.blur,
-	specularIntensity: 1,
-	scale: 1
+export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: DropletVisual }> = {
+	regular: {
+		rest: {
+			displacementRatio: DISPLACEMENT_PER_BEZEL,
+			opacity: MATERIAL_VARIANTS.regular.opacity,
+			saturation: MATERIAL_VARIANTS.regular.saturation,
+			blur: MATERIAL_VARIANTS.regular.blur,
+			specularIntensity: 0.35,
+			scale: 1
+		},
+		active: {
+			displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
+			opacity: MATERIAL_VARIANTS.regular.opacity,
+			saturation: MATERIAL_VARIANTS.regular.saturation,
+			blur: MATERIAL_VARIANTS.regular.blur,
+			specularIntensity: 1,
+			scale: 1
+		}
+	},
+	clear: {
+		rest: {
+			displacementRatio: DISPLACEMENT_PER_BEZEL,
+			opacity: 0.08,
+			saturation: 1.5,
+			blur: 0.4,
+			specularIntensity: 0.35,
+			scale: 1
+		},
+		active: {
+			displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
+			opacity: 0.05,
+			saturation: 2.4,
+			blur: 0.6,
+			specularIntensity: 1,
+			scale: 1
+		}
+	}
 };
 
 /**
@@ -971,7 +1021,7 @@ export const TABS_BUBBLE_REST: DropletVisual = {
  * touches no filter primitive.
  *
  * Less saturated than {@link DROPLET_ACTIVE}'s 2.8 because this one has a label
- * sitting on it and a knob does not — the same argument {@link MENU_GLASS_OPEN}
+ * sitting on it and a knob does not — the same argument {@link MENU_GLASS}
  * makes. `blur` stays a hair above zero at both ends so `feGaussianBlur` never
  * leaves and re-enters the filter chain mid-morph.
  */

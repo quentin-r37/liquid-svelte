@@ -3,13 +3,13 @@
 	import { untrack, type Snippet } from 'svelte';
 	import LiquidButton from './LiquidButton.svelte';
 	import LiquidGlass from './LiquidGlass.svelte';
-	import type { GlassMode, GlassQuality } from './liquidGlass.types.js';
+	import type { GlassMode, GlassQuality, GlassVariant } from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { acquireGlassTransform, type GlassTransform } from './runtime/glassMotion.js';
 	import {
+		GLASS_DEFAULTS,
 		TOOLBAR_BEZEL_RATIO,
-		TOOLBAR_GLASS_OPEN,
-		TOOLBAR_GLASS_REST,
+		TOOLBAR_GLASS,
 		TOOLBAR_SHADOW,
 		TOOLBAR_SIZES,
 		type ToolbarSize
@@ -74,6 +74,13 @@
 		triggerLabel?: string;
 		/** Accessible name for the bar itself. */
 		label?: string;
+		/**
+		 * Material variant, forwarded to the trigger `LiquidButton` *and* driving the
+		 * shell's optics (see `TOOLBAR_GLASS`). One prop for both on purpose: the
+		 * collapsed shell has to pass as the trigger it replaces on a frame, which it
+		 * cannot do wearing a different material.
+		 */
+		variant?: GlassVariant;
 		quality?: GlassQuality;
 		mode?: GlassMode;
 		class?: string;
@@ -92,6 +99,7 @@
 		size = 'md',
 		triggerLabel = 'More actions',
 		label,
+		variant = GLASS_DEFAULTS.variant,
 		quality = 'high',
 		mode = 'auto',
 		class: className = '',
@@ -169,7 +177,7 @@
 	 * This is where the toolbar parts company with `DropletMorph`, which every other
 	 * morph in the library uses, and the reason is a hard constraint rather than a
 	 * preference. The refraction has to be absent while the shell is squeezed — see
-	 * {@link TOOLBAR_GLASS_REST} for why the baked end caps cannot survive it — and
+	 * {@link TOOLBAR_GLASS} for why the baked end caps cannot survive it — and
 	 * "while the shell is squeezed" *is* the unroll. A separate spring, however close
 	 * its timing, could bring the lens up while the patch is still narrow; driving the
 	 * two off one value makes that unrepresentable.
@@ -183,17 +191,14 @@
 	 */
 	const optics = $derived.by(() => {
 		const t = unroll;
+		const { rest, active } = TOOLBAR_GLASS[variant];
 		const mix = (from: number, to: number) => from + (to - from) * t;
 		return {
-			displacement:
-				bezel * mix(TOOLBAR_GLASS_REST.displacementRatio, TOOLBAR_GLASS_OPEN.displacementRatio),
-			opacity: mix(TOOLBAR_GLASS_REST.opacity, TOOLBAR_GLASS_OPEN.opacity),
-			saturation: mix(TOOLBAR_GLASS_REST.saturation, TOOLBAR_GLASS_OPEN.saturation),
-			blur: mix(TOOLBAR_GLASS_REST.blur, TOOLBAR_GLASS_OPEN.blur),
-			specularIntensity: mix(
-				TOOLBAR_GLASS_REST.specularIntensity,
-				TOOLBAR_GLASS_OPEN.specularIntensity
-			),
+			displacement: bezel * mix(rest.displacementRatio, active.displacementRatio),
+			opacity: mix(rest.opacity, active.opacity),
+			saturation: mix(rest.saturation, active.saturation),
+			blur: mix(rest.blur, active.blur),
+			specularIntensity: mix(rest.specularIntensity, active.specularIntensity),
 			shadowIntensity: mix(TOOLBAR_SHADOW.rest, TOOLBAR_SHADOW.open)
 		};
 	});
@@ -842,6 +847,7 @@
 		{disabled}
 		shape="circle"
 		{size}
+		{variant}
 		{quality}
 		{mode}
 		class={`lg-toolbar-trigger ${present ? 'is-yielded' : ''}`}

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { animate, cancelFrame, frame } from 'motion';
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import LiquidGlass from './LiquidGlass.svelte';
-	import type { GlassMode, GlassQuality } from './liquidGlass.types.js';
+	import type { GlassMode, GlassQuality, GlassVariant } from './liquidGlass.types.js';
 	import { setGlassProperties } from './runtime/applyGlassStyle.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { DropletMorph } from './runtime/dropletMorph.svelte.js';
@@ -13,11 +13,11 @@
 		type GlassTransform
 	} from './runtime/glassMotion.js';
 	import {
+		GLASS_DEFAULTS,
 		TABS_BUBBLE,
 		TABS_BUBBLE_ACTIVE,
 		TABS_BUBBLE_REST,
-		TABS_GLASS_ACTIVE,
-		TABS_GLASS_REST,
+		TABS_GLASS,
 		TABS_RAIL
 	} from './runtime/glassTokens.js';
 	import { springFor } from './runtime/motionTokens.js';
@@ -61,6 +61,11 @@
 		 * whatever was passed. iOS segmented controls are capsules too. A prop that
 		 * provably cannot change the output is worse than no prop.
 		 */
+		/**
+		 * Material variant of the rail (see `TABS_GLASS`). The selection bubble is
+		 * unaffected — it is a selection fill and a transient lens, not the material.
+		 */
+		variant?: GlassVariant;
 		quality?: GlassQuality;
 		mode?: GlassMode;
 		class?: string;
@@ -76,6 +81,7 @@
 		label,
 		labelledBy,
 		iconPlacement = 'start',
+		variant = GLASS_DEFAULTS.variant,
 		quality = 'high',
 		mode = 'auto',
 		class: className = '',
@@ -272,9 +278,12 @@
 	 * a knob does — it is glass throughout, in the settled `regular` material, and
 	 * what this carries is the surface waking up under the hand: the refraction
 	 * deepening and the rim lighting, over a material that never changes. See
-	 * {@link TABS_GLASS_REST}.
+	 * {@link TABS_GLASS}.
 	 */
-	const railGlass = new DropletMorph({ rest: TABS_GLASS_REST, active: TABS_GLASS_ACTIVE });
+	// Construction deliberately sees only the initial variant — the effect below is
+	// what tracks the prop, hence the `untrack`.
+	const railGlass = new DropletMorph(TABS_GLASS[untrack(() => variant)]);
+	$effect(() => railGlass.setEndpoints(TABS_GLASS[variant]));
 
 	$effect(() => {
 		droplet.setReduced(reducedMotion.current);

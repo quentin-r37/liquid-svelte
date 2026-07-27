@@ -22,8 +22,7 @@ import { springFor } from './motionTokens.js';
  * The endpoints are injectable because the morph is the same idea at two very
  * different sizes: a 28px knob wants to go nearly transparent and heavily
  * saturated, while a menu panel carrying text wants a visible tint and a little
- * frost. See {@link DROPLET_REST} / {@link DROPLET_ACTIVE} and
- * {@link MENU_GLASS_REST} / {@link MENU_GLASS_OPEN}.
+ * frost. See {@link DROPLET_REST} / {@link DROPLET_ACTIVE} and `MENU_GLASS`.
  */
 export class DropletMorph {
 	/** 0 = at rest, 1 = fully liquid. */
@@ -31,8 +30,15 @@ export class DropletMorph {
 	#value = motionValue(0);
 	#unsubscribe: (() => void) | null = null;
 	#reduced = false;
-	#rest: DropletVisual;
-	#active: DropletVisual;
+	/**
+	 * `$state.raw`, and being state at all matters: `visual` is read from
+	 * templates, and a surface sitting at rest never sees `#progress` change — so
+	 * an endpoint swap (`setEndpoints`, a variant switch) on plain fields would
+	 * change what `visual` *would* return without invalidating anything that read
+	 * it. `raw` because the endpoints are replaced wholesale, never mutated.
+	 */
+	#rest: DropletVisual = $state.raw(DROPLET_REST);
+	#active: DropletVisual = $state.raw(DROPLET_ACTIVE);
 
 	constructor(endpoints?: { rest: DropletVisual; active: DropletVisual }) {
 		this.#rest = endpoints?.rest ?? DROPLET_REST;
@@ -69,6 +75,18 @@ export class DropletMorph {
 
 	setReduced(reduced: boolean): void {
 		this.#reduced = reduced;
+	}
+
+	/**
+	 * Swap the endpoints in place — how a component whose `variant` prop changed
+	 * re-materialises its morph without tearing the springs down. `visual` reads
+	 * the endpoints per call, so the change lands on the next frame at whatever
+	 * `progress` the morph is currently at; mid-flight the values step rather
+	 * than glide, which a variant switch (a deliberate, rare act) can afford.
+	 */
+	setEndpoints(endpoints: { rest: DropletVisual; active: DropletVisual }): void {
+		this.#rest = endpoints.rest;
+		this.#active = endpoints.active;
 	}
 
 	/** Melt into a droplet. */

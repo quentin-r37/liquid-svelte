@@ -4,16 +4,11 @@
 	import LiquidButton, { type ButtonShape } from './LiquidButton.svelte';
 	import LiquidGlass from './LiquidGlass.svelte';
 	import { cornerExponent, cornerShapeCss, matchedRadius } from './displacement/cornerShape.js';
-	import type { CornerShape, GlassMode, GlassQuality } from './liquidGlass.types.js';
+	import type { CornerShape, GlassMode, GlassQuality, GlassVariant } from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
 	import { DropletMorph } from './runtime/dropletMorph.svelte.js';
 	import { acquireGlassTransform, type GlassTransform } from './runtime/glassMotion.js';
-	import {
-		GLASS_DEFAULTS,
-		MENU_GEOMETRY,
-		MENU_GLASS_OPEN,
-		MENU_GLASS_REST
-	} from './runtime/glassTokens.js';
+	import { GLASS_DEFAULTS, MENU_GEOMETRY, MENU_GLASS } from './runtime/glassTokens.js';
 	import {
 		MENU_COLLAPSE,
 		MENU_MORPH_GATHER,
@@ -59,6 +54,13 @@
 		triggerShape?: ButtonShape;
 		triggerSize?: 'sm' | 'md' | 'lg';
 		/**
+		 * Material variant, forwarded to the trigger `LiquidButton` *and* driving the
+		 * panel's own endpoints (see `MENU_GLASS`). One prop for both on purpose: the
+		 * panel takes the trigger's place on a frame, so the two wearing different
+		 * materials is a visible pop at the exact moment the eye is on them.
+		 */
+		variant?: GlassVariant;
+		/**
 		 * Open by *transforming the trigger into the panel*, the way iOS does it, rather
 		 * than by spilling a panel out beside a trigger that stays put.
 		 *
@@ -101,8 +103,8 @@
 		 * `high` (≈70fps against a 165Hz cap) and held the cap at `medium`. It is also
 		 * the surface that can least justify the effect: dispersion is rim colour noise
 		 * under the one thing a menu has to keep legible, its own items — the same
-		 * legibility argument that puts {@link MENU_GLASS_OPEN} on the frosted
-		 * `regular` material.
+		 * legibility argument that puts the settled panel (see `MENU_GLASS`) on the
+		 * frosted `regular` material.
 		 */
 		quality?: GlassQuality;
 		mode?: GlassMode;
@@ -123,6 +125,7 @@
 		disabled = false,
 		triggerShape = 'pill',
 		triggerSize = 'md',
+		variant = GLASS_DEFAULTS.variant,
 		morph = true,
 		menuLabel,
 		cornerShape = GLASS_DEFAULTS.cornerShape,
@@ -182,7 +185,10 @@
 	 * in is what makes the panel look like it lifts off as it fills rather than sliding
 	 * out already floating.
 	 */
-	const droplet = new DropletMorph({ rest: MENU_GLASS_REST, active: MENU_GLASS_OPEN });
+	// Construction deliberately sees only the initial variant — the effect below is
+	// what tracks the prop, hence the `untrack`.
+	const droplet = new DropletMorph(MENU_GLASS[untrack(() => variant)]);
+	$effect(() => droplet.setEndpoints(MENU_GLASS[variant]));
 	$effect(() => droplet.setReduced(reducedMotion.current));
 	$effect(() => () => droplet.destroy());
 
@@ -769,6 +775,7 @@
 		{disabled}
 		shape={triggerShape}
 		size={triggerSize}
+		{variant}
 		{quality}
 		{mode}
 		class={`lg-menu-trigger ${morph && present ? 'is-yielded' : ''}`}

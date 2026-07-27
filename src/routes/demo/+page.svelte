@@ -410,6 +410,7 @@
 			</p>
 			<div class="row">
 				<LiquidMenu
+					{variant}
 					items={menuItems}
 					{cornerShape}
 					{quality}
@@ -418,6 +419,7 @@
 					Actions
 				</LiquidMenu>
 				<LiquidMenu
+					{variant}
 					items={menuItems}
 					placement="bottom-end"
 					{cornerShape}
@@ -427,6 +429,7 @@
 					End-aligned
 				</LiquidMenu>
 				<LiquidMenu
+					{variant}
 					items={menuItems}
 					placement="top-start"
 					{cornerShape}
@@ -436,6 +439,7 @@
 					Upwards
 				</LiquidMenu>
 				<LiquidMenu
+					{variant}
 					items={menuItems}
 					morph={false}
 					{cornerShape}
@@ -444,7 +448,9 @@
 				>
 					No morph
 				</LiquidMenu>
-				<LiquidMenu items={menuItems} {cornerShape} {quality} disabled>Disabled</LiquidMenu>
+				<LiquidMenu {variant} items={menuItems} {cornerShape} {quality} disabled
+					>Disabled</LiquidMenu
+				>
 			</div>
 			<p class="readout">selected: <strong>{lastMenuChoice}</strong></p>
 		</section>
@@ -474,6 +480,7 @@
 			</p>
 			<div class="row">
 				<LiquidToolbar
+					{variant}
 					items={toolbarItems}
 					{quality}
 					label="Document actions"
@@ -483,6 +490,7 @@
 					<Ellipsis />
 				</LiquidToolbar>
 				<LiquidToolbar
+					{variant}
 					items={toolbarItems}
 					anchor="center"
 					size="lg"
@@ -494,6 +502,7 @@
 					<Ellipsis />
 				</LiquidToolbar>
 				<LiquidToolbar
+					{variant}
 					items={toolbarItems}
 					anchor="end"
 					size="sm"
@@ -505,6 +514,7 @@
 					<Ellipsis />
 				</LiquidToolbar>
 				<LiquidToolbar
+					{variant}
 					items={[
 						{ id: 'cancel', label: 'Cancel' },
 						{ id: 'save', label: 'Save', separated: true }
@@ -516,7 +526,13 @@
 				>
 					<Ellipsis />
 				</LiquidToolbar>
-				<LiquidToolbar items={toolbarItems} {quality} disabled triggerLabel="More actions">
+				<LiquidToolbar
+					{variant}
+					items={toolbarItems}
+					{quality}
+					disabled
+					triggerLabel="More actions"
+				>
 					<Ellipsis />
 				</LiquidToolbar>
 			</div>
@@ -562,7 +578,7 @@
 				<code>tablist</code> / <code>tab</code> / <code>tabpanel</code> with roving focus and manual activation.
 				Arrow keys move, Home and End jump, the disabled tab is skipped.
 			</p>
-			<LiquidTabs {tabs} bind:value={activeTab} {quality} label="Documentation sections">
+			<LiquidTabs {variant} {tabs} bind:value={activeTab} {quality} label="Documentation sections">
 				{#snippet panel(id)}
 					<p class="panel">{tabCopy[id]}</p>
 				{/snippet}
@@ -574,14 +590,22 @@
 				refracts the glyphs it crosses — grab one and watch the fringing.
 			</p>
 			<div class="col">
-				<LiquidTabs tabs={iconTabs} bind:value={activeIconTab} {quality} label="Playback source" />
 				<LiquidTabs
+					{variant}
+					tabs={iconTabs}
+					bind:value={activeIconTab}
+					{quality}
+					label="Playback source"
+				/>
+				<LiquidTabs
+					{variant}
 					tabs={glyphTabs}
 					bind:value={activeGlyphTab}
 					{quality}
 					label="Playback source, icons only"
 				/>
 				<LiquidTabs
+					{variant}
 					tabs={iconTabs}
 					bind:value={activeStackedTab}
 					iconPlacement="top"
@@ -625,6 +649,7 @@
 							><Search /></LiquidButton
 						>
 						<LiquidMenu
+							{variant}
 							items={menuItems}
 							placement="bottom-end"
 							triggerShape="circle"
