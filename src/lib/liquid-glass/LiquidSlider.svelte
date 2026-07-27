@@ -341,17 +341,33 @@
 		pointer-events: none;
 	}
 
+	/*
+	 * A flat translucent groove, like the reference: no inner shadow, no inner
+	 * ring — iOS 26 tracks are a plain fill, and any inset shading makes the rail
+	 * read as carved into the page instead of laid on it. The grey is the
+	 * platform's fill grey (120 120 128), whose mid value is what lets one alpha
+	 * read correctly over light and dark backdrops alike.
+	 */
 	.lg-slider-rail {
 		right: 0;
-		background: rgb(255 255 255 / 0.12);
-		box-shadow:
-			inset 0 1px 2px rgb(0 0 0 / 0.24),
-			inset 0 0 0 1px rgb(255 255 255 / 0.12);
+		background: rgb(120 120 128 / 0.2);
 	}
 
+	/*
+	 * The fill is the accent, flat — a single opaque blue, not a gradient and not
+	 * a glow. That is how the reference marks progress: the colour alone carries
+	 * it, and anything luminous around it reads as a health bar rather than a
+	 * control. Overridable per app the same way the tabs' label colour is.
+	 */
 	.lg-slider-fill {
-		background: linear-gradient(90deg, rgb(120 200 255 / 0.5), rgb(90 250 200 / 0.65));
-		box-shadow: 0 0 12px rgb(120 220 255 / 0.3);
+		background: var(--lg-slider-accent, rgb(0 122 255));
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.lg-slider-fill {
+			/* iOS system blue is a step brighter in dark scheme. */
+			background: var(--lg-slider-accent, rgb(10 132 255));
+		}
 	}
 
 	/*

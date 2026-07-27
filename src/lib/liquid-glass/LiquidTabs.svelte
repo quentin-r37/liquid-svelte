@@ -661,7 +661,7 @@
 				saturation={droplet.visual.saturation}
 				blur={droplet.visual.blur}
 				specularIntensity={droplet.visual.specularIntensity}
-				shadowIntensity={0.7}
+				shadowIntensity={0}
 				{quality}
 				{mode}
 				class="lg-tabs-bubble"
@@ -764,6 +764,10 @@
 		 * Only the *face* is recoloured — `--lg-tint-color`, not `--lg-rim`, so the rim
 		 * hairline and the specular stay light in both schemes. They are reflections off
 		 * a curved edge and have no business following the fill.
+		 *
+		 * No drop shadow (`shadowIntensity={0}` above), which is the other half of what
+		 * keeps it a fill: a shadow would lift the pill off the rail it is supposed to
+		 * be a state *of*, and the reference draws its selected segment flush.
 		 */
 		--lg-tint-color: 60 60 67;
 	}

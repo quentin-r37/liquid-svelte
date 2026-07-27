@@ -820,7 +820,13 @@ export const TABS_GLASS_ACTIVE: DropletVisual = {
  */
 export const TABS_BUBBLE_REST: DropletVisual = {
 	displacementRatio: 0,
-	opacity: 0.1,
+	/*
+	 * High enough to read as an actual grey tile, not a translucent smear — the
+	 * reference's selected segment is a flat fill you could name the colour of.
+	 * Still nowhere near the knob's 0.92: the label has to stay legible on it at
+	 * both ends of the morph, which is what lets the ink colour be constant.
+	 */
+	opacity: 0.25,
 	saturation: 1,
 	blur: 0.05,
 	specularIntensity: 0.25,

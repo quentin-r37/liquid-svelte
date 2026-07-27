@@ -179,12 +179,18 @@
 	backdrop-filter: var(--lg-backdrop);
 	-webkit-backdrop-filter: var(--lg-backdrop);
 
+	/*
+	 * Matched against iOS 26, which floats glass on a wide, faint plume rather than
+	 * seating it on a contact shadow: alphas stay low and the blur radii run wide,
+	 * so the surface reads as hovering just above the page. A darker, tighter
+	 * shadow is what makes the same material read as a sticker pressed onto it.
+	 */
 	box-shadow:
-		0 1px 2px rgb(var(--lg-shade) / calc(0.05 * var(--lg-shadow))),
-		0 var(--lg-elevation) calc(var(--lg-elevation) * 3)
-			rgb(var(--lg-shade) / calc(0.16 * var(--lg-shadow))),
-		0 calc(var(--lg-elevation) * 2) calc(var(--lg-elevation) * 7)
-			rgb(var(--lg-shade) / calc(0.1 * var(--lg-shadow)));
+		0 1px 2px rgb(var(--lg-shade) / calc(0.03 * var(--lg-shadow))),
+		0 var(--lg-elevation) calc(var(--lg-elevation) * 4)
+			rgb(var(--lg-shade) / calc(0.1 * var(--lg-shadow))),
+		0 calc(var(--lg-elevation) * 2) calc(var(--lg-elevation) * 8)
+			rgb(var(--lg-shade) / calc(0.06 * var(--lg-shadow)));
 }
 
 @media (prefers-color-scheme: dark) {
