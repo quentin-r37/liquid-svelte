@@ -200,7 +200,19 @@
 	}
 }
 
-/* Explicit override, useful when a section forces a scheme. */
+/*
+ * Explicit overrides, for when a scheme is forced rather than inherited from the
+ * OS. Two forms per scheme: an ancestor carrying `data-scheme` (how a page
+ * section — or the demo — flips its appearance wholesale) and the attribute on
+ * the glass element itself. The ancestor rules come first so that, at equal
+ * specificity, the element's own attribute is what wins.
+ */
+[data-scheme='light'] .lg {
+	--lg-tint-boost: 1;
+}
+[data-scheme='dark'] .lg {
+	--lg-tint-boost: 1.3;
+}
 .lg[data-scheme='light'] {
 	--lg-tint-boost: 1;
 }

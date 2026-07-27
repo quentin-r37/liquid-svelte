@@ -517,11 +517,14 @@ export const SLIDER_THUMB = {
 /**
  * Rail thickness, in CSS pixels.
  *
- * Sized against the knob rather than chosen on its own: the reference rail is half
- * the knob's idle height, which is what makes the knob read as sitting *on* the
- * track instead of *in* it.
+ * Sized against the knob rather than chosen on its own: a quarter of the knob's
+ * idle height. It used to be half, on the theory that a chunky rail made the knob
+ * read as sitting *on* the track — in practice a rail that tall competes with the
+ * knob for mass and the whole control reads as a progress bar with a bead on it.
+ * The reference groove is a thin line the knob visibly dwarfs, and it is that
+ * size contrast that makes the capsule read as the control.
  */
-export const SLIDER_RAIL_HEIGHT = 12;
+export const SLIDER_RAIL_HEIGHT = 6;
 
 /**
  * Switch geometry — proportions rather than pixels, so `sm` and `md` are the same
@@ -821,12 +824,12 @@ export const TABS_GLASS_ACTIVE: DropletVisual = {
 export const TABS_BUBBLE_REST: DropletVisual = {
 	displacementRatio: 0,
 	/*
-	 * High enough to read as an actual grey tile, not a translucent smear — the
-	 * reference's selected segment is a flat fill you could name the colour of.
-	 * Still nowhere near the knob's 0.92: the label has to stay legible on it at
-	 * both ends of the morph, which is what lets the ink colour be constant.
+	 * A *subtle* fill, matched against iOS's system fill greys (~0.12–0.16 alpha)
+	 * rather than a tile you could name the colour of: the accent-coloured label
+	 * carries most of the selection, and a fill much past this starts reading as a
+	 * button laid on the rail instead of a state of one segment.
 	 */
-	opacity: 0.35,
+	opacity: 0.15,
 	saturation: 1,
 	blur: 0.05,
 	/*
@@ -843,7 +846,13 @@ export const TABS_BUBBLE_REST: DropletVisual = {
 };
 
 /**
- * Grabbed: a real lens.
+ * Grabbed: a real lens, and *only* a lens.
+ *
+ * `opacity: 0` where the standard droplet keeps 0.06 — the grey is a resting
+ * fill, not part of the glass, so the melt clears it out entirely: what travels
+ * under the finger is pure refraction with nothing painted on its face. Safe at
+ * exactly zero, unlike `blur`, because the tint is a CSS background alpha and
+ * touches no filter primitive.
  *
  * Less saturated than {@link DROPLET_ACTIVE}'s 2.8 because this one has a label
  * sitting on it and a knob does not — the same argument {@link MENU_GLASS_OPEN}
@@ -852,7 +861,7 @@ export const TABS_BUBBLE_REST: DropletVisual = {
  */
 export const TABS_BUBBLE_ACTIVE: DropletVisual = {
 	displacementRatio: DISPLACEMENT_PER_BEZEL,
-	opacity: 0.06,
+	opacity: 0,
 	saturation: 2.4,
 	blur: 0.4,
 	specularIntensity: 1,

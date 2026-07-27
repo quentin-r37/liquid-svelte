@@ -253,16 +253,18 @@
 	>
 		<span class="lg-slider-rail"></span>
 		<!--
-			The fill stops under the knob's centre, not at a plain percentage of the
-			rail: the knob's centre travels from half its own width to the rail's width
-			minus that same half, so a percentage would drift away from it at both ends.
-			Expressed in `calc` rather than from the measured width so it is already
-			correct on the server, before any ResizeObserver has fired.
+			The fill is a plain percentage of the rail, not anchored to the knob's
+			centre. Anchoring to the centre looks principled but leaves the extremes
+			wrong: the centre only travels between half a knob-width from either end,
+			so at min a stub of accent sat under the knob and at max a stub of bare
+			rail did — and the knob is translucent glass, so both showed through it.
+			A percentage is exact where it matters (empty at min, full at max) and its
+			drift from the knob's centre is bounded by half the knob's width, which
+			keeps the fill's edge inside the knob's footprint for the whole travel.
+			A percentage rather than the measured width so it is already correct on
+			the server, before any ResizeObserver has fired.
 		-->
-		<span
-			class="lg-slider-fill"
-			style:width={`calc(${fraction} * (100% - var(--lg-slider-knob)) + var(--lg-slider-knob) / 2)`}
-		></span>
+		<span class="lg-slider-fill" style:width={`${fraction * 100}%`}></span>
 
 		<LiquidGlass
 			bind:element={thumbElement}
@@ -368,6 +370,19 @@
 			/* iOS system blue is a step brighter in dark scheme. */
 			background: var(--lg-slider-accent, rgb(10 132 255));
 		}
+	}
+
+	/*
+	 * A section forcing a scheme via `data-scheme` on an ancestor beats the OS
+	 * setting the media query reads — same arrangement as the tabs' tint colour,
+	 * and written after it for the same source-order reason.
+	 */
+	:global([data-scheme='light']) .lg-slider-fill {
+		background: var(--lg-slider-accent, rgb(0 122 255));
+	}
+
+	:global([data-scheme='dark']) .lg-slider-fill {
+		background: var(--lg-slider-accent, rgb(10 132 255));
 	}
 
 	/*

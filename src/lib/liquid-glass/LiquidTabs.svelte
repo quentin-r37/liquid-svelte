@@ -768,14 +768,36 @@
 		 * No drop shadow (`shadowIntensity={0}` above), which is the other half of what
 		 * keeps it a fill: a shadow would lift the pill off the rail it is supposed to
 		 * be a state *of*, and the reference draws its selected segment flush.
+		 *
+		 * 120 120 128 is iOS's fill grey — a mid value rather than a near-ink one,
+		 * which at the resting alpha (see TABS_BUBBLE_REST) lands as the subtle light
+		 * grey the reference uses, not a charcoal chip.
 		 */
-		--lg-tint-color: 60 60 67;
+		--lg-tint-color: 120 120 128;
 	}
 
 	@media (prefers-color-scheme: dark) {
 		.lg-tabs :global(.lg-tabs-bubble) {
 			--lg-tint-color: 255 255 255;
 		}
+	}
+
+	/*
+	 * A section forcing a scheme must beat the OS's. The media query above only
+	 * knows the OS setting, while the demo — and any consumer doing the same —
+	 * flips appearance with `data-scheme` on an ancestor: under a dark OS a
+	 * forced-light section was getting the dark tint, which painted the pill
+	 * white on a light rail. Matched on ancestors because the attribute never
+	 * lands on the bubble element itself (unlike `.lg[data-scheme]` in
+	 * liquidGlass.css). The extra `.lg-tabs` hop keeps specificity level with the
+	 * scoped rules above, so being written last is what makes these win.
+	 */
+	:global([data-scheme='light'] .lg-tabs .lg-tabs-bubble) {
+		--lg-tint-color: 120 120 128;
+	}
+
+	:global([data-scheme='dark'] .lg-tabs .lg-tabs-bubble) {
+		--lg-tint-color: 255 255 255;
 	}
 
 	/*
