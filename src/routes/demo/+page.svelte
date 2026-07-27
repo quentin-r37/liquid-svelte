@@ -145,6 +145,7 @@
 	const glyphTabs: LiquidTab[] = $derived(iconTabs.map((tab) => ({ ...tab, iconOnly: true })));
 	let activeIconTab = $state('play');
 	let activeGlyphTab = $state('shuffle');
+	let activeStackedTab = $state('search');
 
 	let starred = $state(false);
 	let lastToolbarAction = $state('—');
@@ -530,8 +531,10 @@
 				{/snippet}
 			</LiquidTabs>
 			<p class="note">
-				Segments take an optional <code>icon</code> snippet — beside the label, or alone with
-				<code>iconOnly</code>, where the label moves onto the button's <code>aria-label</code>.
+				Segments take an optional <code>icon</code> snippet — beside the label, above it with
+				<code>iconPlacement="top"</code>, or alone with <code>iconOnly</code>, where the label moves
+				onto the button's <code>aria-label</code>. The bubble paints over the labels, so the lens
+				refracts the glyphs it crosses — grab one and watch the fringing.
 			</p>
 			<div class="col">
 				<LiquidTabs tabs={iconTabs} bind:value={activeIconTab} {quality} label="Playback source" />
@@ -540,6 +543,13 @@
 					bind:value={activeGlyphTab}
 					{quality}
 					label="Playback source, icons only"
+				/>
+				<LiquidTabs
+					tabs={iconTabs}
+					bind:value={activeStackedTab}
+					iconPlacement="top"
+					{quality}
+					label="Playback source, stacked"
 				/>
 			</div>
 		</section>

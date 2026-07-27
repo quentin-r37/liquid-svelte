@@ -47,6 +47,13 @@
 		/** Accessible name for the tab list. */
 		label?: string;
 		labelledBy?: string;
+		/**
+		 * Where a tab's `icon` sits relative to its label: beside it, or above it the
+		 * way an iOS tab bar stacks them. On the component rather than per tab — every
+		 * segment in a grid row gets the tallest one's height, so a row mixing the two
+		 * would pad its inline cells to the stacked ones' height and read as broken.
+		 */
+		iconPlacement?: 'start' | 'top';
 		/*
 		 * No `cornerShape` here on purpose. Both the rail and the bubble are capsules —
 		 * radius saturated at half their box — and a capsule has no straight edge for a
@@ -68,6 +75,7 @@
 		value = $bindable(tabs[0]?.id ?? ''),
 		label,
 		labelledBy,
+		iconPlacement = 'start',
 		quality = 'high',
 		mode = 'auto',
 		class: className = '',
@@ -640,9 +648,16 @@
 		with the rail's own output composited onto it, which is what a lens travelling
 		across a glass surface should see.
 
-		The labels are a third layer above both, so an opaque bubble can pass under
-		them without taking the text with it. That is also what lets the bubble be
-		opaque at rest at all, which is the switch knob's defining state.
+		The labels sit *between* the rail and the bubble, and the top slot belongs to
+		the bubble on purpose: a backdrop-filter only sees what is painted beneath it,
+		so this is the one ordering in which the lens refracts the glyphs it passes
+		over — displacement, fringing and saturation landing on the text exactly as
+		they land on the page, which is what the reference lens does. It costs nothing
+		at rest: the resting bubble is a near-identity filter (displacement 0, so the
+		chromatic offsets are 0 too) under a ~15% fill, and a wash that faint reads
+		the same over the label as under it. The old ordering — labels above
+		everything — was load-bearing only while the bubble was a near-opaque knob,
+		which TABS_BUBBLE_REST deliberately no longer is.
 	-->
 	<div class="lg-tabs-stack">
 		<LiquidGlass
@@ -684,6 +699,7 @@
 			aria-label={labelledBy ? undefined : label}
 			aria-labelledby={labelledBy}
 			class="lg-tabs-row"
+			class:lg-tabs-stacked={iconPlacement === 'top'}
 		>
 			{#each tabs as tab, index (tab.id)}
 				<button
@@ -764,12 +780,17 @@
 	 * movement is Motion's transform, so these stay static and nothing competes with
 	 * it.
 	 *
-	 * `pointer-events: none` because the drag is listened on the selected tab above
-	 * it (see the `applyDrag` effect); the bubble is never a pointer target.
+	 * `pointer-events: none` because the drag is listened on the selected tab (see
+	 * the `applyDrag` effect); the bubble is never a pointer target, which is also
+	 * what lets it paint *over* the row without stealing its clicks.
+	 *
+	 * Above the row, not below it: the backdrop this lens refracts is whatever is
+	 * painted beneath it, and the labels only bend, fringe and saturate under the
+	 * melt if they are part of that backdrop. See the layer comment in the template.
 	 */
 	.lg-tabs :global(.lg-tabs-bubble) {
 		position: absolute;
-		z-index: 1;
+		z-index: 2;
 		pointer-events: none;
 		/*
 		 * The one surface in the library tinted *against* its backdrop rather than with
@@ -855,7 +876,7 @@
 	 */
 	.lg-tabs-row {
 		position: relative;
-		z-index: 2;
+		z-index: 1;
 		display: grid;
 		grid-auto-flow: column;
 		grid-auto-columns: 1fr;
@@ -906,6 +927,32 @@
 	.lg-tabs-icon :global(svg) {
 		width: 1.15em;
 		height: 1.15em;
+	}
+
+	/*
+	 * Icon over label, the way an iOS tab bar stacks its items: a larger glyph
+	 * carrying the identification, a caption-sized label under it naming it. The
+	 * type drops to caption size *on the row* rather than per tab, so a segment
+	 * without an icon still sets its text at the same size as its neighbours —
+	 * the row's typography is one decision, not one per cell.
+	 *
+	 * Horizontal padding tightens because the glyph, not the label, is now the
+	 * widest thing in most cells, and the inline padding was sized for text runs.
+	 */
+	.lg-tabs-row.lg-tabs-stacked .lg-tabs-tab {
+		flex-direction: column;
+		gap: 0.25rem;
+		padding: 0.5rem 0.9rem;
+		font-size: 0.75rem;
+	}
+
+	/*
+	 * Sized against the *caption*, so the em unit alone would shrink the glyph
+	 * exactly when it should grow — stacked items lead with the icon.
+	 */
+	.lg-tabs-row.lg-tabs-stacked .lg-tabs-icon :global(svg) {
+		width: 1.6em;
+		height: 1.6em;
 	}
 
 	/*
