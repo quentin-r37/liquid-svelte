@@ -161,7 +161,8 @@
 	 * the same affordance.
 	 */
 	const specularIntensity = $derived(
-		(tone === 'prominent' ? 0.95 : 0.8) + (highlighted && !disabled ? HOVER_SPECULAR_BOOST : 0)
+		(tone === 'prominent' ? 0.5 : GLASS_DEFAULTS.specularIntensity) +
+			(highlighted && !disabled ? HOVER_SPECULAR_BOOST : 0)
 	);
 </script>
 

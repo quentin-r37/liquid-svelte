@@ -126,7 +126,7 @@
 	opacity={0.04}
 	blur={0.4}
 	saturation={1.35}
-	specularIntensity={0.9}
+	specularIntensity={0.6}
 	shadowIntensity={0.8}
 	interactive
 	class={`lg-lens ${className}`}

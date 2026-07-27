@@ -8,9 +8,11 @@
 	 * Border-weight harness. The perceived "border" of a glass surface is three
 	 * layers stacked: the generated specular rim (SVG, follows the light), the CSS
 	 * hairline (`--lg-border-width`, uniform) and the pointer glow band (1.25× the
-	 * hairline). iOS runs all three much lighter than our defaults; this page
-	 * sweeps each axis so a lighter recipe can be picked by eye rather than by
-	 * guessing token values. Throwaway debug UI, same register as /probe.
+	 * hairline). iOS runs all three much lighter than this library originally
+	 * did; this page sweeps each axis so a recipe could be picked by eye, and the
+	 * winning one — 1.5px rim @ 0.35, 0.5px hairline — now ships as the library
+	 * defaults. The "previous" tiles keep the old values for regression checks.
+	 * Throwaway debug UI, same register as /probe.
 	 */
 
 	let scheme = $state<'light' | 'dark'>('dark');
@@ -24,29 +26,30 @@
 	// ------------------------------------------------------------ playground ---
 
 	let rimWidth = $state(1.5);
-	let rimIntensity = $state(0.55);
-	let hairline = $state(0.75);
+	let rimIntensity = $state(0.35);
+	let hairline = $state(0.5);
 	let bezel = $state(24);
 
 	// ---------------------------------------------------------------- sweeps ---
 
 	/**
 	 * All tiles share one geometry so every map in a sweep is a cache hit after
-	 * the first. Bezel 24 puts the derived rim width at 24 × 0.09 ≈ 2.2px — the
-	 * value labelled "default" below.
+	 * the first. Bezel 24 derives 24 × 0.06 ≈ 1.44, floored to the 1.5px minimum —
+	 * the tile labelled "default" below. 2.2px is what the old 0.09 ratio gave
+	 * this bezel, kept as the "previous" tile.
 	 */
 	const TILE = { width: 220, height: 140, borderRadius: 28, bezel: 24 } as const;
 
 	/** `null` leaves `specularWidth` unset, i.e. the library derivation. */
 	const widthSweep: { value: number | null; label: string }[] = [
 		{ value: 1, label: '1px' },
-		{ value: 1.5, label: '1.5px' },
-		{ value: null, label: '≈2.2px — default' },
+		{ value: null, label: '1.5px — default' },
+		{ value: 2.2, label: '2.2px — previous' },
 		{ value: 3, label: '3px' },
 		{ value: 4, label: '4px' }
 	];
 
-	const intensitySweep = [0.3, 0.5, 0.8, 1];
+	const intensitySweep = [0.2, 0.35, 0.55, 0.8];
 
 	const hairlineSweep = [0, 0.5, 1, 1.5];
 
@@ -62,20 +65,25 @@
 		intensity: number;
 		hairline: number;
 	}[] = [
-		{ id: 'default', label: 'default — 2.2px @ 0.8, 1px hairline', intensity: 0.8, hairline: 1 },
 		{
-			id: 'light',
-			label: 'light — 1.5px @ 0.55, 0.75px',
-			width: 1.5,
-			intensity: 0.55,
-			hairline: 0.75
+			id: 'previous',
+			label: 'previous defaults — 2.2px @ 0.8, 1px hairline',
+			width: 2.2,
+			intensity: 0.8,
+			hairline: 1
+		},
+		{
+			id: 'default',
+			label: 'shipped defaults — 1.5px @ 0.35, 0.5px hairline',
+			intensity: 0.35,
+			hairline: 0.5
 		},
 		{ id: 'fine', label: 'fine — 1px @ 0.6, 0.5px', width: 1, intensity: 0.6, hairline: 0.5 },
 		{
 			id: 'whisper',
-			label: 'whisper — 1px @ 0.35, 0.5px',
+			label: 'whisper — 1px @ 0.25, 0.5px',
 			width: 1,
-			intensity: 0.35,
+			intensity: 0.25,
 			hairline: 0.5
 		}
 	];
@@ -93,15 +101,15 @@
 		hairline: number;
 	}[] = [
 		{
-			id: 'current',
-			label: 'current defaults — 2.2px @ 0.8, 1px hairline',
+			id: 'previous',
+			label: 'previous defaults — 2.2px @ 0.8, 1px hairline',
+			width: 2.2,
 			intensity: 0.8,
 			hairline: 1
 		},
 		{
-			id: 'match',
-			label: '1.5px @ 0.35, 0.5px hairline',
-			width: 1.5,
+			id: 'default',
+			label: 'shipped defaults — 1.5px @ 0.35, 0.5px hairline',
 			intensity: 0.35,
 			hairline: 0.5
 		},
@@ -160,10 +168,10 @@
 
 	<main>
 		<section>
-			<h2>Specular rim width — <code>specularWidth</code>, intensity pinned at 0.8</h2>
+			<h2>Specular rim width — <code>specularWidth</code>, intensity at the 0.35 default</h2>
 			<p class="note">
-				The generated rim, from hairline-thin to the clamp ceiling. The library derives ~2.2px for
-				this bezel; iOS sits nearer the left end of this row.
+				The generated rim, from hairline-thin to well past the clamp. The library now derives 1.5px
+				for this bezel — the iOS reference value — where it used to derive 2.2px.
 			</p>
 			<div class="row">
 				{#each widthSweep as v (v.label)}
@@ -186,7 +194,9 @@
 				{#each intensitySweep as v (v)}
 					<div class="cell">
 						<LiquidGlass {...TILE} specularIntensity={v} interactive>
-							<span class="tile-label">{v}{v === 0.8 ? ' — default' : ''}</span>
+							<span class="tile-label">
+								{v}{v === 0.35 ? ' — default' : v === 0.8 ? ' — previous' : ''}
+							</span>
 						</LiquidGlass>
 					</div>
 				{/each}
@@ -194,7 +204,7 @@
 		</section>
 
 		<section>
-			<h2>CSS hairline — <code>--lg-border-width</code>, specular held light (1.5px @ 0.55)</h2>
+			<h2>CSS hairline — <code>--lg-border-width</code>, specular at its defaults</h2>
 			<p class="note">
 				The uniform liseré under the specular. The pointer glow band is 1.25× this value, so at 0
 				the hover glow disappears with it — the two are meant to read as one edge.
@@ -202,14 +212,10 @@
 			<div class="row">
 				{#each hairlineSweep as v (v)}
 					<div class="cell">
-						<LiquidGlass
-							{...TILE}
-							specularWidth={1.5}
-							specularIntensity={0.55}
-							interactive
-							style={`--lg-border-width: ${v}px;`}
-						>
-							<span class="tile-label">{v}px{v === 1 ? ' — default' : ''}</span>
+						<LiquidGlass {...TILE} interactive style={`--lg-border-width: ${v}px;`}>
+							<span class="tile-label">
+								{v}px{v === 0.5 ? ' — default' : v === 1 ? ' — previous' : ''}
+							</span>
 						</LiquidGlass>
 					</div>
 				{/each}
@@ -220,8 +226,8 @@
 			<h2>Candidates at control scale</h2>
 			<p class="note">
 				Border weight is judged on a 44px pill, not a card. The specular survives in all four — only
-				its weight moves. The two middle recipes are the ones that read closest to iOS 26 to my eye;
-				flip the scheme and the backdrop before deciding.
+				its weight moves. The second pill is what the library now ships; the first is what it
+				shipped before the iOS 26 comparison. Flip the scheme and the backdrop before judging.
 			</p>
 			<div class="row pills">
 				{#each candidates as c (c.id)}
@@ -248,10 +254,10 @@
 			<h2>iOS 26 reference — dark circular button</h2>
 			<p class="note">
 				The screenshot is the target. What it says about the edge: the rim is ~1px, very dim (reads
-				nearer 0.3 than our 0.8), carried by the top-left / bottom-right diagonal, and the uniform
-				hairline under it is barely there. All three glass circles share the reference's dark
-				material — the tint colour is overridden to iOS's dark grey — so the edge is the only thing
-				that differs. The rim's double arc now sits on that same diagonal:
+				nearer 0.3 — the shipped default is 0.35), carried by the top-left / bottom-right diagonal,
+				and the uniform hairline under it is barely there. All three glass circles share the
+				reference's dark material — the tint colour is overridden to iOS's dark grey — so the edge
+				is the only thing that differs. The rim's double arc now sits on that same diagonal:
 				<code>SPECULAR_LIGHT_ANGLE</code> is the CSS layers' 145° light restated, after living at
 				60° and quietly fighting every gradient under it. The residual difference is that our two
 				arcs are equally bright (<code>|N·L|</code>) where iOS's lower one is a touch fainter.
@@ -273,6 +279,37 @@
 							specularIntensity={r.intensity}
 							interactive
 							style={`--lg-border-width: ${r.hairline}px; --lg-tint-color: 28 28 30;`}
+						>
+							<span class="tile-label">{r.id}</span>
+						</LiquidGlass>
+						<p class="caption">{r.label}</p>
+					</div>
+				{/each}
+			</div>
+		</section>
+
+		<section>
+			<h2>iOS light — the same recipes on a light stage</h2>
+			<p class="note">
+				Same three edges, same geometry, but the material flipped to iOS light mode: the default
+				white tint over the system grey background. This is the harder case for the rim — a white
+				highlight over a near-white material barely registers, which is why iOS leans on the drop
+				shadow and the hairline here and lets the specular whisper. If a recipe holds up on both
+				this stage and the black one, it holds up.
+			</p>
+			<div class="ref-stage light">
+				{#each referenceVariants as r (r.id)}
+					<div class="cell">
+						<LiquidGlass
+							width={230}
+							height={230}
+							borderRadius={115}
+							bezel={24}
+							opacity={0.6}
+							specularWidth={r.width}
+							specularIntensity={r.intensity}
+							interactive
+							style={`--lg-border-width: ${r.hairline}px;`}
 						>
 							<span class="tile-label">{r.id}</span>
 						</LiquidGlass>
@@ -520,6 +557,21 @@
 	.ref-stage .caption {
 		color: #f4f6fa;
 		opacity: 0.55;
+	}
+
+	/* iOS's light system background, pinned like the black stage and for the same
+	   reason: the material being imitated was designed against this grey. */
+	.ref-stage.light {
+		background: #f2f2f7;
+	}
+
+	.ref-stage.light .caption,
+	.ref-stage.light .tile-label {
+		color: #1c1c1e;
+	}
+
+	.ref-stage.light .tile-label {
+		text-shadow: none;
 	}
 
 	.lab {

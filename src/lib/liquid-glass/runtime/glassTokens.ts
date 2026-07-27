@@ -49,7 +49,14 @@ export const GLASS_DEFAULTS = {
 	opacity: 0.05,
 	saturation: 1.3,
 	chromaticAberration: 0.04,
-	specularIntensity: 0.8,
+	/**
+	 * Much lower than the 0.8 this library launched with. Matched by eye against
+	 * iOS 26 screenshots on /borders: the reference rim is barely there at rest —
+	 * nearer 0.3 than 0.8 — and the hover boost (+0.25) is what brightens it under
+	 * the pointer. Raising this back up is the single fastest way to make every
+	 * surface read heavier than the platform it is imitating.
+	 */
+	specularIntensity: 0.35,
 	shadowIntensity: 0.5,
 	profile: 'convex-squircle' as SurfaceProfile,
 	quality: 'medium' as GlassQuality
@@ -171,7 +178,10 @@ export const MENU_GLASS_OPEN: DropletVisual = {
 	opacity: 0.12,
 	saturation: 1.7,
 	blur: 1,
-	specularIntensity: 0.9,
+	// A settled panel, so it sits on the resting specular scale — brighter than
+	// the 0.35 default because the rim is most of what separates the panel from
+	// the page, but nowhere near the transient-grab 1.0.
+	specularIntensity: 0.5,
 	scale: 1
 };
 
@@ -327,17 +337,22 @@ export const TOOLBAR_GLASS_REST: DropletVisual = {
 	opacity: 0.14,
 	saturation: 1.5,
 	blur: 0.5,
-	specularIntensity: 0.4,
+	specularIntensity: 0.35,
 	scale: 1
 };
 
-/** The unrolled bar: clear, refracting, brightly rimmed. */
+/**
+ * The unrolled bar: clear, refracting, its rim brighter than the resting
+ * shell's — but only to 0.5. The bar is a settled, long-lived surface, so it
+ * follows the resting scale (see `GLASS_DEFAULTS.specularIntensity`) rather
+ * than the transient-grab scale the droplet uses.
+ */
 export const TOOLBAR_GLASS_OPEN: DropletVisual = {
 	displacementRatio: DISPLACEMENT_PER_BEZEL,
 	opacity: 0.06,
 	saturation: 1.9,
 	blur: 0.5,
-	specularIntensity: 0.9,
+	specularIntensity: 0.5,
 	scale: 1
 };
 
@@ -753,7 +768,7 @@ export const TABS_GLASS_REST: DropletVisual = {
 	opacity: 0.08,
 	saturation: 1.5,
 	blur: 0.4,
-	specularIntensity: 0.7,
+	specularIntensity: 0.35,
 	scale: 1
 };
 
@@ -873,12 +888,16 @@ export const FILTER_REGION_MARGIN = 0.5;
 
 /**
  * Width of the specular rim in CSS pixels, as a fraction of the bezel, clamped.
- * The reference uses a flat 1.5px; scaling it slightly keeps large surfaces from
- * looking wiry.
+ *
+ * The reference uses a flat 1.5px, and after A/B-ing against iOS 26 screenshots
+ * on /borders these values converge to it: every control-scale bezel (≤25px)
+ * lands on the 1.5px floor, and only very deep bezels creep toward 2 so a large
+ * panel does not look wiry-thin. Formerly 0.09 with a ceiling of 4 — which put
+ * 2–4px of rim on everything and read distinctly heavier than the platform.
  */
-export const SPECULAR_WIDTH_PER_BEZEL = 0.09;
+export const SPECULAR_WIDTH_PER_BEZEL = 0.06;
 export const SPECULAR_WIDTH_MIN = 1.5;
-export const SPECULAR_WIDTH_MAX = 4;
+export const SPECULAR_WIDTH_MAX = 2;
 
 /**
  * Light direction for the specular rim, in radians from the +x axis, y up.

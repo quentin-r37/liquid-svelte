@@ -106,10 +106,14 @@
 	--lg-corner-shape-live: var(--lg-corner-shape);
 	--lg-bezel: 24px;
 	--lg-tint: 0.05;
-	--lg-specular: 0.8;
+	/* Mirrors GLASS_DEFAULTS.specularIntensity — matched against iOS 26, which
+	   runs its resting rim far dimmer than it looks like it should. */
+	--lg-specular: 0.35;
 	--lg-shadow: 0.5;
 	--lg-elevation: 4px;
-	--lg-border-width: 1px;
+	/* Half a pixel, like the platform: the uniform liseré is an undertone for the
+	   specular rim, not a border in its own right. */
+	--lg-border-width: 0.5px;
 	/*
 	 * Thickness of the pointer-driven rim glow (see `.lg-specular`).
 	 *
@@ -280,7 +284,7 @@
 		rgb(var(--lg-rim) / 0.1) 60%,
 		rgb(var(--lg-rim) / 0.22) 100%
 	);
-	/* A 1px ring: paint the whole box, then punch out the content box. */
+	/* A hairline ring: paint the whole box, then punch out the content box. */
 	-webkit-mask:
 		linear-gradient(#000 0 0) content-box,
 		linear-gradient(#000 0 0);

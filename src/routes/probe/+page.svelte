@@ -32,7 +32,7 @@
 	let opacity = $state(0.05);
 	let saturation = $state(1.3);
 	let chromaticAberration = $state(0.04);
-	let specularIntensity = $state(0.8);
+	let specularIntensity = $state(0.35);
 	let shadowIntensity = $state(0.6);
 	let profile = $state<SurfaceProfile>('convex-squircle');
 	let cornerShape = $state<CornerShape>('round');
