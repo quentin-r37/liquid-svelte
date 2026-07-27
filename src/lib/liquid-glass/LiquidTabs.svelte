@@ -26,7 +26,17 @@
 	export interface LiquidTab {
 		/** Stable identifier, also used to key the panel. */
 		id: string;
+		/**
+		 * The tab's accessible name, and its visible text unless `iconOnly`.
+		 *
+		 * Required even for an icon-only tab: a glyph is not an accessible name, and
+		 * with `iconOnly` this is what moves onto the button's `aria-label`.
+		 */
 		label: string;
+		/** Glyph rendered before the label — or instead of it, with `iconOnly`. */
+		icon?: Snippet;
+		/** Drop the visible text and let the glyph carry the segment alone. */
+		iconOnly?: boolean;
 		disabled?: boolean;
 	}
 
@@ -684,6 +694,7 @@
 					aria-selected={tab.id === value}
 					aria-controls={panel ? panelId(tab.id) : undefined}
 					aria-disabled={tab.disabled ? 'true' : undefined}
+					aria-label={tab.icon && tab.iconOnly ? tab.label : undefined}
 					disabled={tab.disabled}
 					tabindex={index === selectedIndex ? 0 : -1}
 					class="lg-tabs-tab"
@@ -692,7 +703,17 @@
 					onkeyup={() => releaseMelt('key')}
 					onblur={() => releaseMelt('key')}
 				>
-					{tab.label}
+					{#if tab.icon}
+						<!--
+							Hidden either way: when the text is visible it is the name, and when it
+							is not the name has moved onto the button's `aria-label` above — the
+							glyph is never asked to speak for itself.
+						-->
+						<span class="lg-tabs-icon" aria-hidden="true">{@render tab.icon()}</span>
+					{/if}
+					{#if !(tab.icon && tab.iconOnly)}
+						{tab.label}
+					{/if}
 				</button>
 			{/each}
 		</div>
@@ -857,8 +878,34 @@
 		white-space: nowrap;
 		cursor: pointer;
 		opacity: 0.7;
+		/*
+		 * Flex rather than the button's native centring so a glyph and its label read
+		 * as one unit with a fixed gap between them. Text-only tabs are unaffected —
+		 * a lone text node centres the same either way.
+		 */
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.4rem;
 		/* Decorative only — the bubble carries the movement. */
 		transition: opacity 200ms ease;
+	}
+
+	/*
+	 * `line-height: 0` via inline-flex so the svg's own box is what the row centres,
+	 * not a line box inflated by the inherited type metrics. The glyph is sized in
+	 * `em` to track the label's type size — icon components (lucide et al.) ship
+	 * `width`/`height` attributes tuned for 24px UI, which at this font size would
+	 * dwarf the text they sit beside.
+	 */
+	.lg-tabs-icon {
+		display: inline-flex;
+		flex: none;
+	}
+
+	.lg-tabs-icon :global(svg) {
+		width: 1.15em;
+		height: 1.15em;
 	}
 
 	/*

@@ -131,6 +131,21 @@
 		legacy: ''
 	};
 
+	/**
+	 * Icon-bearing tabs, snippet-borne like `toolbarItems` below and `$derived` for
+	 * the same reason — the snippets they reference are declared in the template.
+	 * The icon-only row is the same array with the labels folded into `aria-label`,
+	 * which is exactly the relationship the two modes are meant to have.
+	 */
+	const iconTabs: LiquidTab[] = $derived([
+		{ id: 'play', label: 'Play', icon: playIcon },
+		{ id: 'shuffle', label: 'Shuffle', icon: shuffleIcon },
+		{ id: 'search', label: 'Search', icon: searchIcon }
+	]);
+	const glyphTabs: LiquidTab[] = $derived(iconTabs.map((tab) => ({ ...tab, iconOnly: true })));
+	let activeIconTab = $state('play');
+	let activeGlyphTab = $state('shuffle');
+
 	let starred = $state(false);
 	let lastToolbarAction = $state('—');
 
@@ -183,6 +198,9 @@
 	the block it is written in, and these have to be reachable from the `toolbarItems`
 	derived in the script.
 -->
+{#snippet playIcon()}<Play />{/snippet}
+{#snippet shuffleIcon()}<Shuffle />{/snippet}
+{#snippet searchIcon()}<Search />{/snippet}
 {#snippet copyIcon()}<Copy />{/snippet}
 {#snippet shareIcon()}<Share2 />{/snippet}
 {#snippet starIcon()}<Star />{/snippet}
@@ -511,6 +529,19 @@
 					<p class="panel">{tabCopy[id]}</p>
 				{/snippet}
 			</LiquidTabs>
+			<p class="note">
+				Segments take an optional <code>icon</code> snippet — beside the label, or alone with
+				<code>iconOnly</code>, where the label moves onto the button's <code>aria-label</code>.
+			</p>
+			<div class="col">
+				<LiquidTabs tabs={iconTabs} bind:value={activeIconTab} {quality} label="Playback source" />
+				<LiquidTabs
+					tabs={glyphTabs}
+					bind:value={activeGlyphTab}
+					{quality}
+					label="Playback source, icons only"
+				/>
+			</div>
 		</section>
 
 		<section class="span">

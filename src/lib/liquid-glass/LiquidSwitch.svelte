@@ -12,13 +12,7 @@
 		applyHover,
 		type GlassTransform
 	} from './runtime/glassMotion.js';
-	import {
-		DROPLET_ACTIVE,
-		SWITCH_SIZES,
-		SWITCH_THUMB,
-		SWITCH_THUMB_REST,
-		type SwitchSize
-	} from './runtime/glassTokens.js';
+	import { SWITCH_SIZES, SWITCH_THUMB, type SwitchSize } from './runtime/glassTokens.js';
 	import { springFor } from './runtime/motionTokens.js';
 
 	interface Props {
@@ -110,7 +104,7 @@
 	/** Set when a gesture moved far enough to be a drag, so the click is swallowed. */
 	let suppressClick = false;
 
-	const droplet = new DropletMorph({ rest: SWITCH_THUMB_REST, active: DROPLET_ACTIVE });
+	const droplet = new DropletMorph();
 	$effect(() => droplet.setReduced(reducedMotion.current));
 	$effect(() => () => {
 		droplet.destroy();
@@ -587,7 +581,7 @@
 	 * dress is what made the knob read as translucent: the tint gradient dips to
 	 * 0.6× its alpha mid-face, letting the track ghost through, and the edge
 	 * layers' hairline and inner shading read as glass thickness. At rest this is
-	 * a solid white capsule (SWITCH_THUMB_REST), so the gradient is flattened to a
+	 * a solid white capsule (DROPLET_REST), so the gradient is flattened to a
 	 * uniform fill and the edge rides `--lg-specular` — 0 at rest, 1 melted,
 	 * animated per frame by the morph — surfacing together with the refraction.
 	 * `opacity` on `.lg-edge` is safe where it would kill `.lg` itself: the layer

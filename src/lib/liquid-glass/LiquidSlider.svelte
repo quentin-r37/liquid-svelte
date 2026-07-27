@@ -397,6 +397,26 @@
 	}
 
 	/*
+	 * Flat at rest, glass only under the hand — the same treatment as the switch
+	 * knob and the tabs bubble. The primitive's resting dress is what made the
+	 * knob read as translucent: the tint gradient dips to 0.6× its alpha
+	 * mid-face, letting the rail and the accent fill ghost through, and the edge
+	 * layers' hairline and inner shading read as glass thickness. At rest this is
+	 * a solid white capsule (DROPLET_REST), so the gradient is flattened to a
+	 * uniform fill and the edge rides `--lg-specular` — 0 at rest, 1 melted,
+	 * animated per frame by the morph — surfacing together with the refraction.
+	 * `opacity` on `.lg-edge` is safe where it would kill `.lg` itself: the layer
+	 * only paints, it filters nothing.
+	 */
+	.lg-slider-track :global(.lg-slider-thumb .lg-tint) {
+		background: rgb(var(--lg-tint-color) / calc(var(--lg-tint) * var(--lg-tint-boost)));
+	}
+
+	.lg-slider-track :global(.lg-slider-thumb .lg-edge) {
+		opacity: var(--lg-specular);
+	}
+
+	/*
 	 * The input stays a real, focusable control: it is made transparent rather than
 	 * hidden, so it still receives pointer events across the whole track and keeps
 	 * its native keyboard behaviour.

@@ -117,7 +117,22 @@ export interface DropletVisual {
 }
 
 /**
- * An opaque, tinted knob. Reads as a solid object, not as glass.
+ * A solid flat knob, not glass at all. Reads as an object sitting *on* its
+ * track, and only becomes glass through the melt.
+ *
+ * `opacity: 1` rather than the 0.92 this shipped with: the reference's knob —
+ * switch and slider alike — is a fully opaque white capsule, and at 0.92, seen
+ * through the default tint gradient whose midpoint runs at 0.6× the alpha, the
+ * track (and the switch's "on" green) ghosted through the face, reading as a
+ * translucent chip rather than a solid knob. The consumers flatten that
+ * gradient to a uniform fill in CSS, exactly as the tabs bubble does — this
+ * token carries the alphas, the flattening is theirs.
+ *
+ * `specularIntensity: 0` for {@link TABS_BUBBLE_REST}'s reason: a lit rim is
+ * the single strongest "this is glass" cue, and at rest this is not glass. The
+ * consumers also ride the value from CSS to fade their edge layers in with the
+ * melt. Safe at exactly zero where zero *blur* is not — it is an `feFuncA`
+ * slope, a live attribute, so the filter chain stays structurally stable.
  *
  * `blur` is a hair above zero rather than exactly zero on purpose: the filter
  * chain omits `feGaussianBlur` entirely at zero, so crossing that boundary
@@ -127,10 +142,10 @@ export interface DropletVisual {
  */
 export const DROPLET_REST: DropletVisual = {
 	displacementRatio: 0,
-	opacity: 0.92,
+	opacity: 1,
 	saturation: 1,
 	blur: 0.05,
-	specularIntensity: 0.32,
+	specularIntensity: 0,
 	scale: 1
 };
 
@@ -142,35 +157,6 @@ export const DROPLET_ACTIVE: DropletVisual = {
 	blur: 0.4,
 	specularIntensity: 1,
 	scale: 1.18
-};
-
-/**
- * The switch knob at rest: a solid flat pill, not glass at all.
- *
- * Departs from {@link DROPLET_REST} the same way {@link TABS_BUBBLE_REST} does,
- * from the opposite end of the alpha range. The reference's knob is a fully
- * opaque white capsule sitting *on* its grey track; at 0.92 — and through the
- * default tint gradient, whose midpoint runs at 0.6× that — the track and the
- * "on" green ghosted through the face, which read as a translucent chip rather
- * than a solid knob. So: `opacity: 1`, and `LiquidSwitch` flattens the gradient
- * to a uniform fill in CSS, exactly as the tabs bubble does.
- *
- * `specularIntensity: 0` for the tabs bubble's reason too — a lit rim is the
- * single strongest "this is glass" cue, and at rest this is not glass.
- * `LiquidSwitch` also rides the value from CSS to fade its edge layers in with
- * the melt. Safe at exactly zero where zero *blur* is not: it is an `feFuncA`
- * slope, a live attribute, so the filter chain stays structurally stable.
- *
- * The melt still lands on {@link DROPLET_ACTIVE} — grabbed, the knob is the same
- * clear droplet as the slider's.
- */
-export const SWITCH_THUMB_REST: DropletVisual = {
-	displacementRatio: 0,
-	opacity: 1,
-	saturation: 1,
-	blur: 0.05,
-	specularIntensity: 0,
-	scale: 1
 };
 
 /**
