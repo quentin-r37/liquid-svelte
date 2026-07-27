@@ -16,6 +16,7 @@
 		type CornerShape,
 		type GlassMode,
 		type GlassQuality,
+		type GlassVariant,
 		type LiquidMenuItem,
 		type LiquidTab,
 		type LiquidToolbarItem
@@ -60,6 +61,14 @@
 	 * chromatic chain is gated behind this preset.
 	 */
 	let quality = $state<GlassQuality>('medium');
+	/**
+	 * Applied to the buttons and the primitive tiles — the surfaces whose optics are
+	 * not already driven per frame by a droplet morph. `regular` is the library
+	 * default (the frosted material iOS builds its controls from); flip to `clear`
+	 * to see the previous, transparent rendering and to read the profile tiles'
+	 * distortion without the frost over it.
+	 */
+	let variant = $state<GlassVariant>('regular');
 
 	$effect(() => {
 		setGlassModeOverride(tierOverride);
@@ -91,13 +100,21 @@
 			cornerShape = stored.cornerShape;
 		if (['low', 'medium', 'high'].includes(stored.quality as string))
 			quality = stored.quality as GlassQuality;
+		if (stored.variant === 'regular' || stored.variant === 'clear') variant = stored.variant;
 		optionsRestored = true;
 	});
 
 	$effect(() => {
 		// Read unconditionally so every option is a dependency; the flag only gates the
 		// write, keeping the pre-restore run from clobbering the stored values.
-		const snapshot = JSON.stringify({ scheme, backdrop, tierOverride, cornerShape, quality });
+		const snapshot = JSON.stringify({
+			scheme,
+			backdrop,
+			tierOverride,
+			cornerShape,
+			quality,
+			variant
+		});
 		if (optionsRestored) localStorage.setItem(OPTIONS_KEY, snapshot);
 	});
 
@@ -241,6 +258,13 @@
 				</select>
 			</label>
 			<label>
+				<span>variant</span>
+				<select bind:value={variant}>
+					<option value="regular">regular — frosted, iOS control material</option>
+					<option value="clear">clear — transparent, over-media material</option>
+				</select>
+			</label>
+			<label>
 				<span>backdrop</span>
 				<select bind:value={backdrop}>
 					{#each BACKDROP_KINDS as option (option.value)}
@@ -298,12 +322,14 @@
 				turn it into a small app icon.
 			-->
 			<div class="row">
-				<LiquidButton size="sm" {quality} onclick={() => (pressed += 1)}>Small</LiquidButton>
-				<LiquidButton {quality} onclick={() => (pressed += 1)}>Medium</LiquidButton>
-				<LiquidButton size="lg" tone="prominent" {quality} onclick={() => (pressed += 1)}>
+				<LiquidButton size="sm" {quality} {variant} onclick={() => (pressed += 1)}
+					>Small</LiquidButton
+				>
+				<LiquidButton {quality} {variant} onclick={() => (pressed += 1)}>Medium</LiquidButton>
+				<LiquidButton size="lg" tone="prominent" {quality} {variant} onclick={() => (pressed += 1)}>
 					Prominent
 				</LiquidButton>
-				<LiquidButton {quality} disabled>Disabled</LiquidButton>
+				<LiquidButton {quality} {variant} disabled>Disabled</LiquidButton>
 			</div>
 			<p class="note">
 				<code>shape="circle"</code> is not a pill with equal padding: it is laid out at a literal
@@ -312,17 +338,24 @@
 				a fixed bezel would turn the whole disc into rim and the glyph would sit in continuous distortion.
 			</p>
 			<div class="row">
-				<LiquidButton shape="circle" size="sm" {quality} aria-label="Previous">
+				<LiquidButton shape="circle" size="sm" {quality} {variant} aria-label="Previous">
 					<SkipBack />
 				</LiquidButton>
-				<LiquidButton shape="circle" {quality} aria-label="Play"><Play /></LiquidButton>
-				<LiquidButton shape="circle" size="lg" tone="prominent" {quality} aria-label="Next">
+				<LiquidButton shape="circle" {quality} {variant} aria-label="Play"><Play /></LiquidButton>
+				<LiquidButton
+					shape="circle"
+					size="lg"
+					tone="prominent"
+					{quality}
+					{variant}
+					aria-label="Next"
+				>
 					<SkipForward />
 				</LiquidButton>
-				<LiquidButton shape="circle" {quality} disabled aria-label="Shuffle">
+				<LiquidButton shape="circle" {quality} {variant} disabled aria-label="Shuffle">
 					<Shuffle />
 				</LiquidButton>
-				<LiquidButton {quality}><Play />Play all</LiquidButton>
+				<LiquidButton {quality} {variant}><Play />Play all</LiquidButton>
 			</div>
 			<p class="note">
 				A circle is the one shape in the library where geometry cannot pick the corner: its box is
@@ -583,10 +616,14 @@
 					bind:progress={navProgress}
 				>
 					{#snippet leading()}
-						<LiquidButton shape="circle" {quality} aria-label="Back"><ChevronLeft /></LiquidButton>
+						<LiquidButton shape="circle" {quality} {variant} aria-label="Back"
+							><ChevronLeft /></LiquidButton
+						>
 					{/snippet}
 					{#snippet trailing()}
-						<LiquidButton shape="circle" {quality} aria-label="Search"><Search /></LiquidButton>
+						<LiquidButton shape="circle" {quality} {variant} aria-label="Search"
+							><Search /></LiquidButton
+						>
 						<LiquidMenu
 							items={menuItems}
 							placement="bottom-end"
@@ -675,6 +712,7 @@
 					{cornerShape}
 					bezel={40}
 					{quality}
+					{variant}
 					interactive
 				>
 					<span class="tile-label">squircle profile</span>
@@ -687,6 +725,7 @@
 					bezel={30}
 					profile="concave"
 					{quality}
+					{variant}
 					interactive
 				>
 					<span class="tile-label">concave profile</span>
@@ -699,6 +738,7 @@
 					bezel={34}
 					profile="lip"
 					{quality}
+					{variant}
 					interactive
 				>
 					<span class="tile-label">lip profile</span>
@@ -711,6 +751,7 @@
 					bezel={26}
 					chromaticAberration={0.16}
 					{quality}
+					{variant}
 					interactive
 				>
 					<span class="tile-label">aberration</span>

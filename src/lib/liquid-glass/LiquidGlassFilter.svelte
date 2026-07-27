@@ -391,14 +391,7 @@
 					preserveAspectRatio="none"
 					result="specularField"
 				/>
-				<feComponentTransfer
-					in="specularField"
-					x="0"
-					y="0"
-					{width}
-					{height}
-					result="specularFaded"
-				>
+				<feComponentTransfer in="specularField" x="0" y="0" {width} {height} result="specularFaded">
 					<feFuncA type="linear" slope={specularIntensity} />
 				</feComponentTransfer>
 				<feBlend in="specularFaded" in2="saturated" mode="screen" x="0" y="0" {width} {height} />

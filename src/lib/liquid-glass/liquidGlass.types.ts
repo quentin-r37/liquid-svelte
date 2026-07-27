@@ -37,6 +37,23 @@ export type CornerShape = 'round' | 'squircle' | number;
 export type GlassQuality = 'low' | 'medium' | 'high';
 
 /**
+ * Material variant, mirroring iOS 26's two `Glass` materials.
+ *
+ * `regular` is what the platform builds its *controls* out of — buttons,
+ * toolbars, menus: a heavy frost with a milky luminance lift, under which the
+ * backdrop survives only as colour and motion. `clear` is the transparent
+ * material iOS reserves for surfaces floating over media, where the backdrop
+ * itself is the point and legibility is delegated to a dimming layer behind
+ * the content.
+ *
+ * The variant supplies *defaults* for `blur`, `opacity` and `saturation` (see
+ * `MATERIAL_VARIANTS`); any of those props set explicitly still wins, which is
+ * what keeps the droplet morphs — whose endpoints drive all three per frame —
+ * entirely outside this switch.
+ */
+export type GlassVariant = 'regular' | 'clear';
+
+/**
  * Rendering tier actually used by a glass surface.
  *
  * - `full` — SVG displacement map inside `backdrop-filter` (Chromium only).
@@ -121,19 +138,31 @@ export interface LiquidGlassProps extends Omit<HTMLAttributes<HTMLElement>, 'sty
 	/** Thickness of the refracting rim in CSS pixels. Refraction is concentrated here. */
 	bezel?: number;
 	/**
+	 * Material variant — `regular` (default) is the frosted, milky material iOS
+	 * builds its controls from; `clear` is the transparent one it floats over
+	 * media. Supplies the defaults for `blur`, `opacity` and `saturation`;
+	 * setting any of those explicitly overrides the variant's value for it.
+	 */
+	variant?: GlassVariant;
+	/**
 	 * Peak refraction offset in CSS pixels at the outer edge. Leave unset to derive
 	 * it from `bezel` (×4), which is what keeps the effect looking right across
 	 * sizes. Expect large numbers — a 24px bezel wants ~96px.
 	 */
 	displacement?: number;
 	/**
-	 * Backdrop blur radius in pixels, applied *before* refraction. Keep it under
-	 * ~1.5: liquid glass is clear, and frosting swallows the distortion.
+	 * Backdrop blur radius in pixels, applied *before* refraction. Defaults from
+	 * the `variant` — heavy frost for `regular`, ~0.5 for `clear`. On a `clear`
+	 * surface keep explicit values under ~1.5: past that the frost swallows the
+	 * distortion that makes the material read as liquid.
 	 */
 	blur?: number;
-	/** Opacity of the tint layer, `0`–`1`. */
+	/** Opacity of the tint layer, `0`–`1`. Defaults from the `variant`. */
 	opacity?: number;
-	/** Backdrop saturation multiplier — `1` leaves colours untouched. */
+	/**
+	 * Backdrop saturation multiplier — `1` leaves colours untouched. Defaults
+	 * from the `variant`.
+	 */
 	saturation?: number;
 	/** Per-channel displacement spread, `0`–`0.2`. `0` disables the 3-pass chain. */
 	chromaticAberration?: number;

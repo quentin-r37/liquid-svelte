@@ -1,6 +1,7 @@
 import type {
 	CornerShape,
 	GlassQuality,
+	GlassVariant,
 	LiquidGlassProps,
 	SurfaceProfile
 } from '../liquidGlass.types.js';
@@ -41,13 +42,13 @@ export const GLASS_DEFAULTS = {
 	 */
 	displacement: undefined,
 	/**
-	 * Deliberately tiny. Real liquid glass is *clear* — the visual work is done by
-	 * the distortion and the rim light, not by frosting. Anything above ~1.5px
-	 * reads as ground glass and swallows the refraction.
+	 * `regular`, because that is what iOS builds its controls from. `blur`,
+	 * `opacity` and `saturation` have no entries here — their defaults come from
+	 * {@link MATERIAL_VARIANTS} through this — and the components that animate
+	 * them (every droplet morph) pass all three explicitly, so they never see the
+	 * variant at all.
 	 */
-	blur: 0.5,
-	opacity: 0.05,
-	saturation: 1.3,
+	variant: 'regular' as GlassVariant,
 	chromaticAberration: 0.04,
 	/**
 	 * Much lower than the 0.8 this library launched with. Matched by eye against
@@ -61,6 +62,50 @@ export const GLASS_DEFAULTS = {
 	profile: 'convex-squircle' as SurfaceProfile,
 	quality: 'medium' as GlassQuality
 } satisfies Partial<LiquidGlassProps>;
+
+/** The optics a {@link GlassVariant} supplies as defaults. */
+export interface MaterialVariant {
+	/** `feGaussianBlur` stdDeviation applied to the backdrop before refraction. */
+	blur: number;
+	/** Tint layer opacity. */
+	opacity: number;
+	/** Backdrop saturation multiplier. */
+	saturation: number;
+}
+
+/**
+ * The two materials, matched against iOS 26 rendered in the simulator on an
+ * identical backdrop (same gradient, same text lines — see the comparison the
+ * numbers were tuned from).
+ *
+ * `regular` is the frost. Apple's version blurs the backdrop into illegibility
+ * and lifts its luminance toward a milky veil; only colour and large shapes
+ * survive. That frost is not decoration — it is what lets the violent edge
+ * refraction read as *liquid* rather than as noise, because every ripple in the
+ * bezel band is smoothed before it is displaced, and it is what buys label
+ * legibility over busy content. The blur runs an order of magnitude past the
+ * `clear` figure; the tint stays well under an opaque slab because the SVG
+ * chain's saturation and the scheme boost (`--lg-tint-boost`) sit on top of it.
+ *
+ * `clear` is the previous default of this library, unchanged: near-zero frost,
+ * the backdrop legible through the glass, all the visual work done by the
+ * distortion and the rim. iOS reserves this material for controls floating
+ * over media — photos, video — with a dimming layer behind the content;
+ * anything with small text sitting directly on busy content wants `regular`.
+ *
+ * Saturation drops from `clear`'s 1.3 rather than rising: under the veil the
+ * backdrop is already being pushed toward white, and boosting its saturation
+ * as well makes the frost look stained instead of milky. Slightly above 1
+ * because a Gaussian blur bleeds colours into each other and washes them out —
+ * the same reason the scroll edge re-saturates under its blur band.
+ *
+ * These are *default sources*, not clamps: any surface may set `blur`,
+ * `opacity` or `saturation` explicitly and the variant leaves that prop alone.
+ */
+export const MATERIAL_VARIANTS: Record<GlassVariant, MaterialVariant> = {
+	regular: { blur: 12, opacity: 0.24, saturation: 1.05 },
+	clear: { blur: 0.5, opacity: 0.05, saturation: 1.3 }
+};
 
 /**
  * Peak refraction offset as a multiple of the bezel width, used when
@@ -236,6 +281,18 @@ export const BUTTON_CIRCLE_SIZES = {
 	md: 38,
 	lg: 46
 } as const;
+
+/**
+ * Extra tint a `prominent` button carries over its variant's base opacity.
+ *
+ * A difference rather than an absolute, because the base moved when the
+ * variants arrived: on `clear` this lands at 0.05 + 0.09 = 0.14 — exactly the
+ * figure prominent buttons always used — and on `regular` it keeps prominent
+ * denser than the veil around it instead of quietly becoming *clearer* than a
+ * plain button, which is what the old hard-coded 0.14 would do under a 0.22
+ * veil.
+ */
+export const BUTTON_PROMINENT_TINT_BOOST = 0.09;
 
 /**
  * Refracting rim of a circular button, as a fraction of its diameter.
@@ -972,6 +1029,24 @@ export const SPECULAR_WIDTH_MAX = 2;
  * every CSS layer it was blended over.
  */
 export const SPECULAR_LIGHT_ANGLE = (125 / 180) * Math.PI;
+
+/**
+ * Brightness of the rim arc facing *away* from the light, as a fraction of the
+ * lit arc.
+ *
+ * The map used to take `Math.abs` of the normal·light alignment, which lights
+ * both opposing arcs equally — and an edge equally bright all the way round
+ * reads as a stroked outline, not as an edge catching light. iOS's rim is
+ * directional: the arc under the light is the highlight, the opposite arc keeps
+ * a *faint* counter-shine (a real glass bead bounces some light out of its far
+ * edge — killing it entirely makes the surface read as flat), and the two
+ * perpendicular arcs fall to nothing between them.
+ *
+ * 0.4 of the lit arc's alignment, but the perceived asymmetry is stronger than
+ * that: the map squares intensity into its alpha, so the counter-rim lands at
+ * 0.16 of the highlight's alpha — present, and clearly subordinate.
+ */
+export const SPECULAR_COUNTER_RIM = 0.4;
 
 /**
  * Ceiling on how many map texels the specular rim is rasterised at per CSS pixel.

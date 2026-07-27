@@ -16,6 +16,7 @@
 	import {
 		DISPLACEMENT_PER_BEZEL,
 		GLASS_DEFAULTS,
+		MATERIAL_VARIANTS,
 		QUALITY_PRESETS
 	} from './runtime/glassTokens.js';
 	import { trackPointer } from './runtime/pointerTracking.js';
@@ -29,9 +30,12 @@
 		cornerShape = GLASS_DEFAULTS.cornerShape,
 		bezel = GLASS_DEFAULTS.bezel,
 		displacement,
-		blur = GLASS_DEFAULTS.blur,
-		opacity = GLASS_DEFAULTS.opacity,
-		saturation = GLASS_DEFAULTS.saturation,
+		variant = GLASS_DEFAULTS.variant,
+		// No defaults on the three material optics: `undefined` means "the
+		// variant's value", resolved below, and a default here would shadow it.
+		blur,
+		opacity,
+		saturation,
 		chromaticAberration = GLASS_DEFAULTS.chromaticAberration,
 		specularIntensity = GLASS_DEFAULTS.specularIntensity,
 		specularWidth,
@@ -60,6 +64,17 @@
 
 	const preset = $derived(QUALITY_PRESETS[quality]);
 	const requestedTier = $derived(resolveTier(mode));
+
+	/**
+	 * The material's optics: the variant supplies the defaults, an explicit prop
+	 * wins. This is the entire mechanism behind `regular` vs `clear` — no other
+	 * part of the pipeline knows the variant exists, which is what keeps the
+	 * droplet morphs (which pass all three explicitly) outside the switch.
+	 */
+	const material = $derived(MATERIAL_VARIANTS[variant]);
+	const effectiveBlur = $derived(blur ?? material.blur);
+	const effectiveOpacity = $derived(opacity ?? material.opacity);
+	const effectiveSaturation = $derived(saturation ?? material.saturation);
 
 	// Detection is client-only and idempotent, so the first client render matches
 	// the server output and hydration stays quiet.
@@ -202,10 +217,14 @@
 	const backdrop = $derived.by(() => {
 		if (tier === 'full') return `url(#${filterId})`;
 		// The SVG chain carries blur and saturation for the full tier; the degraded
-		// tier has to express them as CSS filter functions. The radius is raised a
-		// long way because without refraction the blur is all that separates the
-		// glass from its backdrop.
-		if (tier === 'degraded') return `blur(${Math.max(6, blur * 12)}px) saturate(${saturation})`;
+		// tier has to express them as CSS filter functions. A `clear`-scale blur
+		// (well under 3px) is raised a long way, because without refraction it is
+		// all that separates the glass from its backdrop; a `regular`-scale one is
+		// already a frost and is used as-is — ×12 would turn it into fog.
+		if (tier === 'degraded') {
+			const radius = effectiveBlur < 3 ? Math.max(6, effectiveBlur * 12) : effectiveBlur;
+			return `blur(${radius}px) saturate(${effectiveSaturation})`;
+		}
 		return 'none';
 	});
 
@@ -213,7 +232,7 @@
 		'--lg-radius': `${clampedRadius}px`,
 		'--lg-corner-shape': cornerShapeCss(effectiveCornerShape),
 		'--lg-bezel': `${clampedBezel}px`,
-		'--lg-tint': String(opacity),
+		'--lg-tint': String(effectiveOpacity),
 		'--lg-specular': String(specularIntensity),
 		'--lg-shadow': String(shadowIntensity),
 		'--lg-backdrop': backdrop,
@@ -254,8 +273,8 @@
 			height={resolvedHeight}
 			displacement={effectiveDisplacement}
 			chromaticAberration={effectiveAberration}
-			{blur}
-			{saturation}
+			blur={effectiveBlur}
+			saturation={effectiveSaturation}
 			{specularIntensity}
 		/>
 	{/if}

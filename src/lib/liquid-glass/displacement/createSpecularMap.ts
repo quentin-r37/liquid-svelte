@@ -1,6 +1,7 @@
 import type { GlassMap, SpecularMapParams } from '../liquidGlass.types.js';
 import {
 	MAX_MAP_DIMENSION,
+	SPECULAR_COUNTER_RIM,
 	SPECULAR_LIGHT_ANGLE,
 	SPECULAR_SUPERSAMPLE_MAX,
 	SPECULAR_WIDTH_MAX,
@@ -17,10 +18,11 @@ import { sampleRoundedBox } from './roundedBoxSdf.js';
  *
  * This is the single biggest contributor to the "premium" look, and it cannot be
  * faked with a CSS gradient border: the brightness has to follow the *surface
- * normal* against a fixed light direction, so it peaks on two opposite arcs and
- * fades to nothing on the two perpendicular ones. A CSS linear-gradient border
- * fades along a straight axis instead, which is why it always looks like a sticker
- * rather than a lit edge.
+ * normal* against a fixed light direction, so it peaks on the arc facing the
+ * light, keeps a faint counter-shine on the arc facing away (see
+ * {@link SPECULAR_COUNTER_RIM}), and fades to nothing on the two perpendicular
+ * ones. A CSS linear-gradient border fades along a straight axis instead, which
+ * is why it always looks like a sticker rather than a lit edge.
  *
  * The map is white with a shaped alpha, and the filter blends it over the
  * refracted backdrop with `mode="screen"`.
@@ -141,10 +143,13 @@ function paint(
 				continue;
 			}
 
-			// Absolute dot product, so both the lit arc and the arc facing away pick
-			// up a highlight — the asymmetric double rim that sells the thickness.
+			// Directional, not `Math.abs`: the arc facing the light gets the full
+			// highlight, the arc facing away keeps only the faint counter-shine of
+			// {@link SPECULAR_COUNTER_RIM} — a rim equally bright on both arcs reads
+			// as a stroked outline, which is exactly what iOS's edge is not.
 			// `-normalY` because the y axis points down in image space.
-			const alignment = Math.abs(normalX * lightX + -normalY * lightY);
+			const facing = normalX * lightX + -normalY * lightY;
+			const alignment = facing >= 0 ? facing : -facing * SPECULAR_COUNTER_RIM;
 
 			// Circular ramp across the rim: dark at the very outline, brightest at the
 			// inner edge of the band.

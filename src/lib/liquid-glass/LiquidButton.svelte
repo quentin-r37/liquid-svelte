@@ -6,6 +6,7 @@
 		CornerShape,
 		GlassMode,
 		GlassQuality,
+		GlassVariant,
 		LiquidGlassProps
 	} from './liquidGlass.types.js';
 	import { reducedMotion } from './runtime/capabilities.svelte.js';
@@ -13,7 +14,9 @@
 	import {
 		BUTTON_CIRCLE_BEZEL_RATIO,
 		BUTTON_CIRCLE_SIZES,
-		GLASS_DEFAULTS
+		BUTTON_PROMINENT_TINT_BOOST,
+		GLASS_DEFAULTS,
+		MATERIAL_VARIANTS
 	} from './runtime/glassTokens.js';
 	import { HOVER_SPECULAR_BOOST } from './runtime/motionTokens.js';
 
@@ -33,6 +36,12 @@
 		 * `aria-label`: a glyph is not an accessible name.
 		 */
 		shape?: ButtonShape;
+		/**
+		 * Material variant — `regular` (default) is the frosted material iOS builds
+		 * its buttons from; `clear` is the transparent one for buttons floating over
+		 * media. See {@link GlassVariant}.
+		 */
+		variant?: GlassVariant;
 		borderRadius?: number;
 		/**
 		 * Corner outline.
@@ -71,6 +80,7 @@
 		tone = 'plain',
 		size = 'md',
 		shape = 'pill',
+		variant = GLASS_DEFAULTS.variant,
 		borderRadius = 999,
 		cornerShape,
 		bezel,
@@ -164,6 +174,18 @@
 		(tone === 'prominent' ? 0.5 : GLASS_DEFAULTS.specularIntensity) +
 			(highlighted && !disabled ? HOVER_SPECULAR_BOOST : 0)
 	);
+
+	/**
+	 * A plain button leaves `opacity` unset so the variant's own tint applies; a
+	 * prominent one rides the variant's figure rather than replacing it, so it
+	 * stays denser than the material around it on both variants. See
+	 * {@link BUTTON_PROMINENT_TINT_BOOST}.
+	 */
+	const opacity = $derived(
+		tone === 'prominent'
+			? MATERIAL_VARIANTS[variant].opacity + BUTTON_PROMINENT_TINT_BOOST
+			: undefined
+	);
 </script>
 
 <LiquidGlass
@@ -172,7 +194,8 @@
 	{borderRadius}
 	cornerShape={resolvedCornerShape}
 	bezel={resolvedBezel}
-	opacity={tone === 'prominent' ? 0.14 : GLASS_DEFAULTS.opacity}
+	{variant}
+	{opacity}
 	{specularIntensity}
 	{quality}
 	{mode}

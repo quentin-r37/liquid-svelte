@@ -41,6 +41,7 @@ export type {
 	GlassMode,
 	GlassQuality,
 	GlassTier,
+	GlassVariant,
 	LiquidGlassProps,
 	SpecularMapParams,
 	SurfaceProfile
@@ -73,6 +74,7 @@ export {
 	GLASS_DEFAULTS,
 	BUTTON_CIRCLE_BEZEL_RATIO,
 	BUTTON_CIRCLE_SIZES,
+	MATERIAL_VARIANTS,
 	MENU_GLASS_OPEN,
 	MENU_GLASS_REST,
 	NAVBAR_GEOMETRY,
@@ -89,7 +91,12 @@ export {
 	TOOLBAR_SHADOW,
 	TOOLBAR_SIZES
 } from './runtime/glassTokens.js';
-export type { DropletVisual, QualityPreset, ToolbarSize } from './runtime/glassTokens.js';
+export type {
+	DropletVisual,
+	MaterialVariant,
+	QualityPreset,
+	ToolbarSize
+} from './runtime/glassTokens.js';
 
 export { DropletMorph } from './runtime/dropletMorph.svelte.js';
 
