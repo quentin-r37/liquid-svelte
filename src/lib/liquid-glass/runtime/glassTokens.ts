@@ -932,18 +932,37 @@ export const TABS_BUBBLE = {
  * a live filter attribute, scaling the same map harder, not a geometry change —
  * and is what makes the rims visibly bow as the bubble travels.
  *
- * `regular` holds {@link MATERIAL_VARIANTS}' figures constant across the morph,
- * the same shape the toolbar's endpoints settled into: iOS builds its segmented
- * control from the frosted material, the frost carries label legibility (the
- * labels themselves are painted *above* the rail, so it never softens them),
- * and the surface waking up is the lens deepening and the rim lighting — not
- * the material changing.
+ * `regular` deliberately does *not* inherit {@link MATERIAL_VARIANTS}' figures,
+ * though it keeps their shape — the material held constant across the morph,
+ * the surface waking up being the lens deepening and the rim lighting. The
+ * variant's blur/opacity were tuned against the UIMenu panel, which is by far
+ * the frostiest surface iOS draws (σ≈6–8pt). The tab bar is not that surface:
+ * measured in the iOS 26.5 simulator over the /compare-ios stripes
+ * (2026-07-28), the native bar blurs at only σ≈2.5–3pt — and
+ * `.glassEffect(.regular)` at segmented-control geometry at σ≈2 — while
+ * crushing the backdrop under a ~60% white veil (luminance 160→218 over the
+ * teal stripe, saturation 0.69→0.29). Apple's frost is luminance compression
+ * with a small radius, not a large radius with a light wash. The old
+ * inherited figures (blur 12, tint 0.24 ≈ a 34% effective veil) had that
+ * exactly backwards: colours bled into each other while the backdrop behind
+ * them stayed dark and saturated, which reads as wet glass rather than the
+ * milky bar. Hence blur 2.75, and tint 0.38 — the effective veil once
+ * `--lg-tint-boost` and the edge layers stack on top is *measured*, not
+ * derived, because the stack is nonlinear in the alpha: 0.24 landed at 34%,
+ * 0.44 overshot to 71%, 0.38 is the interpolation onto the native ~61%.
+ * Saturation stays at ~1: the reference's saturation collapse is the veil
+ * doing the crushing, not a desaturating filter, and it comes along for free.
  *
- * `clear` keeps the clear-glass-era tuning: a small resting tint (0.08) and a
- * saturation boost doing the legibility work, traded at full melt for a 2.4
- * saturation spike over near-zero tint — the clear-glass reading of "awake" —
- * with blur *rising* under the gesture because the moment the backdrop
- * saturates by 60% the labels need the extra frost to stay legible against it.
+ * `clear` keeps the clear-glass shape — near-zero frost, a small resting tint,
+ * saturation doing the legibility work, blur *rising* under the gesture
+ * because a saturating backdrop needs the extra frost for the labels to stay
+ * legible against it. The figures were pulled toward the same simulator
+ * session: native `.glassEffect(.clear)` measures σ≈1pt, a ~20–25% luminance
+ * lift, and a backdrop saturation it *preserves* (0.65→0.58) — where the old
+ * 1.5 resting boost pushed it up to 0.80, visibly juicier than the platform.
+ * So rest saturates at 1.1 and tints at 0.14 (lift, from the old 0.08 that
+ * only managed ~14%), and the melt spike scales down with it, 2.4 → 1.8 over
+ * 0.09 tint, keeping the same awake-reading at the new resting level.
  *
  * `scale` is pinned at 1 in every endpoint and never read: the rail is the
  * component's layout box, and scaling it would move the segments the bubble is
@@ -953,17 +972,17 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 	regular: {
 		rest: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
-			opacity: MATERIAL_VARIANTS.regular.opacity,
-			saturation: MATERIAL_VARIANTS.regular.saturation,
-			blur: MATERIAL_VARIANTS.regular.blur,
+			opacity: 0.38,
+			saturation: 1.05,
+			blur: 2.75,
 			specularIntensity: 0.35,
 			scale: 1
 		},
 		active: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
-			opacity: MATERIAL_VARIANTS.regular.opacity,
-			saturation: MATERIAL_VARIANTS.regular.saturation,
-			blur: MATERIAL_VARIANTS.regular.blur,
+			opacity: 0.38,
+			saturation: 1.05,
+			blur: 2.75,
 			specularIntensity: 1,
 			scale: 1
 		}
@@ -971,16 +990,16 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 	clear: {
 		rest: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
-			opacity: 0.08,
-			saturation: 1.5,
+			opacity: 0.14,
+			saturation: 1.1,
 			blur: 0.4,
 			specularIntensity: 0.35,
 			scale: 1
 		},
 		active: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
-			opacity: 0.05,
-			saturation: 2.4,
+			opacity: 0.09,
+			saturation: 1.8,
 			blur: 0.6,
 			specularIntensity: 1,
 			scale: 1
