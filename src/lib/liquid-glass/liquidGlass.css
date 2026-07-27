@@ -99,12 +99,15 @@
 	 * *rendered* shape that differs from its settled one, and it cannot get there by
 	 * overwriting the property the primitive owns.
 	 *
-	 * `LiquidMenu` drives this per frame. Its puddle depends on CSS clamping the
-	 * radius to half the box to produce a pill, and a pill is a `round` corner by
-	 * definition — clamp a squircle to half the box and the ends come out flat,
-	 * which is the rectangle the whole morph exists to not be. So the panel opens at
-	 * `round` and eases to its settled shape as the reveal completes. See the
-	 * `--lg-radius-x` writer in `LiquidMenu.svelte`.
+	 * `LiquidMenu` drives this — per animation state, never per frame. Its puddle
+	 * depends on CSS clamping the radius to half the box to produce a pill, and a
+	 * pill is a `round` corner by definition — clamp a squircle to half the box and
+	 * the ends come out flat, which is the rectangle the whole morph exists to not
+	 * be. So the panel renders `round` for the whole flight and snaps to its settled
+	 * shape at rest: `round` is also the one corner Chromium clips on the
+	 * rounded-rect fast path, and rewriting a `superellipse()` per frame
+	 * re-tessellates the backdrop-filter clip and every layer's mask on each frame
+	 * (~165 → ~50fps on a default menu). See `renderedK` in `LiquidMenu.svelte`.
 	 */
 	--lg-corner-shape-live: var(--lg-corner-shape);
 	--lg-bezel: 24px;

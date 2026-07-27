@@ -316,6 +316,39 @@
 	});
 
 	/**
+	 * `superellipse()` K of the settled panel: 1 for `round`, 2 for `squircle`.
+	 * Taken from the exponent so there is one definition of the mapping, and left
+	 * un-gated on `corner-shape` support on purpose — an engine that lacks the
+	 * property drops the declaration, and the primitive has already built both maps
+	 * round to match. The gate belongs where the maps are chosen, not here.
+	 */
+	const settledK = $derived(cornerExponent(cornerShape) / 2);
+
+	/**
+	 * The `superellipse()` K the panel is currently allowed to *render* — `1` for the
+	 * whole of every opening and closing, {@link settledK} only while the panel sits
+	 * open at rest. The reveal effect drives it; the corner effect below consumes it.
+	 *
+	 * A step, deliberately not an ease, and the reason is the frame rate. `round`
+	 * corners are the one shape Chromium clips on the compositor's rounded-rect fast
+	 * path; any other `corner-shape` demotes the clip to a rasterised path — on this
+	 * element and on every `.lg-layer` that restates the property — and *changing*
+	 * the superellipse argument re-tessellates all of them, plus the
+	 * `backdrop-filter` output clip, from scratch. The previous version eased
+	 * `superellipse(k)` per frame across the reveal, which put that full re-tessellation
+	 * on every frame of the one animation this component plays: opening the default
+	 * (squircle) menu dropped a 165Hz page to ~50fps. Radii are different — they move
+	 * per frame below and stay cheap, precisely because the corner they describe is
+	 * `round` for every frame on which they move.
+	 *
+	 * The snap is invisible where the ease was visible motion, because the two
+	 * silhouettes it swaps between are the pair {@link matchedRadius} exists to
+	 * equate: the round panel's 22px corner and the squircle's ~40px read as the
+	 * same roundness, and the swap lands on a panel that has stopped moving.
+	 */
+	let renderedK = $state(1);
+
+	/**
 	 * The corner, driven against the scale rather than by it — which is most of what
 	 * makes the reveal read as a puddle finding its edges instead of a box being
 	 * enlarged.
@@ -341,14 +374,15 @@
 	 * primitive and left there. The pill comes from the clamp, and the clamp only
 	 * yields a pill for a *round* corner: a squircle clamped to half the box is a
 	 * lozenge with flat ends, which is precisely the rectangle the roundness above
-	 * exists to avoid. So the corner shape is eased alongside the roundness rather
-	 * than held constant — `round` while the patch is a lozenge, reaching the settled
-	 * shape exactly as the reveal does. Both are driven off `settled`, so the two
-	 * cannot fall out of step.
+	 * exists to avoid. So the panel renders `round` for the whole flight and takes
+	 * its settled shape only at rest — see {@link renderedK} for why the handoff is
+	 * a single write rather than an ease.
 	 *
 	 * `--lg-corner-shape-live` rather than `--lg-corner-shape` for the same reason the
 	 * radius uses `-x`/`-y`: the un-suffixed property is the primitive's, written from
-	 * the prop, and writing over it here would leave nothing to fall back to.
+	 * the prop, and writing over it here would leave nothing to fall back to. It also
+	 * cannot simply be *removed* while the panel flies: the fallback is the
+	 * primitive's own value, which for a squircle panel is the squircle.
 	 *
 	 * The radius is also *compensated* for the corner shape, through
 	 * {@link matchedRadius}. A superellipse at a given radius reads as less rounded
@@ -358,7 +392,9 @@
 	 * what asking for a squircle means. 22 is therefore the radius of the *round*
 	 * panel, and the squircle gets the ~40 that matches it. The same factor is applied
 	 * to `borderRadius` on the primitive below, so the map is rasterised for the corner
-	 * the panel actually settles into.
+	 * the panel actually settles into. Compensated against {@link renderedK}, not the
+	 * settled shape: the factor exists to cancel the squircle's tighter corner, so it
+	 * has to arrive *with* the squircle — in the same write — rather than ahead of it.
 	 *
 	 * `revealY` alone measures the progress, not the composed scale: the deformation
 	 * channels are a wobble on top of the reveal, not part of how far along it is, and
@@ -380,30 +416,25 @@
 		const panel = panelElement;
 		if (!transform || !panel) return;
 
-		/*
-		 * `superellipse()` K of the settled panel: 1 for `round`, 2 for `squircle`.
-		 * Taken from the exponent so there is one definition of the mapping, and left
-		 * un-gated on `corner-shape` support on purpose — an engine that lacks the
-		 * property drops the declaration, and the primitive has already built both maps
-		 * round to match. The gate belongs where the maps are chosen, not here.
-		 */
-		const settledK = cornerExponent(cornerShape) / 2;
+		// `min` rather than `renderedK` alone for one edge: `cornerShape` swapped while
+		// the panel sits open. `renderedK` holds the *old* settled K until the next
+		// reveal lands, and the clamp keeps the shape and the radius it feeds below
+		// describing the same corner in the meantime — falling back to `round` (safe
+		// everywhere) rather than to a squircle radius under a round clip.
+		const k = Math.min(renderedK, settledK);
+
+		// Once per state change, never per frame — see `renderedK` for why the shape
+		// and the per-frame radii must not travel together. Skipped for a round panel,
+		// whose fallback is already `round`.
+		if (settledK !== 1) {
+			panel.style.setProperty('--lg-corner-shape-live', cornerShapeCss(k));
+		}
 
 		const write = () => {
 			const scaleX = transform.revealX.get() * transform.stretchX.get();
 			const scaleY = transform.revealY.get() * transform.stretchY.get();
 			const settled = Math.min(1, Math.max(0, transform.revealY.get()));
 
-			// Eased alongside the roundness, so the corner is `round` while the patch is a
-			// lozenge and reaches the settled shape exactly as the reveal does.
-			const k = 1 + (settledK - 1) * settled;
-
-			/*
-			 * Compensated against `k`, not against the settled shape — the factor exists
-			 * to cancel the squircle's tighter corner, so it has to arrive *with* the
-			 * squircle rather than ahead of it. At k = 1 it is exactly 1, which is what
-			 * keeps the round panel's geometry untouched.
-			 */
 			const radius =
 				matchedRadius(MENU_GEOMETRY.radius, k) * (1 + (MENU_PUDDLE_ROUNDNESS - 1) * (1 - settled));
 
@@ -411,12 +442,6 @@
 			// write `Infinity px`, which is not a length and drops the declaration.
 			panel.style.setProperty('--lg-radius-x', `${radius / Math.max(scaleX, 0.01)}px`);
 			panel.style.setProperty('--lg-radius-y', `${radius / Math.max(scaleY, 0.01)}px`);
-
-			// Skipped outright for a round panel, which is the default: the eased value
-			// would be a constant `round` and this is a per-frame path.
-			if (settledK !== 1) {
-				panel.style.setProperty('--lg-corner-shape-live', cornerShapeCss(k));
-			}
 		};
 
 		write();
@@ -503,6 +528,13 @@
 			// the puddle's rest state is restored after it is hidden, below.
 			droplet.engage();
 		}
+
+		// The moment anything is about to move, the rendered corner drops to `round`
+		// and the panel returns to the compositor's rounded-rect clip fast path —
+		// see `renderedK`. On close this is the swap's other half: squircle → round
+		// on the frame the collapse starts, matched and on a panel the eye is about
+		// to lose anyway.
+		renderedK = 1;
 
 		// `will-change: transform` for the duration of the reveal only. Left on
 		// permanently it would keep a compositor layer alive for every menu on the page.
@@ -604,7 +636,14 @@
 			.then(() => {
 				if (cancelled) return;
 				settle();
-				if (opening) return;
+				if (opening) {
+					// At rest, and only now, the settled corner — one write, one
+					// re-tessellation, on a panel that has stopped moving. Read via
+					// `untrack` out of symmetry with the reads above rather than
+					// necessity: a `.then` runs outside the effect's tracking anyway.
+					renderedK = untrack(() => settledK);
+					return;
+				}
 
 				// The collapse is over, so the panel goes out of the interaction and
 				// accessibility trees — and only now, unseen, are the puddle's optics
