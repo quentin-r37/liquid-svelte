@@ -865,23 +865,25 @@ export const TABS_BUBBLE = {
 } as const;
 
 /**
- * The rail at rest.
+ * The rail at rest: `regular` material, refracting at full strength.
  *
  * Unlike a knob — which is an opaque tinted blob until you grab it, see
  * {@link DROPLET_REST} — a container is glass the whole time it is on screen, so
- * the refraction is at full strength here rather than at zero. What the morph
- * carries is not glass appearing, it is glass *waking up*: the same surface
- * saturating and brightening under the hand.
+ * the refraction is at full strength here rather than at zero.
  *
- * Tinted and blurred a little more than a knob for the reason the menu panel is:
- * this is a surface with small text sitting directly on it, and a perfectly clear
- * one is unreadable over busy content.
+ * The optics are {@link MATERIAL_VARIANTS}' `regular` for the reason the menu
+ * panel's and the toolbar's are: iOS builds its segmented control from the
+ * frosted material, and the frost is what carries label legibility over busy
+ * content — the job this token used to do with a hand-tuned extra tint (0.08)
+ * and a 1.5 saturation boost on otherwise clear glass. The labels themselves
+ * are painted *above* the rail, so the frost never softens them; only the
+ * backdrop under the control goes milky.
  */
 export const TABS_GLASS_REST: DropletVisual = {
 	displacementRatio: DISPLACEMENT_PER_BEZEL,
-	opacity: 0.08,
-	saturation: 1.5,
-	blur: 0.4,
+	opacity: MATERIAL_VARIANTS.regular.opacity,
+	saturation: MATERIAL_VARIANTS.regular.saturation,
+	blur: MATERIAL_VARIANTS.regular.blur,
 	specularIntensity: 0.35,
 	scale: 1
 };
@@ -894,9 +896,12 @@ export const TABS_GLASS_REST: DropletVisual = {
  * not a geometry change — and it is what makes the rims visibly bow as the bubble
  * travels.
  *
- * `blur` rises rather than falls, against the knob's instinct. The knob has
- * nothing written on it; this does, and the moment the backdrop saturates by 60%
- * the labels need the extra frost to stay legible against it.
+ * Tint, frost and saturation are the material's, constant across the morph, the
+ * same shape the toolbar's endpoints settled into: the surface waking up is the
+ * lens deepening and the rim lighting, not the material changing. The old
+ * endpoints traded the veil away for a 2.4 saturation spike here — a clear-glass
+ * reading of "awake" that under a 12px frost would read as the rail losing its
+ * material mid-gesture.
  *
  * `scale` is pinned at 1 in both endpoints and never read: the rail is the
  * component's layout box, and scaling it would move the segments the bubble is
@@ -904,9 +909,9 @@ export const TABS_GLASS_REST: DropletVisual = {
  */
 export const TABS_GLASS_ACTIVE: DropletVisual = {
 	displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
-	opacity: 0.05,
-	saturation: 2.4,
-	blur: 0.6,
+	opacity: MATERIAL_VARIANTS.regular.opacity,
+	saturation: MATERIAL_VARIANTS.regular.saturation,
+	blur: MATERIAL_VARIANTS.regular.blur,
 	specularIntensity: 1,
 	scale: 1
 };

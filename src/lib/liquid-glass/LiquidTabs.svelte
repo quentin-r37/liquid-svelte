@@ -269,9 +269,10 @@
 
 	/**
 	 * The rail's own, much smaller morph. A container does not *become* glass the way
-	 * a knob does — it is glass throughout, and what this carries is the surface
-	 * waking up under the hand: the backdrop saturating, the refraction deepening,
-	 * the rim lighting. See {@link TABS_GLASS_REST}.
+	 * a knob does — it is glass throughout, in the settled `regular` material, and
+	 * what this carries is the surface waking up under the hand: the refraction
+	 * deepening and the rim lighting, over a material that never changes. See
+	 * {@link TABS_GLASS_REST}.
 	 */
 	const railGlass = new DropletMorph({ rest: TABS_GLASS_REST, active: TABS_GLASS_ACTIVE });
 
