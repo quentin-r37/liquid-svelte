@@ -545,6 +545,26 @@ export const TOOLBAR_GLASS: Record<GlassVariant, { rest: DropletVisual; active: 
 export const TOOLBAR_SHADOW = { rest: 0.5, open: 0.65 } as const;
 
 /**
+ * Refracting rim of the search field, as a fraction of its height.
+ *
+ * The third restatement of the 0.26 law ({@link BUTTON_CIRCLE_BEZEL_RATIO},
+ * {@link TOOLBAR_BEZEL_RATIO}), and restated rather than imported for the reason
+ * those two give: the same figure arrived at independently, free to move without
+ * the others. The law bites hardest here of the three. A button's label survives a
+ * grazing refraction because it is a word the reader already expects; a search
+ * field's content is *being typed*, so the flat centre the rim leaves —
+ * `height × 0.48`, ~18px on the default field — has to hold the entire text line
+ * and the caret, or the control is not decoratively smudged, it is unusable.
+ *
+ * The heights themselves are {@link BUTTON_CIRCLE_SIZES}, imported rather than
+ * restated, because that identity is the point rather than a coincidence: the
+ * field's natural habitat is a bar shared with circular icon buttons (iOS 26 puts
+ * the search pill next to exactly such a button), and equal heights are what make
+ * that row read as one piece of chrome instead of two controls that nearly line up.
+ */
+export const SEARCH_BEZEL_RATIO = 0.26;
+
+/**
  * The scroll edge effect: a band of *progressive blur* pinned to one edge of a
  * scroller, strongest at the edge and gone a few dozen pixels in.
  *

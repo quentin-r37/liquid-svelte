@@ -6,6 +6,7 @@
 		LiquidLens,
 		LiquidMenu,
 		LiquidNavBar,
+		LiquidSearchField,
 		LiquidSlider,
 		LiquidSwitch,
 		LiquidTabs,
@@ -134,6 +135,8 @@
 	let volume = $state(64);
 	let temperature = $state(21.5);
 	let pressed = $state(0);
+	let query = $state('');
+	let submitted = $state('');
 
 	const menuItems: LiquidMenuItem[] = [
 		{ id: 'duplicate', label: 'Duplicate', hint: 'Copy with the same optics' },
@@ -583,6 +586,40 @@
 				/>
 				<LiquidSlider value={30} {quality} label="Disabled slider" disabled showValue />
 			</div>
+		</section>
+
+		<section>
+			<h2>LiquidSearchField</h2>
+			<p class="note">
+				A native <code>&lt;input type="search"&gt;</code> in a glass capsule. The whole pill is the target
+				— press anywhere and the caret lands in the field. Enter submits, Escape clears a non-empty field
+				(and only then: an empty one lets the key through to whatever surface the field sits in), and
+				the clear button hands focus straight back, because a cleared search is the start of the next
+				one. The field is the button ladder's height — 30/38/46 — so it rows up with the circle buttons
+				it shares a bar with, and its bezel is the toolbar's 0.26 law: the flat centre has to carry a
+				text line and a caret, not just a label.
+			</p>
+			<div class="col wide">
+				<LiquidSearchField
+					{variant}
+					{quality}
+					bind:value={query}
+					placeholder="Search"
+					onsubmit={(v) => (submitted = v)}
+				/>
+				<LiquidSearchField {variant} {quality} size="lg" placeholder="Search library" />
+				<LiquidSearchField
+					{variant}
+					{quality}
+					size="sm"
+					value="liquid glass"
+					label="Prefilled search"
+				/>
+				<LiquidSearchField {variant} {quality} placeholder="Disabled" disabled />
+			</div>
+			<p class="readout">
+				query: <strong>{query || '—'}</strong> · submitted: <strong>{submitted || '—'}</strong>
+			</p>
 		</section>
 
 		<section>
