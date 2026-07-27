@@ -45,13 +45,16 @@
 	 * Applied to every component that accepts it, so the convention can be compared
 	 * against a uniformly round gallery on the same page rather than across a reload.
 	 *
-	 * `squircle` is the library default, and it does not mean everything becomes a
-	 * squircle: any surface whose radius saturates at half its box is a capsule and
-	 * gets demoted to `round` by the primitive. Flipping this to `round` therefore only
-	 * changes the surfaces that had a straight edge to spare — the cards, the menu
-	 * panels — which is exactly the set iOS treats differently.
+	 * `continuous` is the library default — Apple's own corner curve, measured as
+	 * `superellipse(1.3)` (see `displacement/cornerShape.ts`) — and it does not mean
+	 * everything becomes a superellipse: any surface whose radius saturates at half its
+	 * box is a capsule and gets demoted to `round` by the primitive. Flipping this
+	 * therefore only changes the surfaces that had a straight edge to spare — the
+	 * cards, the menu panels — which is exactly the set iOS treats differently.
+	 * `squircle` stays in the list as the before/after: the K = 2 shape this library
+	 * used while it believed the folk claim that iOS draws quartic squircles.
 	 */
-	let cornerShape = $state<CornerShape>('squircle');
+	let cornerShape = $state<CornerShape>('continuous');
 	/**
 	 * Same control as the probe's: one quality preset applied to every component on the
 	 * page, so the three tiers can be compared across the whole gallery at once.
@@ -99,7 +102,11 @@
 			backdrop = stored.backdrop as BackdropKind;
 		if (['auto', 'full', 'degraded', 'flat'].includes(stored.tierOverride as string))
 			tierOverride = stored.tierOverride as GlassMode;
-		if (stored.cornerShape === 'squircle' || stored.cornerShape === 'round')
+		if (
+			stored.cornerShape === 'continuous' ||
+			stored.cornerShape === 'squircle' ||
+			stored.cornerShape === 'round'
+		)
 			cornerShape = stored.cornerShape;
 		if (['low', 'medium', 'high'].includes(stored.quality as string))
 			quality = stored.quality as GlassQuality;
@@ -285,7 +292,8 @@
 			<label>
 				<span>corner</span>
 				<select bind:value={cornerShape} disabled={!glassSupport.cornerShape}>
-					<option value="squircle">squircle — iOS default</option>
+					<option value="continuous">continuous — iOS default</option>
+					<option value="squircle">squircle — K=2, squarer than iOS</option>
 					<option value="round">round everywhere</option>
 				</select>
 			</label>
