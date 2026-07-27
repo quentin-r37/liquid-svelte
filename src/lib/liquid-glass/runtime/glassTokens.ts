@@ -145,6 +145,35 @@ export const DROPLET_ACTIVE: DropletVisual = {
 };
 
 /**
+ * The switch knob at rest: a solid flat pill, not glass at all.
+ *
+ * Departs from {@link DROPLET_REST} the same way {@link TABS_BUBBLE_REST} does,
+ * from the opposite end of the alpha range. The reference's knob is a fully
+ * opaque white capsule sitting *on* its grey track; at 0.92 — and through the
+ * default tint gradient, whose midpoint runs at 0.6× that — the track and the
+ * "on" green ghosted through the face, which read as a translucent chip rather
+ * than a solid knob. So: `opacity: 1`, and `LiquidSwitch` flattens the gradient
+ * to a uniform fill in CSS, exactly as the tabs bubble does.
+ *
+ * `specularIntensity: 0` for the tabs bubble's reason too — a lit rim is the
+ * single strongest "this is glass" cue, and at rest this is not glass.
+ * `LiquidSwitch` also rides the value from CSS to fade its edge layers in with
+ * the melt. Safe at exactly zero where zero *blur* is not: it is an `feFuncA`
+ * slope, a live attribute, so the filter chain stays structurally stable.
+ *
+ * The melt still lands on {@link DROPLET_ACTIVE} — grabbed, the knob is the same
+ * clear droplet as the slider's.
+ */
+export const SWITCH_THUMB_REST: DropletVisual = {
+	displacementRatio: 0,
+	opacity: 1,
+	saturation: 1,
+	blur: 0.05,
+	specularIntensity: 0,
+	scale: 1
+};
+
+/**
  * A menu panel as a shallow puddle: milky, and with no lens at all.
  *
  * The same rest → liquid morph as the droplet, with endpoints suited to a large

@@ -12,7 +12,13 @@
 		applyHover,
 		type GlassTransform
 	} from './runtime/glassMotion.js';
-	import { SWITCH_SIZES, SWITCH_THUMB, type SwitchSize } from './runtime/glassTokens.js';
+	import {
+		DROPLET_ACTIVE,
+		SWITCH_SIZES,
+		SWITCH_THUMB,
+		SWITCH_THUMB_REST,
+		type SwitchSize
+	} from './runtime/glassTokens.js';
 	import { springFor } from './runtime/motionTokens.js';
 
 	interface Props {
@@ -104,7 +110,7 @@
 	/** Set when a gesture moved far enough to be a drag, so the click is swallowed. */
 	let suppressClick = false;
 
-	const droplet = new DropletMorph();
+	const droplet = new DropletMorph({ rest: SWITCH_THUMB_REST, active: DROPLET_ACTIVE });
 	$effect(() => droplet.setReduced(reducedMotion.current));
 	$effect(() => () => {
 		droplet.destroy();
@@ -409,6 +415,11 @@
 			SWITCH_THUMB. The bezel is a fifth of its height rather than half, so a flat
 			clear centre is ringed by a thin band of strong refraction; a fully bezelled
 			knob refracts everywhere and reads as a smudge.
+
+			`shadowIntensity={0}` for the same reason the tabs pill carries none: the knob
+			lives *in* its groove, and a drop shadow under it reads as the knob floating
+			above the track instead of riding it. The refraction and rim carry the
+			separation on their own.
 		-->
 		<LiquidGlass
 			bind:element={thumbElement}
@@ -421,7 +432,7 @@
 			saturation={droplet.visual.saturation}
 			blur={droplet.visual.blur}
 			specularIntensity={droplet.visual.specularIntensity}
-			shadowIntensity={0.7}
+			shadowIntensity={0}
 			{quality}
 			{mode}
 			{disabled}
@@ -469,11 +480,42 @@
 		position: absolute;
 		inset: 0;
 		border-radius: inherit;
-		background: rgb(255 255 255 / 0.1);
-		box-shadow:
-			inset 0 1px 2px rgb(0 0 0 / 0.22),
-			inset 0 0 0 1px rgb(255 255 255 / 0.14);
+		/*
+		 * The same fill as the tabs' selected pill — iOS's fill grey, scheme-flipped
+		 * (see `--lg-tint-color` in `LiquidTabs`): on a light material the track is a
+		 * shade darker than the page, on a dark one a shade lighter. The old
+		 * white-only fill washed out entirely on light backdrops, where an unchecked
+		 * track has nothing else to mark its footprint. Alpha matches
+		 * `TABS_BUBBLE_REST.opacity`, so the two fills read as one material.
+		 */
+		--lg-switch-track-color: 120 120 128;
+		background: rgb(var(--lg-switch-track-color) / 0.15);
+		/* A hairline ring only — no inset shading. The groove reads as a flat
+		   translucent well, like the slider's rail; recessing it with an inner
+		   shadow made the whole control look carved into the page rather than
+		   floating on it. */
+		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
 		transition: background-color 200ms ease;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.lg-switch-track {
+			--lg-switch-track-color: 255 255 255;
+		}
+	}
+
+	/*
+	 * Forced schemes beat the OS's, exactly as for the tabs pill: the media query
+	 * only knows the OS setting, while a section — or the demo — flips appearance
+	 * with `data-scheme` on an ancestor. Attribute selectors give these higher
+	 * specificity than the media-query rule above, so they win in both directions.
+	 */
+	:global([data-scheme='light']) .lg-switch-track {
+		--lg-switch-track-color: 120 120 128;
+	}
+
+	:global([data-scheme='dark']) .lg-switch-track {
+		--lg-switch-track-color: 255 255 255;
 	}
 
 	/*
@@ -483,7 +525,7 @@
 	 * The knob has its own hover, on itself, where a transform is safe.
 	 */
 	.lg-switch:not(:disabled):hover .lg-switch-track {
-		background: rgb(255 255 255 / 0.16);
+		background: rgb(var(--lg-switch-track-color) / 0.22);
 	}
 
 	/*
@@ -506,7 +548,6 @@
 		border-radius: inherit;
 		background: rgb(64 220 150 / 0.55);
 		box-shadow:
-			inset 0 1px 2px rgb(0 0 0 / 0.18),
 			inset 0 0 0 1px rgb(255 255 255 / 0.28),
 			0 0 14px rgb(64 220 150 / 0.35);
 		opacity: var(--lg-switch-progress, 0);
@@ -538,6 +579,26 @@
 
 	.lg-switch :global(.lg-switch-thumb:active) {
 		cursor: grabbing;
+	}
+
+	/*
+	 * Flat at rest, glass only under the hand — the tabs bubble's treatment (see
+	 * LiquidTabs), applied to a knob instead of a fill. The primitive's resting
+	 * dress is what made the knob read as translucent: the tint gradient dips to
+	 * 0.6× its alpha mid-face, letting the track ghost through, and the edge
+	 * layers' hairline and inner shading read as glass thickness. At rest this is
+	 * a solid white capsule (SWITCH_THUMB_REST), so the gradient is flattened to a
+	 * uniform fill and the edge rides `--lg-specular` — 0 at rest, 1 melted,
+	 * animated per frame by the morph — surfacing together with the refraction.
+	 * `opacity` on `.lg-edge` is safe where it would kill `.lg` itself: the layer
+	 * only paints, it filters nothing.
+	 */
+	.lg-switch :global(.lg-switch-thumb .lg-tint) {
+		background: rgb(var(--lg-tint-color) / calc(var(--lg-tint) * var(--lg-tint-boost)));
+	}
+
+	.lg-switch :global(.lg-switch-thumb .lg-edge) {
+		opacity: var(--lg-specular);
 	}
 
 	.lg-switch-label {

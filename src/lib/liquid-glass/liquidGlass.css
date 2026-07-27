@@ -43,6 +43,9 @@
  * Set by the component:
  *   --lg-radius, --lg-corner-shape, --lg-bezel, --lg-tint, --lg-specular,
  *   --lg-shadow, --lg-backdrop, --lg-elevation
+ * Set only by this stylesheet, per colour scheme (never inline — see the notes
+ * on --lg-tint-boost and --lg-shadow-boost):
+ *   --lg-tint-boost, --lg-shadow-boost
  * Set by a surface that is being scaled non-uniformly (see LiquidMenu):
  *   --lg-radius-x, --lg-radius-y, --lg-corner-shape-live
  * Set by pointer tracking (see runtime/pointerTracking.ts):
@@ -110,6 +113,18 @@
 	   runs its resting rim far dimmer than it looks like it should. */
 	--lg-specular: 0.35;
 	--lg-shadow: 0.5;
+	/*
+	 * Scheme-side multiplier on the drop-shadow alphas, split from `--lg-shadow`
+	 * for the same reason `--lg-tint-boost` exists: `--lg-shadow` is written
+	 * inline per instance (it is the `shadowIntensity` prop), and an inline custom
+	 * property beats any stylesheet rule — which is how the old
+	 * `--lg-shadow: 0.8` dark override silently became dead code. Anything that
+	 * varies with the colour scheme therefore has to live in a property the
+	 * component never writes. Base value is the light scheme: iOS 26 in light
+	 * mode runs its plume noticeably fainter than the same surface in dark, where
+	 * a shadow has to fight a dark backdrop to register at all.
+	 */
+	--lg-shadow-boost: 0.7;
 	--lg-elevation: 4px;
 	/* Half a pixel, like the platform: the uniform liseré is an undertone for the
 	   specular rim, not a border in its own right. */
@@ -186,17 +201,17 @@
 	 * shadow is what makes the same material read as a sticker pressed onto it.
 	 */
 	box-shadow:
-		0 1px 2px rgb(var(--lg-shade) / calc(0.03 * var(--lg-shadow))),
+		0 1px 2px rgb(var(--lg-shade) / calc(0.03 * var(--lg-shadow) * var(--lg-shadow-boost))),
 		0 var(--lg-elevation) calc(var(--lg-elevation) * 4)
-			rgb(var(--lg-shade) / calc(0.1 * var(--lg-shadow))),
+			rgb(var(--lg-shade) / calc(0.1 * var(--lg-shadow) * var(--lg-shadow-boost))),
 		0 calc(var(--lg-elevation) * 2) calc(var(--lg-elevation) * 8)
-			rgb(var(--lg-shade) / calc(0.06 * var(--lg-shadow)));
+			rgb(var(--lg-shade) / calc(0.06 * var(--lg-shadow) * var(--lg-shadow-boost)));
 }
 
 @media (prefers-color-scheme: dark) {
 	.lg {
 		--lg-tint-boost: 1.3;
-		--lg-shadow: 0.8;
+		--lg-shadow-boost: 1;
 	}
 }
 
@@ -209,15 +224,19 @@
  */
 [data-scheme='light'] .lg {
 	--lg-tint-boost: 1;
+	--lg-shadow-boost: 0.7;
 }
 [data-scheme='dark'] .lg {
 	--lg-tint-boost: 1.3;
+	--lg-shadow-boost: 1;
 }
 .lg[data-scheme='light'] {
 	--lg-tint-boost: 1;
+	--lg-shadow-boost: 0.7;
 }
 .lg[data-scheme='dark'] {
 	--lg-tint-boost: 1.3;
+	--lg-shadow-boost: 1;
 }
 
 .lg[data-disabled='true'] {
