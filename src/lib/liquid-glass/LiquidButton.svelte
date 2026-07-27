@@ -14,9 +14,8 @@
 	import {
 		BUTTON_CIRCLE_BEZEL_RATIO,
 		BUTTON_CIRCLE_SIZES,
-		BUTTON_PROMINENT_TINT_BOOST,
-		GLASS_DEFAULTS,
-		MATERIAL_VARIANTS
+		BUTTON_PROMINENT_TINT,
+		GLASS_DEFAULTS
 	} from './runtime/glassTokens.js';
 	import { HOVER_SPECULAR_BOOST } from './runtime/motionTokens.js';
 
@@ -24,7 +23,11 @@
 	export type ButtonShape = 'pill' | 'circle';
 
 	interface Props extends Omit<HTMLButtonAttributes, 'class' | 'style'> {
-		/** Visual weight. `prominent` reads as a primary action. */
+		/**
+		 * Visual weight. `prominent` is the accent-filled primary action — the
+		 * platform's `.glassProminent` — tinted by `--lg-accent` (system blue by
+		 * default; set the property anywhere up the tree to rebrand it).
+		 */
 		tone?: 'plain' | 'prominent';
 		size?: 'sm' | 'md' | 'lg';
 		/**
@@ -176,16 +179,13 @@
 	);
 
 	/**
-	 * A plain button leaves `opacity` unset so the variant's own tint applies; a
-	 * prominent one rides the variant's figure rather than replacing it, so it
-	 * stays denser than the material around it on both variants. See
-	 * {@link BUTTON_PROMINENT_TINT_BOOST}.
+	 * A plain button leaves `opacity` unset so the variant's own tint applies. A
+	 * prominent one replaces the variant's figure outright rather than riding it:
+	 * its face is an accent fill (see the `.lg-button-prominent` rules below), and
+	 * the platform draws that fill identically over both materials. See
+	 * {@link BUTTON_PROMINENT_TINT}.
 	 */
-	const opacity = $derived(
-		tone === 'prominent'
-			? MATERIAL_VARIANTS[variant].opacity + BUTTON_PROMINENT_TINT_BOOST
-			: undefined
-	);
+	const opacity = $derived(tone === 'prominent' ? BUTTON_PROMINENT_TINT : undefined);
 </script>
 
 <LiquidGlass
@@ -235,7 +235,52 @@
 		font-weight: 600;
 		letter-spacing: 0.01em;
 		white-space: nowrap;
+	}
+
+	/*
+	 * The label's separation shadow is a dark-scheme device only. Side by side
+	 * with macOS 26 on an identical light backdrop, the native label is bare —
+	 * ours read as bolder and slightly blurred, because the shadow ringed every
+	 * letterform on a backdrop the light material already keeps legible. Same
+	 * four-rule pattern as the scheme overrides in liquidGlass.css: the media
+	 * query is the OS default, the `data-scheme` forms are the forced override,
+	 * ancestor before element so the element's own attribute wins at equal
+	 * specificity.
+	 */
+	@media (prefers-color-scheme: dark) {
+		:global(.lg-button) {
+			text-shadow: 0 1px 3px rgb(0 0 0 / 0.28);
+		}
+	}
+	:global([data-scheme='light'] .lg-button),
+	:global(.lg-button[data-scheme='light']) {
+		text-shadow: none;
+	}
+	:global([data-scheme='dark'] .lg-button),
+	:global(.lg-button[data-scheme='dark']) {
 		text-shadow: 0 1px 3px rgb(0 0 0 / 0.28);
+	}
+
+	/*
+	 * Prominent is the platform's accent-filled button, not a denser patch of the
+	 * surrounding material. Only the face is recoloured — `--lg-tint-color`, not
+	 * `--lg-rim` — so the rim and specular hairline stay the reflections they are
+	 * (the same split LiquidTabs' selection bubble relies on). These rules sit
+	 * after the scheme text-shadow pairs above deliberately: at equal specificity,
+	 * source order is what lets `text-shadow: none` hold in dark too, where the
+	 * accent fill is the label's contrast and a shadow would just double the
+	 * letterforms.
+	 */
+	:global(.lg-button.lg-button-prominent) {
+		--lg-tint-color: var(--lg-accent);
+		color: #fff;
+		text-shadow: none;
+	}
+
+	/* A flat fill, like the tabs' bubble: the angled tint gradient reads as a
+	   bulge, and the native prominent face is a uniform sheet. */
+	:global(.lg-button-prominent .lg-tint) {
+		background: rgb(var(--lg-tint-color) / calc(var(--lg-tint) * var(--lg-tint-boost)));
 	}
 
 	:global(.lg-button-sm) {

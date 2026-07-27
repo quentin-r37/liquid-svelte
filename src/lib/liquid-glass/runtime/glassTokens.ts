@@ -314,16 +314,20 @@ export const BUTTON_CIRCLE_SIZES = {
 } as const;
 
 /**
- * Extra tint a `prominent` button carries over its variant's base opacity.
+ * Tint opacity of a `prominent` button's accent fill.
  *
- * A difference rather than an absolute, because the base moved when the
- * variants arrived: on `clear` this lands at 0.05 + 0.09 = 0.14 — exactly the
- * figure prominent buttons always used — and on `regular` it keeps prominent
- * denser than the veil around it instead of quietly becoming *clearer* than a
- * plain button, which is what the old hard-coded 0.14 would do under a 0.22
- * veil.
+ * An absolute where its predecessor (`BUTTON_PROMINENT_TINT_BOOST`) was a
+ * delta over the variant's veil, because prominent is no longer a denser patch
+ * of the same material — it is the platform's accent-filled button. macOS 26
+ * renders `.glassProminent` as a near-solid sheet of accent colour with the
+ * glass surviving only at the edges, and it looks the same over `regular` and
+ * `clear` alike, so the variant's own opacity has nothing to contribute. 0.75
+ * rather than 1 keeps a breath of the blurred backdrop in the fill — fully
+ * opaque, the surface stops being glass at all — and the dark scheme's 1.3
+ * tint boost carries it to ~0.98, matching how much more solid the native
+ * button reads there.
  */
-export const BUTTON_PROMINENT_TINT_BOOST = 0.09;
+export const BUTTON_PROMINENT_TINT = 0.75;
 
 /**
  * Refracting rim of a circular button, as a fraction of its diameter.

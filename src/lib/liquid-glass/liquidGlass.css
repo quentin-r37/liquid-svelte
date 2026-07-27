@@ -45,7 +45,7 @@
  *   --lg-shadow, --lg-backdrop, --lg-elevation
  * Set only by this stylesheet, per colour scheme (never inline — see the notes
  * on --lg-tint-boost and --lg-shadow-boost):
- *   --lg-tint-boost, --lg-shadow-boost
+ *   --lg-tint-boost, --lg-shadow-boost, --lg-veil-boost, --lg-accent
  * Set by a surface that is being scaled non-uniformly (see LiquidMenu):
  *   --lg-radius-x, --lg-radius-y, --lg-corner-shape-live
  * Set by pointer tracking (see runtime/pointerTracking.ts):
@@ -120,11 +120,13 @@
 	 * property beats any stylesheet rule — which is how the old
 	 * `--lg-shadow: 0.8` dark override silently became dead code. Anything that
 	 * varies with the colour scheme therefore has to live in a property the
-	 * component never writes. Base value is the light scheme: iOS 26 in light
-	 * mode runs its plume noticeably fainter than the same surface in dark, where
-	 * a shadow has to fight a dark backdrop to register at all.
+	 * component never writes. Base value is the light scheme: measured side by
+	 * side against macOS 26 buttons on an identical backdrop, the native light
+	 * plume is barely perceptible — at 0.7 ours read as a distinct grey halo the
+	 * platform simply does not draw. Dark keeps the full figure, where a shadow
+	 * has to fight a dark backdrop to register at all.
 	 */
-	--lg-shadow-boost: 0.7;
+	--lg-shadow-boost: 0.35;
 	--lg-elevation: 4px;
 	/* Half a pixel, like the platform: the uniform liseré is an undertone for the
 	   specular rim, not a border in its own right. */
@@ -153,6 +155,24 @@
 	/* Scheme-agnostic base: a very low-alpha white sheet plus soft inner shading
 	   reads correctly on light and dark backdrops alike. */
 	--lg-tint-boost: 1;
+	/*
+	 * Light-scheme luminance lift, applied to the material's own veil (`.lg-tint`)
+	 * and to nothing else. Split from `--lg-tint-boost` because that multiplier
+	 * reaches every recoloured fill too — the prominent button's accent face, the
+	 * tabs' selection bubble, the switch and slider tracks — and those are already
+	 * sized to their schemes; doubling them along with the veil would clamp the
+	 * accent fill solid and thicken every selection tile.
+	 *
+	 * Why it exists at all: side by side with macOS 26 on an identical light
+	 * backdrop, the native regular material *brightens* what is behind it — the
+	 * backdrop's luminance is pulled well toward white, and that milky lift is
+	 * most of what makes the material read as frosted rather than as a grey film.
+	 * At a veil of 1 ours left the backdrop's luminance almost untouched, so the
+	 * same surface read darker than its surroundings. Dark returns to 1: the
+	 * native dark material does not lift, and `--lg-tint-boost`'s 1.3 already
+	 * carries the difference the dark veil needs.
+	 */
+	--lg-veil-boost: 2.4;
 	--lg-rim: 255 255 255;
 	--lg-shade: 0 0 0;
 	/*
@@ -170,6 +190,15 @@
 	 * changes at all.
 	 */
 	--lg-tint-color: var(--lg-rim);
+	/*
+	 * Accent for surfaces that fill with colour rather than with light — the
+	 * prominent button, and anything a consumer promotes the same way. An `R G B`
+	 * triplet like the other colour properties, so alpha stays the tint's to
+	 * decide. Defaults to the platform blues (system blue runs brighter in dark),
+	 * and is deliberately a plain custom property: set `--lg-accent` anywhere up
+	 * the tree to rebrand every accent surface below it.
+	 */
+	--lg-accent: 0 122 255;
 
 	position: relative;
 	display: inline-flex;
@@ -212,6 +241,8 @@
 	.lg {
 		--lg-tint-boost: 1.3;
 		--lg-shadow-boost: 1;
+		--lg-veil-boost: 1;
+		--lg-accent: 10 132 255;
 	}
 }
 
@@ -224,19 +255,27 @@
  */
 [data-scheme='light'] .lg {
 	--lg-tint-boost: 1;
-	--lg-shadow-boost: 0.7;
+	--lg-shadow-boost: 0.35;
+	--lg-veil-boost: 2.4;
+	--lg-accent: 0 122 255;
 }
 [data-scheme='dark'] .lg {
 	--lg-tint-boost: 1.3;
 	--lg-shadow-boost: 1;
+	--lg-veil-boost: 1;
+	--lg-accent: 10 132 255;
 }
 .lg[data-scheme='light'] {
 	--lg-tint-boost: 1;
-	--lg-shadow-boost: 0.7;
+	--lg-shadow-boost: 0.35;
+	--lg-veil-boost: 2.4;
+	--lg-accent: 0 122 255;
 }
 .lg[data-scheme='dark'] {
 	--lg-tint-boost: 1.3;
 	--lg-shadow-boost: 1;
+	--lg-veil-boost: 1;
+	--lg-accent: 10 132 255;
 }
 
 .lg[data-disabled='true'] {
@@ -283,19 +322,24 @@
 .lg-tint {
 	background: linear-gradient(
 		var(--lg-light-angle),
-		rgb(var(--lg-tint-color) / calc(var(--lg-tint) * var(--lg-tint-boost) * 1.3)) 0%,
-		rgb(var(--lg-tint-color) / calc(var(--lg-tint) * var(--lg-tint-boost) * 0.6)) 50%,
-		rgb(var(--lg-tint-color) / calc(var(--lg-tint) * var(--lg-tint-boost) * 1)) 100%
+		rgb(var(--lg-tint-color) / calc(var(--lg-tint) * var(--lg-tint-boost) * var(--lg-veil-boost) * 1.3))
+			0%,
+		rgb(var(--lg-tint-color) / calc(var(--lg-tint) * var(--lg-tint-boost) * var(--lg-veil-boost) * 0.6))
+			50%,
+		rgb(var(--lg-tint-color) / calc(var(--lg-tint) * var(--lg-tint-boost) * var(--lg-veil-boost) * 1))
+			100%
 	);
 }
 
 .lg[data-tier='degraded'] .lg-tint {
 	--lg-tint-boost: 1.8;
+	--lg-veil-boost: 1;
 }
 
 .lg[data-tier='flat'] .lg-tint {
 	/* Without any backdrop filtering the tint has to carry legibility on its own. */
 	--lg-tint-boost: 4;
+	--lg-veil-boost: 1;
 }
 
 /* 3 & 4. Edge line, and soft inner shadows. */
