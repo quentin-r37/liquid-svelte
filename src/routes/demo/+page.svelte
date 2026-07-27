@@ -62,11 +62,14 @@
 	 */
 	let quality = $state<GlassQuality>('medium');
 	/**
-	 * Applied to the buttons and the primitive tiles — the surfaces whose optics are
-	 * not already driven per frame by a droplet morph. `regular` is the library
-	 * default (the frosted material iOS builds its controls from); flip to `clear`
-	 * to see the previous, transparent rendering and to read the profile tiles'
-	 * distortion without the frost over it.
+	 * Applied to every surface that takes the prop: buttons, primitive tiles, and
+	 * the menu, toolbar and tabs — whose panels and rails carry per-variant morph
+	 * endpoints precisely so their triggers and shells stay indistinguishable from
+	 * the buttons they impersonate. The knobs (switch, slider) are the exception by
+	 * design: an opaque droplet at rest has no material to vary. `regular` is the
+	 * library default (the frosted material iOS builds its controls from); flip to
+	 * `clear` to see the previous, transparent rendering and to read the profile
+	 * tiles' distortion without the frost over it.
 	 */
 	let variant = $state<GlassVariant>('regular');
 
