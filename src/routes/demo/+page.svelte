@@ -15,6 +15,7 @@
 		setGlassModeOverride,
 		type CornerShape,
 		type GlassMode,
+		type GlassQuality,
 		type LiquidMenuItem,
 		type LiquidTab,
 		type LiquidToolbarItem
@@ -49,9 +50,52 @@
 	 * panels — which is exactly the set iOS treats differently.
 	 */
 	let cornerShape = $state<CornerShape>('squircle');
+	/**
+	 * Same control as the probe's: one quality preset applied to every component on the
+	 * page, so the three tiers can be compared across the whole gallery at once. `high`
+	 * to match the probe — and it is what lets the aberration tile actually aberrate,
+	 * since the 3-pass chromatic chain is gated behind this preset.
+	 */
+	let quality = $state<GlassQuality>('high');
 
 	$effect(() => {
 		setGlassModeOverride(tierOverride);
+	});
+
+	/**
+	 * The header controls survive a reload. Restoration happens in an `$effect` rather
+	 * than at `$state` init so the first client render matches SSR — the same reason
+	 * capability detection runs in one (`capabilities.svelte.ts`). Each value is
+	 * validated against its option list, so a stale or hand-edited entry falls back to
+	 * the default instead of feeding the components an impossible variant.
+	 */
+	const OPTIONS_KEY = 'liquid-svelte:demo-options';
+	let optionsRestored = false;
+
+	$effect(() => {
+		let stored: Record<string, unknown> = {};
+		try {
+			stored = JSON.parse(localStorage.getItem(OPTIONS_KEY) ?? '{}');
+		} catch {
+			/* corrupt entry — keep the defaults, the persist effect below rewrites it */
+		}
+		if (stored.scheme === 'light' || stored.scheme === 'dark') scheme = stored.scheme;
+		if (BACKDROP_KINDS.some((k) => k.value === stored.backdrop))
+			backdrop = stored.backdrop as BackdropKind;
+		if (['auto', 'full', 'degraded', 'flat'].includes(stored.tierOverride as string))
+			tierOverride = stored.tierOverride as GlassMode;
+		if (stored.cornerShape === 'squircle' || stored.cornerShape === 'round')
+			cornerShape = stored.cornerShape;
+		if (['low', 'medium', 'high'].includes(stored.quality as string))
+			quality = stored.quality as GlassQuality;
+		optionsRestored = true;
+	});
+
+	$effect(() => {
+		// Read unconditionally so every option is a dependency; the flag only gates the
+		// write, keeping the pre-restore run from clobbering the stored values.
+		const snapshot = JSON.stringify({ scheme, backdrop, tierOverride, cornerShape, quality });
+		if (optionsRestored) localStorage.setItem(OPTIONS_KEY, snapshot);
 	});
 
 	// Component state for the examples.
@@ -166,6 +210,14 @@
 				</select>
 			</label>
 			<label>
+				<span>quality</span>
+				<select bind:value={quality}>
+					<option value="low">low — 0.5× map, 1 pass</option>
+					<option value="medium">medium — 0.75× map, 1 pass</option>
+					<option value="high">high — 1× map, 3 passes</option>
+				</select>
+			</label>
+			<label>
 				<span>backdrop</span>
 				<select bind:value={backdrop}>
 					{#each BACKDROP_KINDS as option (option.value)}
@@ -222,12 +274,12 @@
 				turn it into a small app icon.
 			-->
 			<div class="row">
-				<LiquidButton size="sm" onclick={() => (pressed += 1)}>Small</LiquidButton>
-				<LiquidButton onclick={() => (pressed += 1)}>Medium</LiquidButton>
-				<LiquidButton size="lg" tone="prominent" onclick={() => (pressed += 1)}>
+				<LiquidButton size="sm" {quality} onclick={() => (pressed += 1)}>Small</LiquidButton>
+				<LiquidButton {quality} onclick={() => (pressed += 1)}>Medium</LiquidButton>
+				<LiquidButton size="lg" tone="prominent" {quality} onclick={() => (pressed += 1)}>
 					Prominent
 				</LiquidButton>
-				<LiquidButton disabled>Disabled</LiquidButton>
+				<LiquidButton {quality} disabled>Disabled</LiquidButton>
 			</div>
 			<p class="note">
 				<code>shape="circle"</code> is not a pill with equal padding: it is laid out at a literal
@@ -236,13 +288,17 @@
 				a fixed bezel would turn the whole disc into rim and the glyph would sit in continuous distortion.
 			</p>
 			<div class="row">
-				<LiquidButton shape="circle" size="sm" aria-label="Previous"><SkipBack /></LiquidButton>
-				<LiquidButton shape="circle" aria-label="Play"><Play /></LiquidButton>
-				<LiquidButton shape="circle" size="lg" tone="prominent" aria-label="Next">
+				<LiquidButton shape="circle" size="sm" {quality} aria-label="Previous">
+					<SkipBack />
+				</LiquidButton>
+				<LiquidButton shape="circle" {quality} aria-label="Play"><Play /></LiquidButton>
+				<LiquidButton shape="circle" size="lg" tone="prominent" {quality} aria-label="Next">
 					<SkipForward />
 				</LiquidButton>
-				<LiquidButton shape="circle" disabled aria-label="Shuffle"><Shuffle /></LiquidButton>
-				<LiquidButton><Play />Play all</LiquidButton>
+				<LiquidButton shape="circle" {quality} disabled aria-label="Shuffle">
+					<Shuffle />
+				</LiquidButton>
+				<LiquidButton {quality}><Play />Play all</LiquidButton>
 			</div>
 			<p class="note">
 				A circle is the one shape in the library where geometry cannot pick the corner: its box is
@@ -264,9 +320,10 @@
 				abandons a drag, and <code>role="switch"</code> means it announces as “switch, on”.
 			</p>
 			<div class="col">
-				<LiquidSwitch bind:checked={notifications}>Notifications</LiquidSwitch>
-				<LiquidSwitch bind:checked={telemetry} size="sm">Anonymous telemetry</LiquidSwitch>
-				<LiquidSwitch checked disabled label="Locked setting">Locked</LiquidSwitch>
+				<LiquidSwitch bind:checked={notifications} {quality}>Notifications</LiquidSwitch>
+				<LiquidSwitch bind:checked={telemetry} size="sm" {quality}>Anonymous telemetry</LiquidSwitch
+				>
+				<LiquidSwitch checked disabled {quality} label="Locked setting">Locked</LiquidSwitch>
 			</div>
 		</section>
 
@@ -295,13 +352,19 @@
 				at an item moves focus to it, as a native menu does.
 			</p>
 			<div class="row">
-				<LiquidMenu items={menuItems} {cornerShape} onselect={(id) => (lastMenuChoice = id)}>
+				<LiquidMenu
+					items={menuItems}
+					{cornerShape}
+					{quality}
+					onselect={(id) => (lastMenuChoice = id)}
+				>
 					Actions
 				</LiquidMenu>
 				<LiquidMenu
 					items={menuItems}
 					placement="bottom-end"
 					{cornerShape}
+					{quality}
 					onselect={(id) => (lastMenuChoice = id)}
 				>
 					End-aligned
@@ -310,6 +373,7 @@
 					items={menuItems}
 					placement="top-start"
 					{cornerShape}
+					{quality}
 					onselect={(id) => (lastMenuChoice = id)}
 				>
 					Upwards
@@ -318,11 +382,12 @@
 					items={menuItems}
 					morph={false}
 					{cornerShape}
+					{quality}
 					onselect={(id) => (lastMenuChoice = id)}
 				>
 					No morph
 				</LiquidMenu>
-				<LiquidMenu items={menuItems} {cornerShape} disabled>Disabled</LiquidMenu>
+				<LiquidMenu items={menuItems} {cornerShape} {quality} disabled>Disabled</LiquidMenu>
 			</div>
 			<p class="readout">selected: <strong>{lastMenuChoice}</strong></p>
 		</section>
@@ -353,6 +418,7 @@
 			<div class="row">
 				<LiquidToolbar
 					items={toolbarItems}
+					{quality}
 					label="Document actions"
 					triggerLabel="More actions"
 					onaction={onToolbarAction}
@@ -363,6 +429,7 @@
 					items={toolbarItems}
 					anchor="center"
 					size="lg"
+					{quality}
 					label="Document actions, centred"
 					triggerLabel="More actions"
 					onaction={onToolbarAction}
@@ -373,6 +440,7 @@
 					items={toolbarItems}
 					anchor="end"
 					size="sm"
+					{quality}
 					label="Document actions, end-anchored"
 					triggerLabel="More actions"
 					onaction={onToolbarAction}
@@ -384,13 +452,14 @@
 						{ id: 'cancel', label: 'Cancel' },
 						{ id: 'save', label: 'Save', separated: true }
 					]}
+					{quality}
 					label="Editing actions"
 					triggerLabel="Edit"
 					onaction={onToolbarAction}
 				>
 					<Ellipsis />
 				</LiquidToolbar>
-				<LiquidToolbar items={toolbarItems} disabled triggerLabel="More actions">
+				<LiquidToolbar items={toolbarItems} {quality} disabled triggerLabel="More actions">
 					<Ellipsis />
 				</LiquidToolbar>
 			</div>
@@ -415,17 +484,18 @@
 				track, so arrows, PageUp/PageDown and Home/End all work — and melt the droplet too.
 			</p>
 			<div class="col wide">
-				<LiquidSlider bind:value={volume} label="Volume" showValue />
+				<LiquidSlider bind:value={volume} {quality} label="Volume" showValue />
 				<LiquidSlider
 					bind:value={temperature}
 					min={16}
 					max={28}
 					step={0.5}
+					{quality}
 					label="Target temperature"
 					format={(v) => `${v.toFixed(1)}°C`}
 					showValue
 				/>
-				<LiquidSlider value={30} label="Disabled slider" disabled showValue />
+				<LiquidSlider value={30} {quality} label="Disabled slider" disabled showValue />
 			</div>
 		</section>
 
@@ -435,7 +505,7 @@
 				<code>tablist</code> / <code>tab</code> / <code>tabpanel</code> with roving focus and manual activation.
 				Arrow keys move, Home and End jump, the disabled tab is skipped.
 			</p>
-			<LiquidTabs {tabs} bind:value={activeTab} label="Documentation sections">
+			<LiquidTabs {tabs} bind:value={activeTab} {quality} label="Documentation sections">
 				{#snippet panel(id)}
 					<p class="panel">{tabCopy[id]}</p>
 				{/snippet}
@@ -467,15 +537,16 @@
 					bind:progress={navProgress}
 				>
 					{#snippet leading()}
-						<LiquidButton shape="circle" aria-label="Back"><ChevronLeft /></LiquidButton>
+						<LiquidButton shape="circle" {quality} aria-label="Back"><ChevronLeft /></LiquidButton>
 					{/snippet}
 					{#snippet trailing()}
-						<LiquidButton shape="circle" aria-label="Search"><Search /></LiquidButton>
+						<LiquidButton shape="circle" {quality} aria-label="Search"><Search /></LiquidButton>
 						<LiquidMenu
 							items={menuItems}
 							placement="bottom-end"
 							triggerShape="circle"
 							{cornerShape}
+							{quality}
 							onselect={(id) => (lastMenuChoice = id)}
 						>
 							<Ellipsis />
@@ -529,6 +600,7 @@
 				<LiquidLens
 					container={lensStage}
 					{cornerShape}
+					{quality}
 					label="Magnifier"
 					style="left: 8%; top: 24%;"
 				/>
@@ -556,6 +628,7 @@
 					borderRadius={75}
 					{cornerShape}
 					bezel={40}
+					{quality}
 					interactive
 				>
 					<span class="tile-label">squircle profile</span>
@@ -567,6 +640,7 @@
 					{cornerShape}
 					bezel={30}
 					profile="concave"
+					{quality}
 					interactive
 				>
 					<span class="tile-label">concave profile</span>
@@ -578,6 +652,7 @@
 					{cornerShape}
 					bezel={34}
 					profile="lip"
+					{quality}
 					interactive
 				>
 					<span class="tile-label">lip profile</span>
@@ -589,6 +664,7 @@
 					{cornerShape}
 					bezel={26}
 					chromaticAberration={0.16}
+					{quality}
 					interactive
 				>
 					<span class="tile-label">aberration</span>
