@@ -5,17 +5,22 @@
 	 * The 420x640 stage below is a pixel-for-pixel copy of the backdrop drawn by the
 	 * native SwiftUI app in the comparison scratchpad (same gradient stops, circle
 	 * centres and line cadence), so a screenshot of each can be compared directly.
-	 * Dev-only, like /probe and /demo.
+	 * `?scheme=dark` flips both the stage palette and the forced glass scheme, and
+	 * has to match the native app run with `SCHEME=dark`. Dev-only, like /probe
+	 * and /demo.
 	 */
+	import { page } from '$app/state';
 	import { LiquidButton } from '$lib';
+
+	const scheme = $derived(page.url.searchParams.get('scheme') === 'dark' ? 'dark' : 'light');
 </script>
 
 <svelte:head>
 	<title>compare-ios — liquid-svelte</title>
 </svelte:head>
 
-<div class="page" data-scheme="light">
-	<div class="stage">
+<div class="page" data-scheme={scheme}>
+	<div class="stage" class:dark={scheme === 'dark'}>
 		<div class="circle orange"></div>
 		<div class="circle blue"></div>
 		<div class="circle green"></div>
@@ -123,5 +128,43 @@
 		font-size: 12px;
 		font-weight: 600;
 		color: rgb(0 0 0 / 0.55);
+	}
+
+	/* Dark palette — mirror of the native app's dark SharedBackdrop. */
+	.stage.dark {
+		background: linear-gradient(135deg, #23263a 0%, #3a2a3f 50%, #26344e 100%);
+		color: #f2f2f7;
+	}
+
+	.stage.dark .orange {
+		background: #c2543a;
+	}
+
+	.stage.dark .blue {
+		background: #2f5fb8;
+	}
+
+	.stage.dark .green {
+		background: #1e7a52;
+	}
+
+	.stage.dark .lines {
+		background:
+			repeating-linear-gradient(
+				to bottom,
+				transparent 0 23px,
+				rgb(255 255 255 / 0.35) 23px 25px,
+				transparent 25px 48px
+			),
+			repeating-linear-gradient(
+				to right,
+				transparent 0 31.5px,
+				rgb(0 0 0 / 0.4) 31.5px 32.5px,
+				transparent 32.5px 64px
+			);
+	}
+
+	.stage.dark .caption {
+		color: rgb(255 255 255 / 0.6);
 	}
 </style>
