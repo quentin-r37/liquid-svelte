@@ -35,6 +35,7 @@
 		Trash2
 	} from '@lucide/svelte';
 	import Backdrop, { BACKDROP_KINDS, type BackdropKind } from '../Backdrop.svelte';
+	import FpsMeter from '../FpsMeter.svelte';
 
 	let scheme = $state<'light' | 'dark'>('dark');
 	let backdrop = $state<BackdropKind>('grid');
@@ -193,6 +194,7 @@
 </svelte:head>
 
 <Backdrop kind={backdrop} {scheme} fixed />
+<FpsMeter />
 
 <!--
 	Declared at the top level of the template, not inside `.page`: a snippet is scoped to
