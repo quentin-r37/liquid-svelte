@@ -53,11 +53,13 @@
 	let cornerShape = $state<CornerShape>('squircle');
 	/**
 	 * Same control as the probe's: one quality preset applied to every component on the
-	 * page, so the three tiers can be compared across the whole gallery at once. `high`
-	 * to match the probe — and it is what lets the aberration tile actually aberrate,
-	 * since the 3-pass chromatic chain is gated behind this preset.
+	 * page, so the three tiers can be compared across the whole gallery at once.
+	 * `medium` to match the library's defaults — no component ships `high` (see
+	 * QUALITY_PRESETS), so that is the gallery a consumer actually gets. Flip the
+	 * select to `high` to see the aberration tile aberrate, since the 3-pass
+	 * chromatic chain is gated behind this preset.
 	 */
-	let quality = $state<GlassQuality>('high');
+	let quality = $state<GlassQuality>('medium');
 
 	$effect(() => {
 		setGlassModeOverride(tierOverride);

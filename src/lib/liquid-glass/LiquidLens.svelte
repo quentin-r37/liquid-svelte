@@ -46,7 +46,11 @@
 		bezel = 30,
 		displacement,
 		profile = 'convex-squircle',
-		quality = 'high',
+		// `medium`, like every other component: see the note on QUALITY_PRESETS for
+		// why `high` is opt-in everywhere. A lens is the one surface where the
+		// dispersion genuinely reads, so it is also the first place to pass
+		// `quality="high"` back in.
+		quality = 'medium',
 		mode = 'auto',
 		disabled = false,
 		container = null,

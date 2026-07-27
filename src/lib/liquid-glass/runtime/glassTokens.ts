@@ -95,6 +95,24 @@ export interface QualityPreset {
 	specular: boolean;
 }
 
+/**
+ * What the ladder buys, measured rather than assumed (A/B screenshots at all
+ * three tiers, and FPS on a busy page):
+ *
+ * `low` → `medium` adds the generated specular map. At control sizes the CSS
+ * edge layers carry the rim and the difference is hard to see; it earns its
+ * keep on larger curved surfaces, where a hairline that follows the normal
+ * reads and a gradient border does not.
+ *
+ * `medium` → `high` adds only the chromatic aberration, at triple the
+ * displacement fill — enough to halve the frame rate of a large surface being
+ * refiltered every frame. The dispersion is invisible at knob scale and reads
+ * only on deep-bezel showcase surfaces (a lens over contrasty detail), which
+ * is why **no component defaults to `high`**: it is an opt-in for the few
+ * surfaces that can actually show it. The rim antialias is part of why the
+ * fringe is subtle — a crisp fringe cannot survive `feDisplacementMap`'s
+ * point sampling and comes out as the coloured speckle it used to be.
+ */
 export const QUALITY_PRESETS: Record<GlassQuality, QualityPreset> = {
 	low: { resolution: 0.5, chromatic: false, specular: false },
 	medium: { resolution: 0.75, chromatic: false, specular: true },

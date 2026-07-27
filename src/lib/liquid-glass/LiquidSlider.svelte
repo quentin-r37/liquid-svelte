@@ -44,7 +44,10 @@
 		labelledBy,
 		format = (v) => String(Math.round(v)),
 		showValue = false,
-		quality = 'high',
+		// `medium`, like every other component: A/B'd at all three tiers, the grabbed
+		// thumb renders identically at `high` — a 60×40 knob has no room to show
+		// dispersion — so the 3-pass chain was pure cost. See QUALITY_PRESETS.
+		quality = 'medium',
 		mode = 'auto',
 		class: className = '',
 		style = '',

@@ -92,6 +92,17 @@
 		 * this is set to and only eases to the superellipse as the reveal completes.
 		 */
 		cornerShape?: CornerShape;
+		/**
+		 * `medium`, like every component (see the note on QUALITY_PRESETS) — but the
+		 * menu is where the rule bites hardest, so the measurement lives here. `high`
+		 * buys chromatic aberration at triple the displacement fill, and this is the
+		 * largest surface in the library, refiltered every frame that anything scrolls
+		 * behind an open panel: on a busy page the panel alone halved the frame rate at
+		 * `high` (≈70fps against a 165Hz cap) and held the cap at `medium`. It is also
+		 * the surface that can least justify the effect: dispersion is rim colour noise
+		 * under the one thing a menu has to keep legible, its own items — the same
+		 * argument that keeps {@link MENU_GLASS_OPEN} milkier than every other surface.
+		 */
 		quality?: GlassQuality;
 		mode?: GlassMode;
 		class?: string;
@@ -114,7 +125,7 @@
 		morph = true,
 		menuLabel,
 		cornerShape = GLASS_DEFAULTS.cornerShape,
-		quality = 'high',
+		quality = 'medium',
 		mode = 'auto',
 		class: className = '',
 		style = '',
