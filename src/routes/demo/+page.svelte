@@ -689,6 +689,7 @@
 		padding: clamp(1.25rem, 4vw, 3rem);
 		color: #f4f6fa;
 		font-family:
+			'Inter Variable',
 			system-ui,
 			-apple-system,
 			'Segoe UI',

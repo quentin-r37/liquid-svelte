@@ -375,6 +375,7 @@
 		background: #05060c;
 		color: #f2f4f8;
 		font-family:
+			'Inter Variable',
 			system-ui,
 			-apple-system,
 			'Segoe UI',

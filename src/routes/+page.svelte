@@ -34,6 +34,7 @@
 		margin: 0 auto;
 		padding: 4rem 1.5rem;
 		font-family:
+			'Inter Variable',
 			system-ui,
 			-apple-system,
 			'Segoe UI',

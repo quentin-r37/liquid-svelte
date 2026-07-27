@@ -779,6 +779,29 @@
 	}
 
 	/*
+	 * Flat at rest, glass only under the hand.
+	 *
+	 * The primitive's resting dress — the gradient across the tint, the rim
+	 * hairline, the inner shading that reads as thickness — is exactly what makes
+	 * a surface look like glass before anything touches it, and this pill must
+	 * not: at rest it is a plain grey fill, full stop. So the tint is flattened to
+	 * a uniform colour, and the edge layer is faded out entirely.
+	 *
+	 * Faded *with the melt*, not merely off: `--lg-specular` is 0 at rest and 1
+	 * melted (see {@link TABS_BUBBLE_REST}), animated per frame by the morph, so it
+	 * is already the melt's progress published to CSS — the edge layers ride it
+	 * and surface together with the refraction. `opacity` on `.lg-edge` is safe
+	 * where it would kill `.lg` itself: the layer only paints, it filters nothing.
+	 */
+	.lg-tabs :global(.lg-tabs-bubble .lg-tint) {
+		background: rgb(var(--lg-tint-color) / calc(var(--lg-tint) * var(--lg-tint-boost)));
+	}
+
+	.lg-tabs :global(.lg-tabs-bubble .lg-edge) {
+		opacity: var(--lg-specular);
+	}
+
+	/*
 	 * `grid-auto-columns: 1fr` sizes every segment to the widest label, which keeps
 	 * the bubble a fixed size — and therefore its displacement map rasterised once
 	 * for the life of the control. It is also how native segmented controls behave.

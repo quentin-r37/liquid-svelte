@@ -826,10 +826,19 @@ export const TABS_BUBBLE_REST: DropletVisual = {
 	 * Still nowhere near the knob's 0.92: the label has to stay legible on it at
 	 * both ends of the morph, which is what lets the ink colour be constant.
 	 */
-	opacity: 0.25,
+	opacity: 0.35,
 	saturation: 1,
 	blur: 0.05,
-	specularIntensity: 0.25,
+	/*
+	 * Exactly zero, unlike every other rest state: at rest the pill is a flat
+	 * fill, not glass, and a lit rim is the single strongest "this is glass" cue.
+	 * Zero is safe where zero *blur* is not — the intensity is an `feFuncA` slope,
+	 * a live attribute that scales the specular's alpha without adding or removing
+	 * a filter primitive, so the chain stays structurally stable across the morph.
+	 * `LiquidTabs` also rides this value from CSS to fade its edge layers in with
+	 * the melt, which is what "glass only on activation" means there.
+	 */
+	specularIntensity: 0,
 	scale: 1
 };
 
