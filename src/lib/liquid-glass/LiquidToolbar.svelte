@@ -174,12 +174,12 @@
 	 * its timing, could bring the lens up while the patch is still narrow; driving the
 	 * two off one value makes that unrepresentable.
 	 *
-	 * It also means the optics drain as the bar retracts, which `LiquidMenu` explicitly
-	 * refuses to let happen. The objection there is real and does not apply here: a menu
-	 * panel's rest tint is 0.3 against 0.12 settled, so reversing it turns the shrinking
-	 * sheet into an opaque white bar. This one goes from 0.06 to 0.14 — a haze rather
-	 * than a slab, and it is precisely the collapsed *button*'s appearance being restored
-	 * as the bar becomes one again.
+	 * It also means the optics reverse as the bar retracts, which `LiquidMenu`
+	 * explicitly refuses to let happen. The objection there was a dense rest tint
+	 * running backwards over the collapse; here the endpoints share the `regular`
+	 * material — tint, frost and saturation are equal at both ends — so what
+	 * actually reverses is the lens and the rim, and that is precisely the
+	 * collapsed *button*'s appearance being restored as the bar becomes one again.
 	 */
 	const optics = $derived.by(() => {
 		const t = unroll;

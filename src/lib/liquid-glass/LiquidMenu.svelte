@@ -101,7 +101,8 @@
 		 * `high` (≈70fps against a 165Hz cap) and held the cap at `medium`. It is also
 		 * the surface that can least justify the effect: dispersion is rim colour noise
 		 * under the one thing a menu has to keep legible, its own items — the same
-		 * argument that keeps {@link MENU_GLASS_OPEN} milkier than every other surface.
+		 * legibility argument that puts {@link MENU_GLASS_OPEN} on the frosted
+		 * `regular` material.
 		 */
 		quality?: GlassQuality;
 		mode?: GlassMode;
@@ -487,12 +488,13 @@
 			}
 			present = true;
 
-			// Only the opening morphs the optics. Reversing the morph *while the panel is
-			// still visible* would run its milky rest tint (0.3, versus 0.12 settled)
-			// backwards over the collapse, turning the shrinking sheet into an opaque white
-			// bar — the one thing guaranteed to draw the eye to a panel that is leaving. So
-			// the liquid drains away as clear glass, and the puddle's optics are restored
-			// after it is hidden, below.
+			// Only the opening morphs the optics. This mattered more when the puddle's
+			// rest tint (0.3) ran far denser than the settled panel's (0.12) — reversing
+			// that over the collapse turned the shrinking sheet into an opaque white bar,
+			// the one thing guaranteed to draw the eye to a panel that is leaving. The
+			// endpoints now share the `regular` material and differ only in refraction
+			// and rim, but the shape stays: the panel leaves with its settled optics, and
+			// the puddle's rest state is restored after it is hidden, below.
 			droplet.engage();
 		}
 
