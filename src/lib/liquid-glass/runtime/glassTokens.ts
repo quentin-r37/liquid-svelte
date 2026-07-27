@@ -880,8 +880,18 @@ export const SPECULAR_WIDTH_PER_BEZEL = 0.09;
 export const SPECULAR_WIDTH_MIN = 1.5;
 export const SPECULAR_WIDTH_MAX = 4;
 
-/** Light direction for the specular rim, in radians from the +x axis. */
-export const SPECULAR_LIGHT_ANGLE = Math.PI / 3;
+/**
+ * Light direction for the specular rim, in radians from the +x axis, y up.
+ *
+ * This is the CSS layers' light (`--lg-light-angle: 145deg` in liquidGlass.css)
+ * restated in the map's convention — a CSS gradient angle θ has its bright start
+ * at 270° − θ from +x, hence 125°. One shared light source puts the rim's bright
+ * arcs on the same top-left / bottom-right diagonal as the tint gradient and the
+ * CSS hairline under them, which is also where iOS puts its highlight. The rim
+ * previously sat at 60° (top-right / bottom-left), quietly perpendicular to
+ * every CSS layer it was blended over.
+ */
+export const SPECULAR_LIGHT_ANGLE = (125 / 180) * Math.PI;
 
 /**
  * Ceiling on how many map texels the specular rim is rasterised at per CSS pixel.

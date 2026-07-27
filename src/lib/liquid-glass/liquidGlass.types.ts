@@ -139,6 +139,13 @@ export interface LiquidGlassProps extends Omit<HTMLAttributes<HTMLElement>, 'sty
 	chromaticAberration?: number;
 	/** Strength of the specular highlight, `0`–`1`. */
 	specularIntensity?: number;
+	/**
+	 * Width of the generated specular rim in CSS pixels. Leave unset to derive it
+	 * from `bezel` (×0.09, clamped 1.5–4), which tracks the reference look. Unlike
+	 * `specularIntensity` this is part of the specular map's cache key — geometry,
+	 * not a live filter attribute — so set it, don't animate it.
+	 */
+	specularWidth?: number;
 	/** Strength of the outer drop shadow, `0`–`1`. */
 	shadowIntensity?: number;
 	profile?: SurfaceProfile;

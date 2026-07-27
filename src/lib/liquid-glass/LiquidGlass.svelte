@@ -34,6 +34,7 @@
 		saturation = GLASS_DEFAULTS.saturation,
 		chromaticAberration = GLASS_DEFAULTS.chromaticAberration,
 		specularIntensity = GLASS_DEFAULTS.specularIntensity,
+		specularWidth,
 		shadowIntensity = GLASS_DEFAULTS.shadowIntensity,
 		profile = GLASS_DEFAULTS.profile,
 		quality = GLASS_DEFAULTS.quality,
@@ -183,7 +184,7 @@
 					height: resolvedHeight,
 					radius: clampedRadius,
 					cornerShape: effectiveCornerShape,
-					rimWidth: specularWidthFor(clampedBezel),
+					rimWidth: specularWidth ?? specularWidthFor(clampedBezel),
 					// Part of the cache key, and legitimately so: the ratio only moves
 					// when the user zooms or the window changes monitor, so this stays on
 					// the geometry side of the regenerate/animate line.
