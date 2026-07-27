@@ -10,8 +10,12 @@ import { getMagnitudeLut, sampleLut } from './surfaceProfiles.js';
  *
  * Encoding follows the `feDisplacementMap` convention: horizontal offset in the
  * red channel, vertical offset in the green channel, 128 meaning "no shift".
- * Blue and alpha are unused by the filter but written as 128/255 so the map is a
- * valid, inspectable image.
+ * Blue carries the field's own magnitude (0 in the flat centre, 255 at the
+ * outline) — `feDisplacementMap` never reads it, but the filter routes it into
+ * an alpha mask for the rim antialiasing pass, so "where the field is strong"
+ * and "where the smoothing applies" cannot drift apart. See
+ * {@link RIM_ANTIALIAS_PER_DISPLACEMENT} for why that pass exists. Alpha is a
+ * constant 255 so the map stays an inspectable image.
  */
 
 const cache = createMapCache();
@@ -86,6 +90,7 @@ function paint(
 
 			let r = 128;
 			let g = 128;
+			let b = 0;
 
 			// Past the bezel is the flat centre, which must stay perfectly neutral.
 			if (depth > -EDGE_FEATHER && depth < p.bezel) {
@@ -104,9 +109,24 @@ function paint(
 				g = 128 - normalY * amount;
 			}
 
+			/*
+			 * The rim-antialias mask, and deliberately *not* the displaced amount
+			 * above. It covers everything that is not the flat centre — including the
+			 * feather and the whole exterior of the outline, which `backdrop-filter`
+			 * clips away anyway, so full coverage there is free and keeps the mask
+			 * from thinning out exactly where the field's outline transition
+			 * point-samples worst. Inside the band it rides the *square root* of the
+			 * magnitude: the aliasing tracks the field's slope, which decays far more
+			 * slowly than the magnitude itself, and a mask that follows the raw LUT
+			 * leaves the mid-band speckle essentially unsmoothed.
+			 */
+			if (depth < p.bezel) {
+				b = Math.sqrt(sampleLut(lut, Math.max(0, depth) / p.bezel)) * 255;
+			}
+
 			data[offset] = r;
 			data[offset + 1] = g;
-			data[offset + 2] = 128;
+			data[offset + 2] = b;
 			data[offset + 3] = 255;
 		}
 	}

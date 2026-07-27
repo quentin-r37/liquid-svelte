@@ -3,7 +3,9 @@
 	import {
 		DISPLACEMENT_SCALE_FACTOR,
 		FILTER_REGION_MARGIN,
-		MAX_CHROMATIC_ABERRATION
+		MAX_CHROMATIC_ABERRATION,
+		RIM_ANTIALIAS_MAX,
+		RIM_ANTIALIAS_PER_DISPLACEMENT
 	} from './runtime/glassTokens.js';
 
 	interface Props {
@@ -64,8 +66,18 @@
 	 * displacement *animation* (the droplet morph) rewrites the region attributes
 	 * a handful of times instead of every frame.
 	 */
+	/**
+	 * The rim antialias — see {@link RIM_ANTIALIAS_PER_DISPLACEMENT} for the whole
+	 * argument. A live attribute riding `displacement`, so it fades in with the
+	 * droplet morph and a resting knob filters nothing. The primitive stays in the
+	 * chain at 0 (a passthrough) so the morph never restructures the filter.
+	 */
+	const rimBlur = $derived(
+		Math.min(RIM_ANTIALIAS_MAX, Math.max(0, displacement) * RIM_ANTIALIAS_PER_DISPLACEMENT)
+	);
+
 	const sampleReach = $derived(
-		Math.ceil((displacement * (1 + aberration) + blur * 3 + 2) / 16) * 16
+		Math.ceil((displacement * (1 + aberration) + (blur + rimBlur) * 3 + 2) / 16) * 16
 	);
 
 	/**
@@ -221,8 +233,31 @@
 				/>
 			{/if}
 
+			<!--
+				Rim antialiasing. `feDisplacementMap` point-samples, and near the outline
+				the field is steep enough to sample the backdrop below Nyquist — thin
+				detail behind the rim comes out as stepped speckle, and the chromatic
+				passes decorrelate it into coloured sparkle. So the refracted result is
+				low-passed and composited back *only inside the bezel band*, using the
+				magnitude the map itself carries in its blue channel as the mask. The
+				flat centre keeps the untouched refraction; see
+				RIM_ANTIALIAS_PER_DISPLACEMENT for why this is not the pre-blur's job.
+			-->
 			<feColorMatrix
-				in="refracted"
+				in="displacementField"
+				type="matrix"
+				values="0 0 0 0 0
+				        0 0 0 0 0
+				        0 0 0 0 0
+				        0 0 1 0 0"
+				result="rimMask"
+			/>
+			<feGaussianBlur in="refracted" stdDeviation={rimBlur} result="rimSoft" />
+			<feComposite in="rimSoft" in2="rimMask" operator="in" result="rimBand" />
+			<feComposite in="rimBand" in2="refracted" operator="over" result="antialiased" />
+
+			<feColorMatrix
+				in="antialiased"
 				type="saturate"
 				values={String(saturation)}
 				result="saturated"

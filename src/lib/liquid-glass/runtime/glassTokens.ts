@@ -1000,6 +1000,49 @@ export const DISPLACEMENT_SCALE_FACTOR = 2;
 export const MAX_CHROMATIC_ABERRATION = 0.2;
 
 /**
+ * Post-refraction antialiasing blur: stdDeviation per CSS pixel of
+ * displacement, and its ceiling in CSS pixels.
+ *
+ * Chromium's `feDisplacementMap` point-samples its input — no bilinear, no
+ * mip levels — and near the outline the field is steep enough that adjacent
+ * output pixels sample the backdrop several pixels apart. That is sampling
+ * below Nyquist, and any detail behind the rim shows it: a thin accent line
+ * refracts into a dotted staircase, text into speckle. A single pass hides
+ * some of it inside the distortion; the chromatic chain makes it worse, because
+ * its three passes run at three scales and so alias *differently* per channel —
+ * the noise decorrelates into coloured sparkle. A light backdrop is merely
+ * where the contrast makes all of this easiest to see.
+ *
+ * The cure is the textbook one — low-pass what is undersampled — but it cannot
+ * be the pre-refraction `blur`: that is a look (frosting), it applies to the
+ * flat centre too, and the centre is meant to stay clear. So the smoothing runs
+ * on the *output* of the refraction, masked to the bezel band by the
+ * displacement map's blue channel, which encodes the field's own magnitude.
+ * The mask is therefore exactly "where the sampling is unsafe", fading with the
+ * LUT, and the flat centre never sees it. Nothing of value is lost inside the
+ * band either: content there is already smeared by the lens, so a pixel of blur
+ * removes the speckle and nothing else.
+ *
+ * Scaled with `displacement` rather than fixed so it breathes with the droplet
+ * morph: a resting knob (displacement 0) filters nothing and must not carry a
+ * frosted ring, and the smoothing arrives together with the refraction that
+ * needs it.
+ *
+ * The ratio is sized against the sampling stride, not against taste. The LUT
+ * sheds half its magnitude within the first tenth of the bezel, so between two
+ * radially adjacent output pixels the sample point travels roughly half the
+ * peak displacement — a 40px-peak knob samples ~20px apart at the outline. A
+ * blur only suppresses noise below roughly its own stdDeviation of scale, so
+ * the σ has to be commensurate with the stride: displacement/8 is the point
+ * where the speckle dissolves into the smooth compressed streaks the rim shows
+ * on the reference effect. It sounds destructive and is not — the mask fades
+ * with the LUT, so σ this size only ever fully applies in the outermost band
+ * where the imagery is 10–20× compressed already.
+ */
+export const RIM_ANTIALIAS_PER_DISPLACEMENT = 1 / 8;
+export const RIM_ANTIALIAS_MAX = 6;
+
+/**
  * Pointer speed, in CSS pixels per second, that saturates the normalised
  * velocity custom properties at ±1. Roughly a brisk flick across a card.
  */
