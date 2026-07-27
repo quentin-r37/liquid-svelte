@@ -900,13 +900,17 @@ export const CORNER_K_MIN = 1;
 export const CORNER_K_MAX = 10;
 
 /**
- * Filter region margin, as a fraction of the element on each side.
+ * Minimum filter region margin, as a fraction of the element on each side.
  *
- * `0.5` gives the `-50% / 200%` region the effect needs: `feDisplacementMap`
- * samples well outside the element near the rim, and anything falling outside
- * the region reads as transparent black — a dead, washed-out edge. The output is
- * still clipped to the element's border-box by `backdrop-filter` itself, so a
- * generous region costs fill rate but never bleeds visually.
+ * `0.5` gives a `-50% / 200%` region: `feDisplacementMap` samples well outside
+ * the element near the rim, and anything falling outside the region reads as
+ * transparent black — a dead, washed-out edge, or a coloured hairline once the
+ * chromatic passes fall off at different scales. This is a *floor*, because a
+ * fractional margin scales with the box while the sample reach is absolute
+ * pixels: `LiquidGlassFilter` grows each axis to cover the actual peak
+ * displacement, which is what a ~40px-tall button with a ~56px reach needs. The
+ * output is still clipped to the element's border-box by `backdrop-filter`
+ * itself, so a generous region costs fill rate but never bleeds visually.
  */
 export const FILTER_REGION_MARGIN = 0.5;
 

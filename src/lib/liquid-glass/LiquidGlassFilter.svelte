@@ -55,9 +55,39 @@
 	const scaleRed = $derived(baseScale * (1 + aberration));
 	const scaleBlue = $derived(baseScale * (1 - aberration));
 
-	/** `-50% … 200%` in objectBoundingBox units. */
-	const regionOffset = $derived(`${-FILTER_REGION_MARGIN * 100}%`);
-	const regionSize = $derived(`${(1 + FILTER_REGION_MARGIN * 2) * 100}%`);
+	/**
+	 * How far, in CSS pixels, a displaced sample can land from the pixel it feeds.
+	 *
+	 * The map's peak magnitude sits right at the outline (channel ≈ 1), so the
+	 * worst case is `scale / 2` — i.e. `displacement` itself — inflated by the red
+	 * pass under chromatic aberration, plus the blur kernel's tail. Quantised so a
+	 * displacement *animation* (the droplet morph) rewrites the region attributes
+	 * a handful of times instead of every frame.
+	 */
+	const sampleReach = $derived(
+		Math.ceil((displacement * (1 + aberration) + blur * 3 + 2) / 16) * 16
+	);
+
+	/**
+	 * Region margins, per axis, in objectBoundingBox units.
+	 *
+	 * `FILTER_REGION_MARGIN` is a *floor*, not the whole story: a percentage margin
+	 * scales with the box while the reach above is absolute, so a short element — a
+	 * button is ~40px tall against a ~56px reach — sees its rim samples fall off
+	 * the region's edge. Off-region resolves to transparent black, and because the
+	 * three chromatic passes run at different scales they fall off one at a time,
+	 * leaving a coloured hairline along the short axis. Growing the margin to cover
+	 * the true reach costs fill rate on small surfaces; the output is still clipped
+	 * to the border-box by `backdrop-filter`, so it never bleeds.
+	 */
+	const marginX = $derived(
+		width > 0 ? Math.max(FILTER_REGION_MARGIN, sampleReach / width) : FILTER_REGION_MARGIN
+	);
+	const marginY = $derived(
+		height > 0 ? Math.max(FILTER_REGION_MARGIN, sampleReach / height) : FILTER_REGION_MARGIN
+	);
+
+	const percent = (value: number) => `${Math.round(value * 1000) / 10}%`;
 
 	/** The refraction reads from the blurred backdrop when a blur is requested. */
 	const refractionSource = $derived(blur > 0 ? 'blurred' : 'SourceGraphic');
@@ -74,12 +104,14 @@
 	  channels before `feDisplacementMap` reads them, shifting the 128 neutral
 	  point and skewing the whole field.
 
-	• The enlarged region (`-50% / 200%`). Near the rim the displacement reaches
-	  several dozen pixels, so the sample point lands well outside the element.
-	  Anything outside the filter region resolves to transparent black, which shows
-	  up as a dead, washed-out edge — the single most visible defect if you pin the
-	  region to the element. `backdrop-filter` clips the *output* to the border-box
-	  regardless, so a generous region costs fill rate but never bleeds.
+	• The enlarged region (`-50% / 200%` at minimum, grown per axis to cover the
+	  displacement's true pixel reach — see `sampleReach`). Near the rim the
+	  displacement reaches several dozen pixels, so the sample point lands well
+	  outside the element. Anything outside the filter region resolves to
+	  transparent black, which shows up as a dead, washed-out edge — or, with the
+	  chromatic passes falling off one scale at a time, a coloured hairline.
+	  `backdrop-filter` clips the *output* to the border-box regardless, so a
+	  generous region costs fill rate but never bleeds.
 
 	• `primitiveUnits="userSpaceOnUse"` — lets the two feImages be positioned in
 	  CSS pixels at the element's origin even though the region is larger.
@@ -88,10 +120,10 @@
 	<defs>
 		<filter
 			{id}
-			x={regionOffset}
-			y={regionOffset}
-			width={regionSize}
-			height={regionSize}
+			x={percent(-marginX)}
+			y={percent(-marginY)}
+			width={percent(1 + marginX * 2)}
+			height={percent(1 + marginY * 2)}
 			filterUnits="objectBoundingBox"
 			primitiveUnits="userSpaceOnUse"
 			color-interpolation-filters="sRGB"
