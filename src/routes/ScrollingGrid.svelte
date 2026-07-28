@@ -80,7 +80,7 @@
 			radial-gradient(140% 100% at 28% 18%, rgb(255 255 255 / 0.85), transparent 55%),
 			radial-gradient(120% 120% at 100% 100%, rgb(58 62 72 / 0.35), transparent 60%),
 			linear-gradient(115deg, #edeef1 0%, #d5d8dd 45%, #b6bac2 78%, #a0a4ad 100%);
-		color: rgb(26 30 40 / 0.55);
+		color: rgb(26 30 40 / 0.7);
 	}
 
 	/*
