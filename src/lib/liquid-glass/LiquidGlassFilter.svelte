@@ -123,9 +123,11 @@
 	 * The source blur is the one primitive with no natural bound, and by fill rate
 	 * it is the most expensive thing in the chain — a wide σ over an area the pads
 	 * make several times the element's, on every frame the surface is refiltered.
-	 * It is also what the `regular` variant is, optically: `clear` runs the same
-	 * pass at σ 0.5 and `regular` at 6, and nothing else about the two differs.
-	 * So this number is most of the material's price.
+	 * It is also most of what the `regular` variant is inside this chain: `clear`
+	 * runs the same pass at σ 1.7 and `regular` at 6, and nothing else in the
+	 * filter distinguishes them — the rest of the difference between the two
+	 * materials is the veil, which is CSS and costs nothing here. So this number
+	 * is most of the material's price.
 	 *
 	 * Three things read the blurred result, and the pad is the largest of them:
 	 *

@@ -15,6 +15,7 @@
 	} from './runtime/capabilities.svelte.js';
 	import { devicePixelRatio, resolveDevicePixelRatio } from './runtime/devicePixelRatio.svelte.js';
 	import {
+		DEGRADED_BLUR_FLOOR,
 		DISPLACEMENT_PER_BEZEL,
 		GLASS_DEFAULTS,
 		MATERIAL_VARIANTS,
@@ -218,12 +219,13 @@
 	const backdrop = $derived.by(() => {
 		if (tier === 'full') return `url(#${filterId})`;
 		// The SVG chain carries blur and saturation for the full tier; the degraded
-		// tier has to express them as CSS filter functions. A `clear`-scale blur
-		// (well under 3px) is raised a long way, because without refraction it is
-		// all that separates the glass from its backdrop; a `regular`-scale one is
-		// already a frost and is used as-is — ×12 would turn it into fog.
+		// tier has to express them as CSS filter functions. A `clear`-scale blur is
+		// raised to the floor, because without refraction it is all that separates
+		// the glass from its backdrop; a `regular`-scale one is already a frost and
+		// is used as-is. See DEGRADED_BLUR_FLOOR for why this is a floor and not the
+		// multiplier it used to be.
 		if (tier === 'degraded') {
-			const radius = effectiveBlur < 3 ? Math.max(6, effectiveBlur * 12) : effectiveBlur;
+			const radius = Math.max(DEGRADED_BLUR_FLOOR, effectiveBlur);
 			return `blur(${radius}px) saturate(${effectiveSaturation})`;
 		}
 		return 'none';
@@ -247,6 +249,18 @@
 		if (element) setGlassProperties(element, glassStyle);
 	});
 
+	/*
+	 * `data-variant` on the host carries the one thing about the material the
+	 * stylesheet needs on its own: the shape of the veil across the face
+	 * (`--lg-tint-grad-*` in liquidGlass.css). It is an attribute rather than
+	 * another entry in `glassStyle` so a surface can still override the sweep from
+	 * CSS — inline custom properties beat every rule a consumer could write, and
+	 * LiquidMenu's panel did exactly that until the variant took the job over.
+	 *
+	 * It follows the *variant*, not the resolved opacity: a droplet morph passes
+	 * `opacity` explicitly per frame and still wants its material's veil shape.
+	 */
+
 	const trackingOptions = $derived({
 		enabled: interactive && !disabled,
 		suppressVelocity: reducedMotion.current
@@ -259,6 +273,7 @@
 	class={`lg ${className}`}
 	style={style || undefined}
 	data-tier={tier}
+	data-variant={variant}
 	data-disabled={disabled ? 'true' : undefined}
 	disabled={tag === 'button' && disabled ? true : undefined}
 	type={tag === 'button' ? (type ?? 'button') : type}

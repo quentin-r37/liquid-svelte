@@ -883,6 +883,7 @@
 		blur={optics.blur}
 		specularIntensity={optics.specularIntensity}
 		shadowIntensity={optics.shadowIntensity}
+		{variant}
 		{quality}
 		{mode}
 		class={`lg-toolbar-shell ${present ? 'is-present' : ''} ${expanded ? 'is-open' : ''}`}

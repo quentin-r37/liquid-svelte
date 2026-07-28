@@ -841,6 +841,11 @@
 		exactly during the animation that matters. And `visibility: hidden` is measured
 		by `ResizeObserver` (unlike `display: none`), yet is out of the tab order and out
 		of the accessibility tree, which is what a closed menu has to be.
+
+		The panel drives all three optics from the morph, so `variant` reaches it for
+		one thing only: the shape of the veil, which the material owns now (see
+		`.lg[data-variant]` in liquidGlass.css). It used to arrive here as an
+		`is-frosted` class carrying the same three figures, panel-only.
 	-->
 	<LiquidGlass
 		bind:element={panelElement}
@@ -855,7 +860,8 @@
 		shadowIntensity={0.2 + 0.7 * droplet.progress}
 		{quality}
 		{mode}
-		class={`lg-menu-panel ${variant === 'regular' ? 'is-frosted' : ''} ${present ? 'is-present' : ''} ${open ? 'is-open' : ''}`}
+		{variant}
+		class={`lg-menu-panel ${present ? 'is-present' : ''} ${open ? 'is-open' : ''}`}
 	>
 		<!--
 			`tabindex="-1"` keeps the container out of the tab order while leaving it a
@@ -980,26 +986,6 @@
 
 	.lg-menu :global(.lg-menu-panel > .lg-content) {
 		display: block;
-	}
-
-	/*
-	 * The regular panel flattens the veil sweep to the uniform sheet the native
-	 * menu actually wears — see the `--lg-tint-grad-*` comment in liquidGlass.css
-	 * for why the default dip is a control-scale reading that turns into a hole at
-	 * panel scale. These land the effective alpha within a few percent of uniform
-	 * (~0.6 in both schemes, the measured native figure) while keeping a trace of
-	 * the sweep so the sheet still reads as lit from the corner.
-	 *
-	 * Regular only, deliberately. The clear panel's veil runs at a tenth of this,
-	 * and its dip is most of what keeps a near-transparent sheet from reading as a
-	 * film — flattening would *raise* its centre, the opposite correction. The
-	 * trigger keeps the stock sweep too, so the morph's handoff frame swaps veil
-	 * shapes; at trigger scale the sweep spans too few pixels for that to read.
-	 */
-	.lg-menu :global(.lg-menu-panel.is-frosted) {
-		--lg-tint-grad-hi: 1.12;
-		--lg-tint-grad-mid: 1;
-		--lg-tint-grad-lo: 1.06;
 	}
 
 	/*

@@ -679,6 +679,7 @@
 			blur={railGlass.visual.blur}
 			specularIntensity={railGlass.visual.specularIntensity}
 			shadowIntensity={0.5}
+			{variant}
 			{quality}
 			{mode}
 			class="lg-tabs-rail"

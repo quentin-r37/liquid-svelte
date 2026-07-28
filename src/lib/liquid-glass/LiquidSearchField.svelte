@@ -687,6 +687,7 @@
 			blur={optics.blur}
 			specularIntensity={optics.specularIntensity}
 			shadowIntensity={optics.shadowIntensity}
+			{variant}
 			{quality}
 			{mode}
 			{disabled}

@@ -55,6 +55,13 @@ export type GlassQuality = 'low' | 'medium' | 'high';
  * `MATERIAL_VARIANTS`); any of those props set explicitly still wins, which is
  * what keeps the droplet morphs — whose endpoints drive all three per frame —
  * entirely outside this switch.
+ *
+ * It also picks the *shape* of the veil across the face, which the props cannot
+ * override because it is the material's and not the surface's: `regular` wears
+ * the flat sheet measured off the platform, `clear` the lit-from-the-corner
+ * sweep (see `.lg[data-variant]` in liquidGlass.css). That is what makes the
+ * two materials differ in colour rather than in frost, which is what they do on
+ * iOS — the blur between them moves by ×3.5, the veil by more than ten.
  */
 export type GlassVariant = 'regular' | 'clear';
 
@@ -146,7 +153,9 @@ export interface LiquidGlassProps extends Omit<HTMLAttributes<HTMLElement>, 'sty
 	 * Material variant — `regular` (default) is the frosted, milky material iOS
 	 * builds its controls from; `clear` is the transparent one it floats over
 	 * media. Supplies the defaults for `blur`, `opacity` and `saturation`;
-	 * setting any of those explicitly overrides the variant's value for it.
+	 * setting any of those explicitly overrides the variant's value for it. The
+	 * shape of the veil across the face follows the variant either way — see
+	 * {@link GlassVariant}.
 	 */
 	variant?: GlassVariant;
 	/**
@@ -157,9 +166,10 @@ export interface LiquidGlassProps extends Omit<HTMLAttributes<HTMLElement>, 'sty
 	displacement?: number;
 	/**
 	 * Backdrop blur radius in pixels, applied *before* refraction. Defaults from
-	 * the `variant` — heavy frost for `regular`, ~0.5 for `clear`. On a `clear`
-	 * surface keep explicit values under ~1.5: past that the frost swallows the
-	 * distortion that makes the material read as liquid.
+	 * the `variant` — 6 for `regular`, the platform's 1.7 for `clear`. On a
+	 * `clear` surface the material's own figure is near the ceiling: past a
+	 * couple of pixels the frost starts swallowing the distortion that makes it
+	 * read as liquid, which is the whole of what a clear surface has.
 	 */
 	blur?: number;
 	/** Opacity of the tint layer, `0`–`1`. Defaults from the `variant`. */

@@ -48,7 +48,8 @@
  *   --lg-tint-boost, --lg-shadow-boost, --lg-veil-boost, --lg-veil-color, --lg-accent
  * Set by a surface that is being scaled non-uniformly (see LiquidMenu):
  *   --lg-radius-x, --lg-radius-y, --lg-corner-shape-live
- * Set by a surface that flattens the veil sweep (see LiquidMenu's panel):
+ * Set by the material variant, and overridable by a surface that wants another
+ * veil shape (see the `.lg[data-variant]` rule):
  *   --lg-tint-grad-hi, --lg-tint-grad-mid, --lg-tint-grad-lo
  * Set by pointer tracking (see runtime/pointerTracking.ts):
  *   --pointer-x, --pointer-y, --velocity-x, --velocity-y,
@@ -219,20 +220,12 @@
 	--lg-accent: 0 122 255;
 	/*
 	 * Shape of the veil across the face: three multipliers on the tint alpha at
-	 * the gradient's start, middle and end. The default is a lit-from-the-corner
-	 * sweep, and it is a *control-scale* reading of the material: across the few
-	 * dozen pixels of a capsule the dip is what keeps the face from reading as a
-	 * painted chip.
-	 *
-	 * Measured against the platform, the dip is not part of the material itself.
-	 * Sampled behind a native menu panel in the simulator, the veil is uniform to
-	 * within a few percent across the whole sheet — the same yellow lifts to the
-	 * same cream at every point under it. Stretch the sweep over a surface that
-	 * size and the dip becomes a hole: the middle of the panel runs at barely
-	 * half the veil of its corners, the backdrop shows through dark and
-	 * saturated, and the frost reads as smoked glass instead of milk. LiquidMenu
-	 * flattens these for its settled regular panel; everything else keeps the
-	 * sweep, which is why they default to the historical figures exactly.
+	 * the gradient's start, middle and end. This block is the `clear` shape — a
+	 * lit-from-the-corner sweep, and a *control-scale* reading of a
+	 * near-transparent material: across the few dozen pixels of a capsule the dip
+	 * is what keeps the face from reading as a painted chip, and on a sheet whose
+	 * veil runs at a twentieth of `regular`'s it is most of what keeps the glass
+	 * from reading as a film. `regular` flattens it just below.
 	 */
 	--lg-tint-grad-hi: 1.3;
 	--lg-tint-grad-mid: 0.6;
@@ -319,6 +312,37 @@
 	--lg-veil-boost: 2;
 	--lg-veil-color: 15 12 22;
 	--lg-accent: 10 132 255;
+}
+
+/*
+ * The `regular` veil is flat, and this is what makes the material switch read as
+ * a change of *colour* rather than a change of blur.
+ *
+ * Measured against the platform, the sweep's dip is not part of the frosted
+ * material at all. Sampled behind a native menu panel in the simulator, the veil
+ * is uniform to within a few percent across the whole sheet — the same yellow
+ * lifts to the same cream at every point under it. Keep the `clear` sweep under
+ * `regular`'s alpha and the middle of the face runs at 0.6× of it: in light,
+ * 0.39 effective against 0.65 at the edges, a hole through which the blurred
+ * backdrop is plainly visible. That hole is what made switching variants look
+ * like a blur toggle — the frost was the only thing changing that the eye could
+ * find in the centre of a surface, because the milkiness was not arriving there.
+ * The platform's material has no such hole, so neither does this one.
+ *
+ * These figures land the effective alpha within a few percent of uniform (~0.6
+ * in both schemes, the measured native figure) while keeping a trace of the
+ * sweep, so the sheet still reads as lit from the corner. They were LiquidMenu's
+ * panel-only override until the measurement turned out to be about the material
+ * and not about the panel.
+ *
+ * An attribute rather than an inline property so this stays overridable: a
+ * surface that genuinely wants the sweep under a heavy veil can take it back
+ * with any rule of its own.
+ */
+.lg[data-variant='regular'] {
+	--lg-tint-grad-hi: 1.12;
+	--lg-tint-grad-mid: 1;
+	--lg-tint-grad-lo: 1.06;
 }
 
 .lg[data-disabled='true'] {

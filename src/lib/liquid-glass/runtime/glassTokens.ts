@@ -105,11 +105,21 @@ export interface MaterialVariant {
  * step onto the native 68%. The stack is nonlinear in the alpha, so tune this
  * by measuring on /compare-ios/menu, never by scaling.
  *
- * `clear` is the previous default of this library, unchanged: near-zero frost,
- * the backdrop legible through the glass, all the visual work done by the
- * distortion and the rim. iOS reserves this material for controls floating
- * over media — photos, video — with a dimming layer behind the content;
- * anything with small text sitting directly on busy content wants `regular`.
+ * `clear` carries the platform's frost rather than this library's history: 1.7
+ * is the native `.glassEffect(.clear)` σ, measured the same way as `regular`'s
+ * — the figure {@link MENU_GLASS}'s settled clear panel has carried since it
+ * was measured, now promoted to the material itself. It shipped at 0.5, the
+ * default from when the whole library was clear glass, and 0.5 against
+ * `regular`'s 6 is a ×12 step where the platform takes ×3.5: the variant switch
+ * read as a blur toggle, which is not what the two materials are. On iOS the
+ * frost barely moves between them and the *veil* moves enormously — 5% against
+ * a measured 68% — so the veil is what has to carry the switch, which is also
+ * why the variant now picks the veil's shape (see `.lg[data-variant]` in
+ * liquidGlass.css). At 1.7 the backdrop stays legible through the glass and the
+ * distortion still does the visual work. iOS reserves this material for
+ * controls floating over media — photos, video — with a dimming layer behind
+ * the content; anything with small text sitting directly on busy content wants
+ * `regular`.
  *
  * Saturation drops from `clear`'s 1.3 rather than rising: under the veil the
  * backdrop is already being pushed toward white, and boosting its saturation
@@ -122,8 +132,22 @@ export interface MaterialVariant {
  */
 export const MATERIAL_VARIANTS: Record<GlassVariant, MaterialVariant> = {
 	regular: { blur: 6, opacity: 0.27, saturation: 1.05 },
-	clear: { blur: 0.5, opacity: 0.05, saturation: 1.3 }
+	clear: { blur: 1.7, opacity: 0.05, saturation: 1.3 }
 };
+
+/**
+ * Floor applied to the backdrop blur on the `degraded` tier.
+ *
+ * With no refraction the blur is the only thing separating the glass from what
+ * is behind it, so a `clear`-scale σ — 1.7, or a droplet's 0.05 — has to be
+ * raised or the surface reads as a flat translucent rectangle. This used to be a
+ * ×12 multiplier under a floor of 6, which reached the same 6 by another route
+ * while `clear` sat at 0.5; against the measured 1.7 that multiplier lands on
+ * 20px of fog, which is not a clear material by any reading. A floor states what
+ * was meant all along: never less than this, never more than the material asked
+ * for.
+ */
+export const DEGRADED_BLUR_FLOOR = 6;
 
 /**
  * Peak refraction offset as a multiple of the bezel width, used when
@@ -332,16 +356,19 @@ export const DROPLET_ACTIVE: DropletVisual = {
  * structurally in the chain throughout; what the morph animates is the
  * refraction arriving and the rim lighting.
  *
- * `clear` keeps the hand-tuned figures the menu shipped with when the whole
+ * `clear` keeps the hand-tuned tints the menu shipped with when the whole
  * library was clear glass. The rest tint runs *denser* than the settled
  * panel's, because a clear puddle with no lens in it yet has nothing else to be
- * visible with; the settled panel carries more tint, saturation and frost than
- * the clear material itself because it is the one clear surface with small text
- * sitting directly on it. Blur a hair above zero rather than at it, for the
- * same chain-stability reason stated the other way round. The settled 1.7 is
- * the native `.glassEffect(.clear)` measured the same way as `regular`'s: at
- * the old 1, an 11px line behind the panel stayed fully legible where the
- * platform ghosts it.
+ * visible with; the settled panel carries more tint and saturation than the
+ * clear material itself because it is the one clear surface with small text
+ * sitting directly on it. Its blur no longer does: the 1.7 measured here — the
+ * native `.glassEffect(.clear)`, taken the same way as `regular`'s, and the
+ * figure that showed an 11px line behind the panel staying fully legible at the
+ * old 1 where the platform ghosts it — turned out to be the *material's* frost
+ * rather than this panel's, and is where {@link MATERIAL_VARIANTS} reads it
+ * from now. Both ends therefore take it from there, which also puts the rest
+ * patch back in the trigger's material and keeps blur constant across the
+ * morph, as `regular` already was.
  */
 export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: DropletVisual }> = {
 	regular: {
@@ -370,7 +397,7 @@ export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 			displacementRatio: 0,
 			opacity: 0.3,
 			saturation: 1,
-			blur: 0.05,
+			blur: MATERIAL_VARIANTS.clear.blur,
 			specularIntensity: 0.2,
 			scale: 1
 		},
@@ -378,7 +405,7 @@ export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
 			opacity: 0.12,
 			saturation: 1.7,
-			blur: 1.7,
+			blur: MATERIAL_VARIANTS.clear.blur,
 			specularIntensity: 0.5,
 			scale: 1
 		}
@@ -548,11 +575,14 @@ export const TOOLBAR_BEZEL_RATIO = 0.26;
  * scale). Constant optics also mean the retract drains nothing: the bar simply
  * becomes the button again.
  *
- * `clear` keeps the figures the toolbar shipped with as clear glass: rest tint
+ * `clear` keeps the tints the toolbar shipped with as clear glass: rest tint
  * 0.14 against the clear button's 0.05 was the compensation for having no
  * refraction — a clear button's lens is most of its presence — and the bar
  * settles at 0.06 with a saturation boost doing the legibility work the frost
- * does in `regular`.
+ * does in `regular`. Its blur is the material's rather than a literal, for the
+ * paragraph above: the collapsed patch has to pass as the clear button it is
+ * swapped for, and it carried a hard 0.5 that stopped being that button the day
+ * the material was retuned to the measured native 1.7.
  *
  * `blur` is equal at both ends of each variant, so `feGaussianBlur` neither
  * enters nor leaves the chain mid-morph. Same precaution as the droplet, arrived
@@ -583,7 +613,7 @@ export const TOOLBAR_GLASS: Record<GlassVariant, { rest: DropletVisual; active: 
 			displacementRatio: 0,
 			opacity: 0.14,
 			saturation: 1.5,
-			blur: 0.5,
+			blur: MATERIAL_VARIANTS.clear.blur,
 			specularIntensity: 0.35,
 			scale: 1
 		},
@@ -591,7 +621,7 @@ export const TOOLBAR_GLASS: Record<GlassVariant, { rest: DropletVisual; active: 
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
 			opacity: 0.06,
 			saturation: 1.9,
-			blur: 0.5,
+			blur: MATERIAL_VARIANTS.clear.blur,
 			specularIntensity: 0.5,
 			scale: 1
 		}

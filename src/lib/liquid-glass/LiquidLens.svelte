@@ -118,6 +118,13 @@
 	no value. It is exposed as a focusable, named group instead, and the arrow-key
 	handling in `applyDrag` makes it operable without a pointer. Escape abandons a
 	pointer drag and restores the starting position.
+
+	`variant="clear"` states what the three explicit optics below already are — a
+	lens is the surface floating over media, and at a veil of 0.04 it is nothing
+	else. It is not redundant: the variant also picks the *shape* of that veil
+	(`.lg[data-variant]` in liquidGlass.css), and the flat sheet `regular` wears
+	would turn a near-transparent face into an even film. The dip is what keeps it
+	reading as glass.
 -->
 <LiquidGlass
 	bind:element
@@ -131,6 +138,7 @@
 	{quality}
 	{mode}
 	{disabled}
+	variant="clear"
 	opacity={0.04}
 	blur={0.4}
 	saturation={1.35}
