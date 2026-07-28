@@ -305,7 +305,8 @@
 				reduced motion: <strong>{reducedMotion.current ? 'on' : 'off'}</strong> · corner-shape:
 				<strong>{glassSupport.cornerShape ? 'supported' : 'unsupported'}</strong> ·
 				<a href={resolve('/probe')}>optics probe</a> ·
-				<a href={resolve('/borders')}>borders lab</a>
+				<a href={resolve('/borders')}>borders lab</a> ·
+				<a href={resolve('/bench')}>scaling benchmark</a>
 			</p>
 			<p class="meta">
 				The corner follows iOS: <strong

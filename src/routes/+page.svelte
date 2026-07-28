@@ -25,6 +25,10 @@
 			<a href={resolve('/probe')}>Optics probe</a> — the primitive with every prop exposed and live map-cache
 			counters.
 		</li>
+		<li>
+			<a href={resolve('/bench')}>Scaling benchmark</a> — frame timing against instance count, so “a page
+			full of glass stays at 60fps” is a measurement rather than an impression.
+		</li>
 	</ul>
 </main>
 
