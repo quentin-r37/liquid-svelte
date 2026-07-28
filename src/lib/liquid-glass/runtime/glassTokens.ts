@@ -578,9 +578,9 @@ export const TOOLBAR_BEZEL_RATIO = 0.26;
  * state that has to pass as an ordinary glass button — it is swapped for a real
  * one on the frame the morph begins.
  *
- * `regular` is {@link MATERIAL_VARIANTS}' figures at both ends: under a 12px
- * frost the missing lens is barely visible, so the material's own tint is the
- * match, and the unroll animates only the lens and the rim (0.35 — the plain
+ * `regular` is {@link MATERIAL_VARIANTS}' figures at both ends: under that frost
+ * the missing lens is barely visible, so the material's own tint is the match,
+ * and the unroll animates only the lens and the rim (0.35 — the plain
  * button's resting `GLASS_DEFAULTS.specularIntensity` — up to 0.5, the settled
  * scale). Constant optics also mean the retract drains nothing: the bar simply
  * becomes the button again.

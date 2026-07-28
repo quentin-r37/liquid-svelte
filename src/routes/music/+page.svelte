@@ -588,7 +588,7 @@
 		<label>
 			<span>variant</span>
 			<select bind:value={variant}>
-				<option value="regular">regular — voile 0.27, flou 6</option>
+				<option value="regular">regular — voile 0.27, flou 5</option>
 				<option value="clear">clear — voile 0.05, flou 1.7</option>
 			</select>
 		</label>
