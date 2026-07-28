@@ -48,7 +48,7 @@ const meta: DocMeta = {
 		{
 			name: 'quality',
 			type: "'low' | 'medium' | 'high'",
-			default: "'high'",
+			default: "'medium'",
 			description: 'Map resolution and rim passes; high enables the 3-pass chromatic chain.'
 		},
 		{

@@ -37,7 +37,7 @@
 		label,
 		labelledBy,
 		size = 'md',
-		quality = 'high',
+		quality = 'medium',
 		mode = 'auto',
 		class: className = '',
 		style = '',

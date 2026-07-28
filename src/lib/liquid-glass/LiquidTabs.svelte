@@ -82,7 +82,7 @@
 		labelledBy,
 		iconPlacement = 'start',
 		variant = GLASS_DEFAULTS.variant,
-		quality = 'high',
+		quality = 'medium',
 		mode = 'auto',
 		class: className = '',
 		style = '',

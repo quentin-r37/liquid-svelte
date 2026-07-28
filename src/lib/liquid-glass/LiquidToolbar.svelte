@@ -100,7 +100,7 @@
 		triggerLabel = 'More actions',
 		label,
 		variant = GLASS_DEFAULTS.variant,
-		quality = 'high',
+		quality = 'medium',
 		mode = 'auto',
 		class: className = '',
 		style = '',
