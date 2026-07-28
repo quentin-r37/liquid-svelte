@@ -622,7 +622,7 @@
 				<span>quality</span>
 				<select bind:value={quality} disabled={busy}>
 					<option value="low">low — half map, no rim passes</option>
-					<option value="medium">medium — half map, specular rim</option>
+					<option value="medium">medium — half map, specular rim, rim antialias</option>
 					<option value="high">high — full map, 3 passes, rim antialias</option>
 				</select>
 			</label>

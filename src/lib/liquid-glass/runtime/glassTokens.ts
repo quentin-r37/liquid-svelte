@@ -206,34 +206,43 @@ export interface QualityPreset {
  * its source every time the filter runs. Ordered by what they cost rather than
  * by what they are called, the ladder falls out on its own.
  *
- * `low` → `medium` adds the generated specular map, and nothing else. At control
- * sizes the CSS edge layers carry the rim and it is hard to see; it earns its
- * keep on larger curved surfaces, where a line that follows the normal reads and
- * a gradient border does not. Both presets run the map at half resolution: the
- * refraction field is smooth and `feImage` stretches it, so 0.75 bought nothing
- * the eye could find and cost a third of the base chain.
+ * `low` → `medium` adds the generated specular map and the rim antialias. The
+ * specular is hard to see at control sizes, where the CSS edge layers already
+ * carry the rim; it earns its keep on larger curved surfaces, where a line that
+ * follows the normal reads and a gradient border does not. Both presets run the
+ * map at half resolution: the refraction field is smooth and `feImage` stretches
+ * it, so 0.75 bought nothing the eye could find and cost a third of the base
+ * chain.
  *
- * `medium` → `high` adds the chromatic aberration, full-resolution maps and the
- * rim antialias. They belong together, and that is the argument for putting the
- * antialias here rather than one rung lower. `feDisplacementMap` point-samples,
- * so the outer band of the bezel undersamples the backdrop: at one pass that is
- * monochrome speckle, mostly hidden inside the distortion, and at three passes
- * running at three scales it decorrelates into the coloured sparkle the
- * aberration is otherwise blamed for. The cure is needed exactly where the
- * chain that causes it lives. See RIM_ANTIALIAS_PER_DISPLACEMENT.
+ * The antialias sits on this rung rather than one higher, and it is by a wide
+ * margin the expensive half of it — see `rimAntialias` for the 12.0ms and for
+ * where that time actually goes, which is mostly the pad rather than the blur.
+ * The argument for paying it at the default is that what it fixes is already
+ * visible at one displacement pass. `feDisplacementMap` point-samples, so the
+ * outer band of the bezel undersamples the backdrop; at one pass that is
+ * monochrome speckle along the rim, and over a detailed backdrop — text, thin
+ * lines — it crawls as the surface moves. `high`'s three passes at three scales
+ * decorrelate the same artefact into the coloured sparkle the aberration gets
+ * blamed for, which is worse, but it is a difference of degree and not the point
+ * at which the artefact appears. See RIM_ANTIALIAS_PER_DISPLACEMENT.
  *
- * So `medium` is not a slightly cheaper `high` — it is a third of the filter,
- * which is what a surface with forty siblings on a moving backdrop needs from a
- * default. What it gives up is legible on a detailed backdrop: text and thin
- * lines behind the outermost millimetre of the bezel can crawl. A surface that
- * shows it — a lens over contrasty detail, a deep-bezel showcase tile — asks for
- * `high`, which is what that rung is for, and why **no component defaults to
- * it**: three displacement passes over the backdrop is enough to halve the frame
- * rate of a large surface being refiltered every frame.
+ * That places the cliff between `low` and `medium` rather than between `medium`
+ * and `high`, which is a real cost and worth stating plainly: `medium` is now
+ * nearer `high` than `low` in frame time, and a page carrying dozens of surfaces
+ * over a moving backdrop wants `low`, not the default. The trade is that a
+ * single surface — which is what most pages have — should look right without
+ * asking for a non-default quality, and a page dense enough to feel the
+ * difference is a page that should be picking its quality deliberately anyway.
+ *
+ * `medium` → `high` adds the chromatic aberration and full-resolution maps. It
+ * remains what a lens over contrasty detail or a deep-bezel showcase tile asks
+ * for, and remains what **no component defaults to**: three displacement passes
+ * over the backdrop is enough to halve the frame rate of a large surface being
+ * refiltered every frame.
  */
 export const QUALITY_PRESETS: Record<GlassQuality, QualityPreset> = {
 	low: { resolution: 0.5, chromatic: false, specular: false, rimAntialias: false },
-	medium: { resolution: 0.5, chromatic: false, specular: true, rimAntialias: false },
+	medium: { resolution: 0.5, chromatic: false, specular: true, rimAntialias: true },
 	high: { resolution: 1, chromatic: true, specular: true, rimAntialias: true }
 };
 
