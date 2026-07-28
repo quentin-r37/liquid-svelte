@@ -505,6 +505,13 @@ export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
  * are the same *figures*, but a panel of arbitrary consumer content could well
  * come to want a quieter rim or a denser rest tint than a list of menu items,
  * and the moment either is retuned the sharing would have been a bug.
+ *
+ * That restatement includes the frost disagreeing across the morph: the rest
+ * patch is the trigger it replaces and wears the material's control σ, the
+ * settled panel wears {@link PANEL_FROST}'s, and a popover covers the page in
+ * exactly the way that distinction is about. Its panel drops the veil's chroma
+ * compensation too — `--lg-chroma-boost: 1` in this component's stylesheet, as
+ * on `.lg-menu-panel`.
  */
 export const POPOVER_GLASS: Record<GlassVariant, { rest: DropletVisual; active: DropletVisual }> = {
 	regular: {
@@ -512,6 +519,7 @@ export const POPOVER_GLASS: Record<GlassVariant, { rest: DropletVisual; active: 
 			displacementRatio: 0,
 			opacity: MATERIAL_VARIANTS.regular.opacity,
 			saturation: MATERIAL_VARIANTS.regular.saturation,
+			// The trigger's frost, because at rest this patch *is* the trigger.
 			blur: MATERIAL_VARIANTS.regular.blur,
 			specularIntensity: 0.2,
 			scale: 1
@@ -519,8 +527,8 @@ export const POPOVER_GLASS: Record<GlassVariant, { rest: DropletVisual; active: 
 		active: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
 			opacity: MATERIAL_VARIANTS.regular.opacity,
-			saturation: MATERIAL_VARIANTS.regular.saturation,
-			blur: MATERIAL_VARIANTS.regular.blur,
+			saturation: PANEL_FROST.saturation,
+			blur: PANEL_FROST.blur,
 			specularIntensity: 0.5,
 			scale: 1
 		}
@@ -550,7 +558,10 @@ export const POPOVER_GLASS: Record<GlassVariant, { rest: DropletVisual; active: 
  *
  * The bezel is shallower than {@link GLASS_DEFAULTS.bezel}, for the menu panel's
  * reason: a card is a container, so the refraction belongs in a rim around a flat
- * clear centre the content sits on. It is slightly *deeper* than the menu's 16
+ * clear centre the content sits on. It borrows the panel's *geometry* and not its
+ * material — a card takes the stock {@link MATERIAL_VARIANTS} figures, i.e. the
+ * control frost. {@link PANEL_FROST} is for surfaces that cover the page; a card
+ * sits on one, which is the same thing a toolbar does. It is slightly *deeper* than the menu's 16
  * because a card is typically the largest resting surface on a page and a rim
  * proportioned for a 208px panel starts reading as a hairline on a 360px card.
  *
@@ -632,7 +643,20 @@ export const DIALOG_GEOMETRY = {
  */
 export const DIALOG_SURFACE = {
 	specularIntensity: 0.5,
-	shadowIntensity: 0.85
+	shadowIntensity: 0.85,
+	/**
+	 * The panel frost, stated rather than inherited.
+	 *
+	 * A modal is the panel case at its most literal — it covers the page, which
+	 * is the distinction {@link PANEL_FROST} exists for — and with no morph to
+	 * interpolate it there is no rest end that has to be a control first, the way
+	 * {@link MENU_GLASS}'s and {@link POPOVER_GLASS}' patches do. So both figures
+	 * are the panel's from the first frame. The component pins
+	 * `--lg-chroma-boost: 1` to match, since the veil compensation every control
+	 * gets is the other half of the same split.
+	 */
+	blur: PANEL_FROST.blur,
+	saturation: PANEL_FROST.saturation
 } as const;
 
 /**

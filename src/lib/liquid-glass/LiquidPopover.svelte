@@ -407,6 +407,11 @@
 		display: block;
 		min-width: var(--lg-popover-min-width);
 		max-width: min(22rem, 84vw);
+		/* The other half of PANEL_FROST — see `.lg-menu-panel`. Set for the whole
+		   life of the panel, including the puddle, which costs a small chroma step
+		   at the instant it takes the trigger's place and buys the settled panel
+		   the platform's collapse. */
+		--lg-chroma-boost: 1;
 	}
 
 	.lg-popover :global(.lg-popover-panel > .lg-content) {

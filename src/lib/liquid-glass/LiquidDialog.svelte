@@ -95,6 +95,18 @@
 	let bodyElement = $state<HTMLElement | null>(null);
 	let panelTransform = $state<GlassTransform | null>(null);
 
+	/**
+	 * The panel frost, and only for `regular`.
+	 *
+	 * iOS runs one `regular` material at two settings — a control's and a
+	 * panel's — and a modal is the panel case (see `PANEL_FROST`). `clear` has no
+	 * such split: measured against the platform it behaves identically behind a
+	 * panel and behind a button, so it keeps the material's own figures, which is
+	 * what leaving these undefined asks the primitive for.
+	 */
+	const panelBlur = $derived(variant === 'regular' ? DIALOG_SURFACE.blur : undefined);
+	const panelSaturation = $derived(variant === 'regular' ? DIALOG_SURFACE.saturation : undefined);
+
 	/** Outlives `open` by the length of the exit — the menu panel's `present`. */
 	let present = $state(open);
 
@@ -341,6 +353,8 @@
 		bezel={DIALOG_GEOMETRY.bezel}
 		specularIntensity={DIALOG_SURFACE.specularIntensity}
 		shadowIntensity={DIALOG_SURFACE.shadowIntensity}
+		blur={panelBlur}
+		saturation={panelSaturation}
 		{quality}
 		{mode}
 		{variant}
@@ -423,6 +437,10 @@
 		width: min(400px, 100%);
 		max-height: 100%;
 		transform-origin: center;
+		/* The other half of PANEL_FROST: a panel crushes the backdrop's chroma
+		   harder than a control, so it takes none of the veil compensation every
+		   control gets. Same rule as `.lg-menu-panel`. */
+		--lg-chroma-boost: 1;
 	}
 
 	.lg-dialog[data-presentation='sheet'] :global(.lg-dialog-panel) {
