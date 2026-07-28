@@ -4,6 +4,7 @@
 	import { getDisplacementMap } from './displacement/createDisplacementMap.js';
 	import { getSpecularMap, specularWidthFor } from './displacement/createSpecularMap.js';
 	import { quantiseSize } from './displacement/mapCache.js';
+	import { getProfileReach } from './displacement/surfaceProfiles.js';
 	import type { LiquidGlassProps } from './liquidGlass.types.js';
 	import { setGlassProperties } from './runtime/applyGlassStyle.js';
 	import {
@@ -277,6 +278,7 @@
 			saturation={effectiveSaturation}
 			{specularIntensity}
 			rimAntialias={preset.rimAntialias}
+			profileReach={getProfileReach(profile)}
 		/>
 	{/if}
 

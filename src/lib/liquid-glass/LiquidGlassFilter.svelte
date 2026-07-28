@@ -34,6 +34,13 @@
 		 * chain.
 		 */
 		rimAntialias?: boolean;
+		/**
+		 * Which way the profile throws its samples, from
+		 * {@link getProfileReach} — the two fractions that size the source blur. Not
+		 * derived here because the filter never sees the profile, only the map it
+		 * produced.
+		 */
+		profileReach: { inward: number; outward: number };
 	}
 
 	let {
@@ -47,7 +54,8 @@
 		blur,
 		saturation,
 		specularIntensity,
-		rimAntialias = true
+		rimAntialias = true,
+		profileReach
 	}: Props = $props();
 
 	/**
@@ -66,15 +74,6 @@
 	const scaleBlue = $derived(baseScale * (1 - aberration));
 
 	/**
-	 * How far, in CSS pixels, a displaced sample can land from the pixel it feeds.
-	 *
-	 * The map's peak magnitude sits right at the outline (channel ≈ 1), so the
-	 * worst case is `scale / 2` — i.e. `displacement` itself — inflated by the red
-	 * pass under chromatic aberration, plus the blur kernel's tail. Quantised so a
-	 * displacement *animation* (the droplet morph) rewrites the region attributes
-	 * a handful of times instead of every frame.
-	 */
-	/**
 	 * The rim antialias — see {@link RIM_ANTIALIAS_PER_DISPLACEMENT} for the whole
 	 * argument. A live attribute riding `displacement`, so it fades in with the
 	 * droplet morph and a resting knob filters nothing. The primitive stays in the
@@ -86,47 +85,116 @@
 			: 0
 	);
 
-	const sampleReach = $derived(
-		Math.ceil((displacement * (1 + aberration) + (blur + rimBlur) * 3 + 2) / 16) * 16
-	);
-
 	/**
 	 * Output pad, in CSS pixels, for the refraction passes' primitive subregions.
 	 *
 	 * The enlarged filter region is an *input* requirement — displaced samples land
-	 * up to `sampleReach` outside the element — but no primitive after the source
-	 * blur needs to *produce* pixels much beyond the border-box, because
-	 * `backdrop-filter` clips the output to it. Left unbounded, every pass fills
-	 * the whole region, which the margins make several times the element's area,
-	 * per frame. The refraction results are still read past the box by the rim
-	 * antialias blur (3σ, σ capped at {@link RIM_ANTIALIAS_MAX}), so they keep a
-	 * pad covering that — and drop it entirely when that blur is not in the chain,
-	 * which on a 132×76 tile halves what the refraction pass fills. Constant per
-	 * quality preset, so a displacement animation never rewrites subregion
-	 * attributes.
+	 * outside the element — but no primitive after the source blur needs to
+	 * *produce* pixels much beyond the border-box, because `backdrop-filter` clips
+	 * the output to it. Left unbounded, every pass fills the whole region, which
+	 * the margins make several times the element's area, per frame. The refraction
+	 * results are still read past the box by the rim antialias blur (3σ, σ capped
+	 * at {@link RIM_ANTIALIAS_MAX}), so they keep a pad covering that — and drop it
+	 * entirely when that blur is not in the chain, which on a 132×76 tile halves
+	 * what the refraction pass fills. Constant per quality preset, so a
+	 * displacement animation never rewrites subregion attributes.
 	 */
 	const outputPad = $derived(rimAntialias ? Math.ceil(RIM_ANTIALIAS_MAX * 3) + 4 : 0);
 
 	/**
-	 * How far past the border-box the *blurred backdrop* has to exist.
+	 * Peak offset a refraction pass can apply, in CSS pixels.
 	 *
-	 * The source blur is the one primitive with no natural bound, and it is also
-	 * the most expensive in the chain — a wide σ over an area the region margins
-	 * make several times the element's. Left subregion-less it fills the whole
-	 * region, but nothing reads it that far: its only consumers are the
-	 * displacement passes, which output box + {@link outputPad} and sample at most
-	 * `displacement × (1 + aberration)` away from each of those pixels. So that sum
-	 * is the true requirement, rounded up to 16 for the same reason `sampleReach`
-	 * is — a droplet morph rewrites the attribute a handful of times instead of
-	 * sixty times a second.
-	 *
-	 * Clamped to `sampleReach` so this can only ever *shrink* the pass: past the
-	 * region's edge there is nothing to read anyway, and a subregion larger than
-	 * the region would be a promise the filter cannot keep.
+	 * The map's peak magnitude sits right at the outline (channel ≈ 1), so the
+	 * worst case is `scale / 2` — i.e. `displacement` itself — inflated by the red
+	 * pass under chromatic aberration.
 	 */
-	const blurReach = $derived(
-		Math.min(sampleReach, Math.ceil((displacement * (1 + aberration) + outputPad) / 16) * 16)
+	const peakOffset = $derived(displacement * (1 + aberration));
+
+	/**
+	 * Quantised to 16 so a displacement *animation* (the droplet morph) rewrites
+	 * the region and subregion attributes a handful of times instead of sixty
+	 * times a second.
+	 */
+	const quantiseReach = (value: number) => Math.ceil(Math.max(0, value) / 16) * 16;
+
+	/**
+	 * How far past the border-box the *blurred backdrop* has to exist, per axis.
+	 *
+	 * The source blur is the one primitive with no natural bound, and by fill rate
+	 * it is the most expensive thing in the chain — a wide σ over an area the pads
+	 * make several times the element's, on every frame the surface is refiltered.
+	 * It is also what the `regular` variant is, optically: `clear` runs the same
+	 * pass at σ 0.5 and `regular` at 6, and nothing else about the two differs.
+	 * So this number is most of the material's price.
+	 *
+	 * Three things read the blurred result, and the pad is the largest of them:
+	 *
+	 * • **The pad pixels of the refraction passes.** They now decode a *neutral*
+	 *   field (see the `feFlood` below) and therefore sample themselves, so they
+	 *   need the source out to `outputPad` and no further. Before that flood they
+	 *   read transparent black, which `feDisplacementMap` decodes as −0.5 — a full
+	 *   negative offset on both axes — and dragged this bound out to
+	 *   `outputPad + peakOffset`. That single decode was, on a 132×76 tile, the
+	 *   difference between the blur filling 6.9× the element's area and 2.7×.
+	 *
+	 * • **The blur's own kernel tail**, 3σ, without which the blurred pixels at the
+	 *   border-box edge average in transparent black and the refraction reads a
+	 *   darkened rim. Correctness is required over the box; the pad pixels beyond
+	 *   it are clipped away and only exist so the rim antialias has something
+	 *   plausible to low-pass, so they are allowed to thin out at the very edge —
+	 *   which is the same tolerance the previous bound took when it clamped itself
+	 *   below the region.
+	 *
+	 * • **The box pixels' own samples**, and this is where the profile comes in.
+	 *   `createDisplacementMap` moves the sample along the *negated* outward
+	 *   normal, so a positive LUT value pulls inwards; `convex-squircle` and
+	 *   `convex-circle` are positive throughout and cannot throw a sample out of
+	 *   the box at all. `concave` diverges outwards and needs the full
+	 *   `peakOffset`, `lip` does both inside one bezel. Hence
+	 *   {@link getProfileReach} rather than a blanket worst case — the default
+	 *   profile was paying a concave profile's pad.
+	 *
+	 *   The inward term is not free either: a sample thrown further inwards than
+	 *   the element is wide leaves through the far side, which is why it is
+	 *   measured against the dimension rather than dropped. A deep bezel on a
+	 *   short control is exactly that case.
+	 *
+	 * Per axis, because the inward overshoot is: a 40px-tall button with a 24px
+	 * bezel overshoots vertically and not horizontally, and paying the vertical
+	 * pad on both axes is how the old scalar bound quietly doubled the pass.
+	 */
+	const blurPadX = $derived(
+		quantiseReach(
+			Math.max(
+				outputPad,
+				blur * 3,
+				peakOffset * profileReach.outward,
+				peakOffset * profileReach.inward - width
+			)
+		)
 	);
+	const blurPadY = $derived(
+		quantiseReach(
+			Math.max(
+				outputPad,
+				blur * 3,
+				peakOffset * profileReach.outward,
+				peakOffset * profileReach.inward - height
+			)
+		)
+	);
+
+	/**
+	 * How far past the border-box the filter *region* has to reach, per axis.
+	 *
+	 * Everything any primitive reads or writes has to fit inside it, and the
+	 * outermost of those is the source blur: it writes `blurPad` and reads its own
+	 * 3σ beyond that. The rim antialias blur reads `refracted` up to 3σ past the
+	 * box, which `outputPad` already covers by construction, so it does not
+	 * enlarge this.
+	 */
+	const reachX = $derived(quantiseReach(blurPadX + blur * 3 + 2));
+	const reachY = $derived(quantiseReach(blurPadY + blur * 3 + 2));
 
 	/**
 	 * Region margins, per axis, in objectBoundingBox units.
@@ -141,10 +209,10 @@
 	 * to the border-box by `backdrop-filter`, so it never bleeds.
 	 */
 	const marginX = $derived(
-		width > 0 ? Math.max(FILTER_REGION_MARGIN, sampleReach / width) : FILTER_REGION_MARGIN
+		width > 0 ? Math.max(FILTER_REGION_MARGIN, reachX / width) : FILTER_REGION_MARGIN
 	);
 	const marginY = $derived(
-		height > 0 ? Math.max(FILTER_REGION_MARGIN, sampleReach / height) : FILTER_REGION_MARGIN
+		height > 0 ? Math.max(FILTER_REGION_MARGIN, reachY / height) : FILTER_REGION_MARGIN
 	);
 
 	const percent = (value: number) => `${Math.round(value * 1000) / 10}%`;
@@ -164,17 +232,18 @@
 	  channels before `feDisplacementMap` reads them, shifting the 128 neutral
 	  point and skewing the whole field.
 
-	• The enlarged region (`-50% / 200%` at minimum, grown per axis to cover the
-	  displacement's true pixel reach — see `sampleReach`). Near the rim the
-	  displacement reaches several dozen pixels, so the sample point lands well
-	  outside the element. Anything outside the filter region resolves to
-	  transparent black, which shows up as a dead, washed-out edge — or, with the
-	  chromatic passes falling off one scale at a time, a coloured hairline.
-	  `backdrop-filter` clips the *output* to the border-box regardless, so a
-	  generous region costs fill rate but never bleeds.
+	• The enlarged region (`-50% / 200%` at minimum, grown per axis to cover what
+	  the passes actually reach — see `reachX`). Near the rim the displacement
+	  reaches several dozen pixels, so the sample point lands outside the element.
+	  Anything outside the filter region resolves to transparent black, which shows
+	  up as a dead, washed-out edge — or, with the chromatic passes falling off one
+	  scale at a time, a coloured hairline. `backdrop-filter` clips the *output* to
+	  the border-box regardless, so a generous region never bleeds — it is paid for
+	  in fill rate alone, which is why the reach is derived rather than padded.
 
-	• `primitiveUnits="userSpaceOnUse"` — lets the two feImages be positioned in
-	  CSS pixels at the element's origin even though the region is larger.
+	• `primitiveUnits="userSpaceOnUse"` — lets the feImage and the flood beneath it
+	  be positioned in CSS pixels at the element's origin even though the region is
+	  larger.
 -->
 <svg class="lg-filter-host" aria-hidden="true" focusable="false">
 	<defs>
@@ -196,29 +265,85 @@
 					radius sub-pixel-ish — this glass is clear, not frosted.
 
 					Subregion, unlike every pass below it, is *larger* than the box: the
-					displacement reads this result from far outside itself. See
-					`blurReach` for why it is nevertheless smaller than the region.
+					displacement reads this result from outside itself. See `blurPadX`
+					for what sets it, per axis, and why it is nevertheless well inside
+					the region.
 				-->
 				<feGaussianBlur
 					in="SourceGraphic"
 					stdDeviation={blur}
-					x={-blurReach}
-					y={-blurReach}
-					width={width + blurReach * 2}
-					height={height + blurReach * 2}
+					x={-blurPadX}
+					y={-blurPadY}
+					width={width + blurPadX * 2}
+					height={height + blurPadY * 2}
 					result="blurred"
 				/>
 			{/if}
 
-			<feImage
-				href={displacementMap.url}
-				x="0"
-				y="0"
-				{width}
-				{height}
-				preserveAspectRatio="none"
-				result="displacementField"
-			/>
+			{#if outputPad > 0}
+				<!--
+					A neutral field under the map, covering the pad the refraction passes
+					output into.
+
+					Out of a primitive's subregion, SVG says transparent black — and
+					`feDisplacementMap` decodes a zero channel as −0.5, i.e. a *full
+					negative offset on both axes*, not "no shift". So every pad pixel used
+					to reach `peakOffset` up and to the left for a sample, purely because
+					the map stopped at the border-box, and the source blur had to be grown
+					by that whole distance to feed reads whose results are then masked to
+					the bezel band and clipped away. Flooding the pad with the 128/128
+					neutral the map itself uses for its flat centre makes those pixels
+					sample themselves, which is both what they should do and what makes
+					`blurPadX` collapse to the pad.
+
+					Only when there *is* a pad: with the rim antialias off the refraction
+					passes output the box exactly and there is nothing to flood. That is a
+					quality-preset flag, fixed per surface, so this cannot restructure the
+					chain mid-morph — the same reason the antialias block below may be an
+					`{#if}` at all.
+
+					Blue is 0, matching the flat centre: it is the rim-antialias mask, and
+					the mask primitive is subregioned to the box regardless.
+				-->
+				<feFlood
+					flood-color="rgb(128,128,0)"
+					flood-opacity="1"
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
+					result="fieldPad"
+				/>
+				<feImage
+					href={displacementMap.url}
+					x="0"
+					y="0"
+					{width}
+					{height}
+					preserveAspectRatio="none"
+					result="fieldMap"
+				/>
+				<feComposite
+					in="fieldMap"
+					in2="fieldPad"
+					operator="over"
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
+					result="displacementField"
+				/>
+			{:else}
+				<feImage
+					href={displacementMap.url}
+					x="0"
+					y="0"
+					{width}
+					{height}
+					preserveAspectRatio="none"
+					result="displacementField"
+				/>
+			{/if}
 
 			{#if chromatic}
 				<!--

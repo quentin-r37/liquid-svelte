@@ -88,6 +88,7 @@ function lateralOffset(slope: number, height: number): number {
 }
 
 const lutCache = new Map<SurfaceProfile, Float32Array>();
+const reachCache = new Map<SurfaceProfile, { inward: number; outward: number }>();
 
 /**
  * Signed, normalised refraction magnitude versus normalised depth into the bezel.
@@ -126,6 +127,50 @@ export function getMagnitudeLut(profile: SurfaceProfile): Float32Array {
 
 	lutCache.set(profile, lut);
 	return lut;
+}
+
+/**
+ * How far a profile throws a sample, split by direction, as a fraction of the
+ * peak offset.
+ *
+ * The filter has to know this to size the one pass it cannot bound by the
+ * border-box — the source blur, which has to have produced a pixel wherever a
+ * refraction pass will read one. The obvious bound is "the peak offset, in every
+ * direction", and that is what the filter used before this existed. It is also
+ * roughly four times too generous for the default profile, because the direction
+ * is not free: `createDisplacementMap` moves the sample point along the *negated*
+ * outward normal, so a positive LUT value pulls inwards, towards the element's
+ * middle, and a convex profile is positive everywhere. Its samples cannot leave
+ * the box at all, and the pass was being sized for an excursion that the optics
+ * make impossible.
+ *
+ * Not a per-profile constant, and deliberately not: `concave` diverges outwards
+ * and `lip` does both within one bezel, so a hand-written table would be a
+ * second source of truth for a number the LUT already contains, and one that
+ * would rot silently the first time a height function is retuned. Reading it off
+ * the LUT costs one pass over `LUT_SAMPLES` floats, once per profile per page,
+ * on a LUT that was just built anyway.
+ *
+ * `inward` is capped at the element's own dimension by the caller, not here — a
+ * sample thrown further inwards than the element is wide leaves through the far
+ * side, which is a real excursion and one the filter still has to cover.
+ */
+export function getProfileReach(profile: SurfaceProfile): { inward: number; outward: number } {
+	const cached = reachCache.get(profile);
+	if (cached) return cached;
+
+	const lut = getMagnitudeLut(profile);
+	let inward = 0;
+	let outward = 0;
+
+	for (let i = 0; i < lut.length; i += 1) {
+		inward = Math.max(inward, lut[i]);
+		outward = Math.max(outward, -lut[i]);
+	}
+
+	const reach = { inward, outward };
+	reachCache.set(profile, reach);
+	return reach;
 }
 
 /** Linearly interpolated LUT lookup for `t ∈ [0, 1]`. */
