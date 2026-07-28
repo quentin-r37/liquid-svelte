@@ -89,25 +89,47 @@ export interface MaterialVariant {
  *
  * `regular` is the frost. Apple's version lifts the backdrop's luminance toward
  * a milky veil until only colour and large shapes survive — and it is the veil
- * doing the obliterating, not the radius. Measured over the /compare-ios
- * stripes in the iOS 26.5 simulator (2026-07-28, 25–75% edge walk on the
- * stripe boundaries behind an auto-opened `UIMenu`): the native panel blurs at
- * only σ ≈ 5–7pt while compositing a ~68% white veil over the result
- * (teal-stripe luminance 159→225, saturation 0.64→0.17). The blur figure here
- * is that σ, and it has come down twice, both times because the veil got closer
- * to the platform's. It shipped at 12 — radius compensating for a veil that
- * dipped at the panel's centre — and went to 6 when the frosted menu flattened
- * its own dip. 5, the bottom of the measured band, is the end of the same
- * retreat: the dip is gone from every `regular` surface now, not just the menu
- * panel (see `.lg[data-variant]` in liquidGlass.css), so the veil obliterates
- * where it used to leak and the frost has nothing left to compensate for. The
- * frost is still not decoration: every ripple in the bezel band is smoothed
- * before it is displaced, which is what lets the edge refraction read as
- * *liquid* rather than as noise. Anything below this band starts showing that. The tint stays well under the measured veil because the
- * scheme boost (`--lg-tint-boost`) and the edge layers stack on top of it —
- * 0.24 measured out to a 61% effective veil on the settled panel, 0.27 is the
- * step onto the native 68%. The stack is nonlinear in the alpha, so tune this
- * by measuring on /compare-ios/menu, never by scaling.
+ * doing the obliterating, not the radius.
+ *
+ * The blur figure here is the *control* frost, not the panel one, and that
+ * distinction is the whole reason it moved. iOS 26 runs two σ under one name.
+ * Measured on /compare-ios/ab in the iOS 26.5 simulator (2026-07-28, 25–75%
+ * edge walk across the stripe boundaries running under a glyph-free surface,
+ * against a pixel-identical no-glass capture): `.glassEffect(.regular)` on a
+ * button capsule blurs at σ ≈ 1.8pt and on a segmented rail at σ ≈ 1.7–2.1,
+ * while a `UIMenu` panel of the same material blurs at σ ≈ 5–7. Both wear the
+ * same ~65–68% white veil and the same saturation collapse (0.64→0.28 on the
+ * button). `.buttonStyle(.glass)` measures identically to the raw effect —
+ * 65% veil, sat→0.28, σ 2.2 — so this really is one material with two frosts,
+ * and the small one is what every control on the platform wears.
+ *
+ * This constant carried the panel's σ until that measurement, because the panel
+ * is what it was first tuned against: 12 at launch, 6 once the frosted menu
+ * flattened its veil, 5 at the bottom of the panel band. Every button, bar and
+ * toolbar inherited a menu's frost and read as ~2.7x too soft — legible
+ * structure that survives under the platform's veil turned to milk under ours,
+ * at a veil that already matched (68% measured against Apple's 67%). 2 is the
+ * measured control figure. The panel keeps its own, explicitly, at
+ * {@link PANEL_FROST}.
+ *
+ * The frost is still not decoration at this size: every ripple in the bezel band
+ * is smoothed before it is displaced, which is what lets the edge refraction
+ * read as *liquid* rather than as noise. Below ~1.5 that starts showing.
+ *
+ * The tint stays well under the measured veil because the scheme boost
+ * (`--lg-tint-boost`) and the edge layers stack on top of it — 0.24 measured out
+ * to a 61% effective veil on the settled panel, 0.27 to 68% on the panel and
+ * 66.8% on a button capsule, against Apple's 66.9%. The stack is nonlinear in
+ * the alpha, so tune this by measuring on /compare-ios/ab, never by scaling.
+ *
+ * Saturation compensates that veil rather than seasoning the material. A white
+ * tint at this alpha does not just lift luminance, it drags chroma out with it:
+ * at 1.05 the backdrop came through at 0.18 saturation where the platform's came
+ * through at 0.28 — same veil, half the colour, which is what made the frost read
+ * as milk rather than as frosted colour. iOS hands back ~44% of the backdrop's
+ * chroma under a 67% veil; 1.6 is what returns that ratio here, and it is a
+ * pre-veil boost, so nothing downstream of the tint ever sees a saturation of
+ * 1.6. The panel wants a *lower* figure, not this one — see {@link PANEL_FROST}.
  *
  * `clear` carries the platform's frost rather than this library's history: 1.7
  * is the native `.glassEffect(.clear)` σ, measured the same way as `regular`'s
@@ -125,19 +147,48 @@ export interface MaterialVariant {
  * the content; anything with small text sitting directly on busy content wants
  * `regular`.
  *
- * Saturation drops from `clear`'s 1.3 rather than rising: under the veil the
- * backdrop is already being pushed toward white, and boosting its saturation
- * as well makes the frost look stained instead of milky. Slightly above 1
- * because a Gaussian blur bleeds colours into each other and washes them out —
- * the same reason the scroll edge re-saturates under its blur band.
+ * `clear`'s veil and saturation come from the same /compare-ios/ab pass. Native
+ * `.glassEffect(.clear)` on a button capsule lifts luminance by 16% and hands
+ * the backdrop's saturation back essentially untouched (0.65→0.66) — it is a
+ * lens, not a tint. At 0.05 the tint lifted only 6% and, with saturation at 1.3,
+ * *raised* chroma to 0.76: a juicier backdrop than the one behind it, which is
+ * the one thing a clear material must never do. 0.105 is the 16% lift measured
+ * back (the same nonlinear stack as `regular`'s, so measured rather than
+ * scaled), and 1.35 is what *preserves* saturation once that denser tint is
+ * whitening it — the same compensation `regular` makes, at a fraction of the
+ * size because there is a fraction of the veil to compensate for. The settled
+ * pair measures 16.2% lift and 0.62→0.67 against the platform's 16.2% and
+ * 0.65→0.66.
  *
  * These are *default sources*, not clamps: any surface may set `blur`,
  * `opacity` or `saturation` explicitly and the variant leaves that prop alone.
  */
 export const MATERIAL_VARIANTS: Record<GlassVariant, MaterialVariant> = {
-	regular: { blur: 5, opacity: 0.27, saturation: 1.05 },
-	clear: { blur: 1.7, opacity: 0.05, saturation: 1.3 }
+	regular: { blur: 2, opacity: 0.27, saturation: 1.6 },
+	clear: { blur: 1.7, opacity: 0.105, saturation: 1.35 }
 };
+
+/**
+ * The `regular` material as a *panel* wears it, as opposed to a control.
+ *
+ * One material, two settings — see {@link MATERIAL_VARIANTS}. A menu or popover
+ * covers a page rather than floating on one, and iOS treats what it covers
+ * accordingly: σ ≈ 5–7pt against a control's ~2, and a chroma collapse to 0.17
+ * against a control's 0.28 from the same 0.64. Both figures were measured on
+ * /compare-ios/menu behind an auto-opened `UIMenu`, and both are what the panel
+ * matched at before the material was split — 5 is the bottom of the σ band,
+ * where it has sat since the frosted panel flattened its own veil dip and
+ * stopped needing radius to compensate, and 1.05 is a saturation that barely
+ * compensates because at this veil the platform barely compensates either.
+ *
+ * The veil itself does *not* differ between the two, which is why only these two
+ * are here: the panel takes its tint from the material like everything else.
+ *
+ * Only {@link MENU_GLASS} reads this, and only at its settled end. A toolbar or
+ * a tab rail is a control and inherits the material's figures, which is what the
+ * platform's own bars measure at.
+ */
+export const PANEL_FROST = { blur: 5, saturation: 1.05 } as const;
 
 /**
  * Floor applied to the backdrop blur on the `degraded` tier.
@@ -151,11 +202,15 @@ export const MATERIAL_VARIANTS: Record<GlassVariant, MaterialVariant> = {
  * was meant all along: never less than this, never more than the material asked
  * for.
  *
- * It sits a pixel above `regular`'s own frost and therefore raises that too, on
+ * It sits well above `regular`'s own frost and therefore raises that too, on
  * this tier only. Deliberate rather than an oversight to be tidied by tracking
  * the material: the figure `regular` wears is a *refracting* surface's, and here
  * there is no refraction to carry the material — the same argument that raises
- * `clear`, applied to a σ that happens to be close to the floor already.
+ * `clear`, applied to a σ that used to be close to the floor and, since the
+ * material took the platform's control frost of 2, no longer is. The gap grew;
+ * the argument did not change. What a `degraded` surface has to look like is a
+ * frosted pane, and 2px of blur under no displacement at all is a tinted
+ * rectangle — which is exactly what this floor exists to prevent.
  */
 export const DEGRADED_BLUR_FLOOR = 6;
 
@@ -353,17 +408,22 @@ export const DROPLET_ACTIVE: DropletVisual = {
  * trigger's place on a frame, so any optical daylight between the two at that
  * moment is a visible pop — the patch has to wear the trigger's own material.
  *
- * `regular` wears {@link MATERIAL_VARIANTS}' figures at both ends — the rest
- * patch has to be optically the trigger it replaces, the trigger is the stock
- * material, and the stock material now *is* the measured native panel (σ ≈
- * 5–7pt under a ~68% veil — see the variant's own comment for the session the
- * figures come from). The settled end briefly carried its own blur, 8 against
- * the variant's then-12: the variant figure was radius compensating for a veil
- * that still dipped at the panel's centre, and the panel had to undercut it to
- * sit nearer the reference. Retuning the variant to the measurement dissolved
- * the disagreement, so the override went with it. Blur is therefore constant
- * across the morph and far from zero, which keeps `feGaussianBlur`
- * structurally in the chain throughout; what the morph animates is the
+ * `regular` takes its tint and saturation from {@link MATERIAL_VARIANTS} at both
+ * ends — the rest patch has to be optically the trigger it replaces, and the
+ * trigger is the stock material — but the two ends now disagree about frost, on
+ * purpose. iOS runs one `regular` material at two σ: ~2pt behind a control,
+ * ~5–7 behind a menu panel (see {@link PANEL_FROST}). The rest patch is a
+ * control, so it wears the material's 2; the settled panel wears the panel's 5;
+ * and the morph interpolates between them, which is the physically obvious
+ * reading of the same animation — the puddle deepens into a slab, and a thicker
+ * slab scatters more. It is also free: blur is a live filter attribute, not part
+ * of the displacement map's cache key, so a σ that moves every frame costs
+ * nothing (see CLAUDE.md's invariant). The panel end briefly carried an override
+ * for the opposite reason — 8 against the variant's then-12, undercutting a
+ * figure that was radius compensating for a veil dip — which is worth
+ * remembering only because the override is back and means something different
+ * now. Blur stays far from zero throughout either way, keeping `feGaussianBlur`
+ * structurally in the chain; what the morph animates alongside it is the
  * refraction arriving and the rim lighting.
  *
  * `clear` keeps the hand-tuned tints the menu shipped with when the whole
@@ -386,6 +446,7 @@ export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 			displacementRatio: 0,
 			opacity: MATERIAL_VARIANTS.regular.opacity,
 			saturation: MATERIAL_VARIANTS.regular.saturation,
+			// The trigger's frost, because at rest this patch *is* the trigger.
 			blur: MATERIAL_VARIANTS.regular.blur,
 			specularIntensity: 0.2,
 			scale: 1
@@ -393,8 +454,10 @@ export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 		active: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
 			opacity: MATERIAL_VARIANTS.regular.opacity,
-			saturation: MATERIAL_VARIANTS.regular.saturation,
-			blur: MATERIAL_VARIANTS.regular.blur,
+			// The panel's own material at the settled end: iOS crushes what a menu
+			// covers harder than what a button covers, in σ *and* in chroma.
+			saturation: PANEL_FROST.saturation,
+			blur: PANEL_FROST.blur,
 			// A settled panel, so it sits on the resting specular scale — brighter
 			// than the 0.35 default because the rim is most of what separates the
 			// panel from the page, but nowhere near the transient-grab 1.0.
@@ -1067,47 +1130,48 @@ export const TABS_BUBBLE = {
  *
  * `regular` deliberately does *not* inherit {@link MATERIAL_VARIANTS}' figures,
  * though it keeps their shape — the material held constant across the morph,
- * the surface waking up being the lens deepening and the rim lighting. The
- * variant's blur/opacity were tuned against the UIMenu panel, which is by far
- * the frostiest surface iOS draws (σ≈6–8pt). The tab bar is not that surface:
- * measured in the iOS 26.5 simulator over the /compare-ios stripes
- * (2026-07-28), the native bar blurs at only σ≈2.5–3pt — and
- * `.glassEffect(.regular)` at segmented-control geometry at σ≈2 — while
- * crushing the backdrop under a ~60% white veil (luminance 160→218 over the
- * teal stripe, saturation 0.69→0.29). Apple's frost is luminance compression
- * with a small radius, not a large radius with a light wash. The old
- * inherited figures (blur 12, tint 0.24 ≈ a 34% effective veil) had that
- * exactly backwards: colours bled into each other while the backdrop behind
- * them stayed dark and saturated, which reads as wet glass rather than the
- * milky bar. Hence blur 2.75, and a tint measured — not derived — against the
- * native ~61%, because the stack of `--lg-tint-boost` and the edge layers is
- * nonlinear in the alpha: 0.24 landed at 34%, 0.44 overshot to 71%, and 0.38
- * was the interpolation onto 61%.
+ * the surface waking up being the lens deepening and the rim lighting. It sits
+ * close to them now and did not always: the variant's blur/opacity were tuned
+ * against the UIMenu panel, which is by far the frostiest surface iOS draws
+ * (σ≈6–8pt), while the tab bar is a control. Measured in the iOS 26.5 simulator
+ * over the /compare-ios stripes (2026-07-28), the native bar blurs at only
+ * σ≈2.5–3pt — and `.glassEffect(.regular)` at segmented-control geometry at
+ * σ≈1.7–2.1 — while crushing the backdrop under a ~65% white veil (luminance
+ * 131→212 with the selected segment excluded, saturation 0.74→0.32). Apple's
+ * frost is luminance compression with a small radius, not a large radius with a
+ * light wash. The old inherited figures (blur 12, tint 0.24 ≈ a 34% effective
+ * veil) had that exactly backwards: colours bled into each other while the
+ * backdrop behind them stayed dark and saturated, which reads as wet glass
+ * rather than the milky bar. Hence blur 2, and a tint measured — not derived —
+ * because the stack of `--lg-tint-boost` and the edge layers is nonlinear in
+ * the alpha: on the old lit-from-the-corner veil 0.24 landed at 34%, 0.44
+ * overshot to 71%, and 0.38 interpolated onto 61%; on the flat veil the material
+ * carries now (see `.lg[data-variant]` in liquidGlass.css), where 0.38 is an
+ * opaque bar, 0.228 measured 52%, 0.30 overshot to 70.5%, and 0.26 landed on
+ * 64.6% against the platform's 65.6%. Anything past this wants re-measuring on
+ * /compare-ios/ab — and measuring it with the selection bubble excluded, since
+ * that tile is a fill sitting on the rail, not the rail's material.
  *
- * That whole sweep of measurements was taken while `regular` still wore the
- * lit-from-the-corner veil, so the 61% is what the *centre* of the rail read at,
- * under `--lg-tint-grad-mid: 0.6`. The material carries a flat veil now (see
- * `.lg[data-variant]` in liquidGlass.css), and 0.38 under a flat sheet is an
- * opaque bar: 0.99 effective in dark, with the corner clamped long before that.
- * 0.228 is the same measurement in the new shape rather than a fresh guess —
- * the tint layer's alpha is strictly multiplicative in the gradient stop, so
- * 0.38 × 0.6 reposes exactly the alpha that was measured at 61%, in both
- * schemes. What it drops is the saturated corner, which is the flattening doing
- * its job. Anything past this wants re-measuring on /compare-ios/tabs.
- *
- * Saturation stays at ~1: the reference's saturation collapse is the veil
- * doing the crushing, not a desaturating filter, and it comes along for free.
+ * Saturation is a veil compensation, exactly as the material's is, and for the
+ * same reason: a white tint this dense pulls chroma out along with the contrast,
+ * and at ~1 the rail returned 0.26 of the backdrop's colour where iOS returns
+ * 0.32. 1.7 puts it back. It runs above the material's 1.6 because the rail
+ * blurs less than a button and therefore loses a little less colour to bleed
+ * before the tint — the two figures are answering the same question at
+ * marginally different veils.
  *
  * `clear` keeps the clear-glass shape — near-zero frost, a small resting tint,
  * saturation doing the legibility work, blur *rising* under the gesture
  * because a saturating backdrop needs the extra frost for the labels to stay
  * legible against it. The figures were pulled toward the same simulator
- * session: native `.glassEffect(.clear)` measures σ≈1pt, a ~20–25% luminance
- * lift, and a backdrop saturation it *preserves* (0.65→0.58) — where the old
- * 1.5 resting boost pushed it up to 0.80, visibly juicier than the platform.
- * So rest saturates at 1.1 and tints at 0.14 (lift, from the old 0.08 that
- * only managed ~14%), and the melt spike scales down with it, 2.4 → 1.8 over
- * 0.09 tint, keeping the same awake-reading at the new resting level.
+ * session: native `.glassEffect(.clear)` measures σ≈1pt, a ~17% luminance lift,
+ * and a backdrop saturation it *preserves* (0.80→0.77) — where the old 1.5
+ * resting boost pushed it up to 0.80 from a lower base, visibly juicier than the
+ * platform. So rest tints at 0.09 (measured: 0.14 lifted 24%, 0.09 lands on
+ * 17.8% against the reference's 17.4%) and saturates at 1.55 to hand that chroma
+ * back — 0.80 measured against the platform's 0.77. The melt keeps the shape it
+ * had around the new resting level: the tint thins by the same third and the
+ * saturation spikes by the same half again, so the gesture reads as it did.
  *
  * `scale` is pinned at 1 in every endpoint and never read: the rail is the
  * component's layout box, and scaling it would move the segments the bubble is
@@ -1117,17 +1181,17 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 	regular: {
 		rest: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
-			opacity: 0.228,
-			saturation: 1.05,
-			blur: 2.75,
+			opacity: 0.26,
+			saturation: 1.7,
+			blur: 2,
 			specularIntensity: 0.35,
 			scale: 1
 		},
 		active: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
-			opacity: 0.228,
-			saturation: 1.05,
-			blur: 2.75,
+			opacity: 0.26,
+			saturation: 1.7,
+			blur: 2,
 			specularIntensity: 1,
 			scale: 1
 		}
@@ -1135,16 +1199,16 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 	clear: {
 		rest: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
-			opacity: 0.14,
-			saturation: 1.1,
+			opacity: 0.09,
+			saturation: 1.55,
 			blur: 0.4,
 			specularIntensity: 0.35,
 			scale: 1
 		},
 		active: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
-			opacity: 0.09,
-			saturation: 1.8,
+			opacity: 0.06,
+			saturation: 2.5,
 			blur: 0.6,
 			specularIntensity: 1,
 			scale: 1

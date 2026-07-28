@@ -219,11 +219,12 @@
 	const backdrop = $derived.by(() => {
 		if (tier === 'full') return `url(#${filterId})`;
 		// The SVG chain carries blur and saturation for the full tier; the degraded
-		// tier has to express them as CSS filter functions. A `clear`-scale blur is
-		// raised to the floor, because without refraction it is all that separates
-		// the glass from its backdrop; a `regular`-scale one is already a frost and
-		// is used as-is. See DEGRADED_BLUR_FLOOR for why this is a floor and not the
-		// multiplier it used to be.
+		// tier has to express them as CSS filter functions. Both materials now blur
+		// below the floor and are raised to it — the platform's own control frost is
+		// ~2px, and 2px under no refraction at all is a tinted rectangle rather than
+		// a pane of glass. Only a surface that asked for a panel-scale frost keeps
+		// its own figure. See DEGRADED_BLUR_FLOOR for why this is a floor and not
+		// the multiplier it used to be.
 		if (tier === 'degraded') {
 			const radius = Math.max(DEGRADED_BLUR_FLOOR, effectiveBlur);
 			return `blur(${radius}px) saturate(${effectiveSaturation})`;
