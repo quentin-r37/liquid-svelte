@@ -4,6 +4,14 @@ import mkcert from 'vite-plugin-mkcert';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+	// `motion` n'est atteint que depuis `src/lib/**`, que le scanner de dépendances de SvelteKit
+	// ne visite pas au démarrage (les routes sont découvertes à la demande). Il était donc trouvé
+	// au premier chargement de /demo, déclenchant une re-optimisation à chaud — laquelle échoue en
+	// EBUSY sur Windows au `rename(deps_temp → deps)`, après que Vite ait déjà supprimé `deps`.
+	// Le pré-déclarer fait tout tenir dans la passe d'optimisation initiale.
+	optimizeDeps: {
+		include: ['motion']
+	},
 	plugins: [
 		mkcert(),
 		sveltekit({
