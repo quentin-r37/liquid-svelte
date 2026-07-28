@@ -122,14 +122,17 @@ export interface MaterialVariant {
  * 66.8% on a button capsule, against Apple's 66.9%. The stack is nonlinear in
  * the alpha, so tune this by measuring on /compare-ios/ab, never by scaling.
  *
- * Saturation compensates that veil rather than seasoning the material. A white
- * tint at this alpha does not just lift luminance, it drags chroma out with it:
- * at 1.05 the backdrop came through at 0.18 saturation where the platform's came
- * through at 0.28 — same veil, half the colour, which is what made the frost read
- * as milk rather than as frosted colour. iOS hands back ~44% of the backdrop's
- * chroma under a 67% veil; 1.6 is what returns that ratio here, and it is a
- * pre-veil boost, so nothing downstream of the tint ever sees a saturation of
- * 1.6. The panel wants a *lower* figure, not this one — see {@link PANEL_FROST}.
+ * Saturation stays the mild figure a blur warrants — colours bleed into each
+ * other under a Gaussian and wash out, so a little goes back — and deliberately
+ * does *not* carry the veil's chroma compensation, which is much larger and
+ * belongs to the veil. A white tint at this alpha drags chroma out along with the
+ * contrast: uncompensated, the backdrop came through at 0.18 saturation where the
+ * platform's came through at 0.28. What closes that is `--lg-chroma-boost` in
+ * liquidGlass.css, ×1.5 in light and ×0.85 in dark, because how much chroma a
+ * veil destroys depends on the veil's *colour* — compositing toward white
+ * destroys it, compositing toward near-black is a multiplication and preserves
+ * it — and the colour is scheme-owned, which a token cannot see. The menu panel
+ * turns the compensation off entirely; see {@link PANEL_FROST}.
  *
  * `clear` carries the platform's frost rather than this library's history: 1.7
  * is the native `.glassEffect(.clear)` σ, measured the same way as `regular`'s
@@ -154,18 +157,20 @@ export interface MaterialVariant {
  * *raised* chroma to 0.76: a juicier backdrop than the one behind it, which is
  * the one thing a clear material must never do. 0.105 is the 16% lift measured
  * back (the same nonlinear stack as `regular`'s, so measured rather than
- * scaled), and 1.35 is what *preserves* saturation once that denser tint is
- * whitening it — the same compensation `regular` makes, at a fraction of the
- * size because there is a fraction of the veil to compensate for. The settled
- * pair measures 16.2% lift and 0.62→0.67 against the platform's 16.2% and
- * 0.65→0.66.
+ * scaled). Saturation stays at the same mild 1.05 and, as with `regular`, the
+ * veil's own compensation lives in CSS — ×1.3 rather than ×1.5, a fraction of
+ * the correction because there is a fraction of the veil to correct for, and
+ * scheme-independent because `clear`'s veil is (see the
+ * `.lg[data-variant='clear']` rule). The settled pair measures a 16.2% lift and
+ * 0.62→0.67 against the platform's 16.2% and 0.65→0.66, and 15.1% / 0.62→0.64 in
+ * dark against a platform that measures the same figures in both schemes.
  *
  * These are *default sources*, not clamps: any surface may set `blur`,
  * `opacity` or `saturation` explicitly and the variant leaves that prop alone.
  */
 export const MATERIAL_VARIANTS: Record<GlassVariant, MaterialVariant> = {
-	regular: { blur: 2, opacity: 0.27, saturation: 1.6 },
-	clear: { blur: 1.7, opacity: 0.105, saturation: 1.35 }
+	regular: { blur: 2, opacity: 0.27, saturation: 1.05 },
+	clear: { blur: 1.7, opacity: 0.105, saturation: 1.05 }
 };
 
 /**
@@ -178,8 +183,14 @@ export const MATERIAL_VARIANTS: Record<GlassVariant, MaterialVariant> = {
  * /compare-ios/menu behind an auto-opened `UIMenu`, and both are what the panel
  * matched at before the material was split — 5 is the bottom of the σ band,
  * where it has sat since the frosted panel flattened its own veil dip and
- * stopped needing radius to compensate, and 1.05 is a saturation that barely
- * compensates because at this veil the platform barely compensates either.
+ * stopped needing radius to compensate.
+ *
+ * The saturation figure is the material's own and looks like it says nothing;
+ * what carries the panel's harder chroma collapse is the *absence* of the veil
+ * compensation every control gets — `.lg-menu-panel` pins `--lg-chroma-boost` to
+ * 1 in LiquidMenu's stylesheet. Stated there rather than as a token because it
+ * is the same quantity the schemes vary, and it belongs wherever the veil it
+ * compensates is decided.
  *
  * The veil itself does *not* differ between the two, which is why only these two
  * are here: the panel takes its tint from the material like everything else.
@@ -1152,13 +1163,14 @@ export const TABS_BUBBLE = {
  * /compare-ios/ab — and measuring it with the selection bubble excluded, since
  * that tile is a fill sitting on the rail, not the rail's material.
  *
- * Saturation is a veil compensation, exactly as the material's is, and for the
- * same reason: a white tint this dense pulls chroma out along with the contrast,
- * and at ~1 the rail returned 0.26 of the backdrop's colour where iOS returns
- * 0.32. 1.7 puts it back. It runs above the material's 1.6 because the rail
- * blurs less than a button and therefore loses a little less colour to bleed
- * before the tint — the two figures are answering the same question at
- * marginally different veils.
+ * Saturation runs a little above the material's 1.05, and only a little: the
+ * veil's chroma compensation is not here but in `--lg-chroma-boost`
+ * (liquidGlass.css), which multiplies this by 1.5 in light. What the extra 0.1
+ * buys is the rail's own reading — under that boost it measures 0.31 of the
+ * backdrop's colour against the platform's 0.32, where the material's bare
+ * figure left it a step short. Raising *this* rather than the boost keeps the
+ * correction where it belongs: the boost answers to the veil, which the rail
+ * shares with every other control, and this answers to the rail.
  *
  * `clear` keeps the clear-glass shape — near-zero frost, a small resting tint,
  * saturation doing the legibility work, blur *rising* under the gesture
@@ -1168,10 +1180,11 @@ export const TABS_BUBBLE = {
  * and a backdrop saturation it *preserves* (0.80→0.77) — where the old 1.5
  * resting boost pushed it up to 0.80 from a lower base, visibly juicier than the
  * platform. So rest tints at 0.09 (measured: 0.14 lifted 24%, 0.09 lands on
- * 17.8% against the reference's 17.4%) and saturates at 1.55 to hand that chroma
- * back — 0.80 measured against the platform's 0.77. The melt keeps the shape it
- * had around the new resting level: the tint thins by the same third and the
- * saturation spikes by the same half again, so the gesture reads as it did.
+ * 17.7% against the reference's 17.4%) and saturates at 1.2, which under
+ * `clear`'s ×1.3 veil compensation measures 0.80 against the platform's 0.77.
+ * The melt keeps the shape it had around the new resting level: the tint thins
+ * by the same third and the saturation spikes by the same half again, so the
+ * gesture reads as it did.
  *
  * `scale` is pinned at 1 in every endpoint and never read: the rail is the
  * component's layout box, and scaling it would move the segments the bubble is
@@ -1182,7 +1195,7 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 		rest: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
 			opacity: 0.26,
-			saturation: 1.7,
+			saturation: 1.15,
 			blur: 2,
 			specularIntensity: 0.35,
 			scale: 1
@@ -1190,7 +1203,7 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 		active: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
 			opacity: 0.26,
-			saturation: 1.7,
+			saturation: 1.15,
 			blur: 2,
 			specularIntensity: 1,
 			scale: 1
@@ -1200,7 +1213,7 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 		rest: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
 			opacity: 0.09,
-			saturation: 1.55,
+			saturation: 1.2,
 			blur: 0.4,
 			specularIntensity: 0.35,
 			scale: 1
@@ -1208,7 +1221,7 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 		active: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
 			opacity: 0.06,
-			saturation: 2.5,
+			saturation: 1.9,
 			blur: 0.6,
 			specularIntensity: 1,
 			scale: 1
