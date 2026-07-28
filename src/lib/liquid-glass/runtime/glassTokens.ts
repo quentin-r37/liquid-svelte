@@ -94,12 +94,16 @@ export interface MaterialVariant {
  * stripe boundaries behind an auto-opened `UIMenu`): the native panel blurs at
  * only σ ≈ 5–7pt while compositing a ~68% white veil over the result
  * (teal-stripe luminance 159→225, saturation 0.64→0.17). The blur figure here
- * is that σ; it shipped at 12 for a while, which was radius compensating for a
- * veil that still dipped at the panel's centre — the frosted menu flattens the
- * dip now (see `LiquidMenu.svelte`), so the compensation is gone. The frost is
- * still not decoration: every ripple in the bezel band is smoothed before it
- * is displaced, which is what lets the edge refraction read as *liquid* rather
- * than as noise. The tint stays well under the measured veil because the
+ * is that σ, and it has come down twice, both times because the veil got closer
+ * to the platform's. It shipped at 12 — radius compensating for a veil that
+ * dipped at the panel's centre — and went to 6 when the frosted menu flattened
+ * its own dip. 5, the bottom of the measured band, is the end of the same
+ * retreat: the dip is gone from every `regular` surface now, not just the menu
+ * panel (see `.lg[data-variant]` in liquidGlass.css), so the veil obliterates
+ * where it used to leak and the frost has nothing left to compensate for. The
+ * frost is still not decoration: every ripple in the bezel band is smoothed
+ * before it is displaced, which is what lets the edge refraction read as
+ * *liquid* rather than as noise. Anything below this band starts showing that. The tint stays well under the measured veil because the
  * scheme boost (`--lg-tint-boost`) and the edge layers stack on top of it —
  * 0.24 measured out to a 61% effective veil on the settled panel, 0.27 is the
  * step onto the native 68%. The stack is nonlinear in the alpha, so tune this
@@ -109,9 +113,9 @@ export interface MaterialVariant {
  * is the native `.glassEffect(.clear)` σ, measured the same way as `regular`'s
  * — the figure {@link MENU_GLASS}'s settled clear panel has carried since it
  * was measured, now promoted to the material itself. It shipped at 0.5, the
- * default from when the whole library was clear glass, and 0.5 against
- * `regular`'s 6 is a ×12 step where the platform takes ×3.5: the variant switch
- * read as a blur toggle, which is not what the two materials are. On iOS the
+ * default from when the whole library was clear glass, and 0.5 under a frost of
+ * 6 was a ×12 step where the platform takes ×3: the variant switch read as a
+ * blur toggle, which is not what the two materials are. On iOS the
  * frost barely moves between them and the *veil* moves enormously — 5% against
  * a measured 68% — so the veil is what has to carry the switch, which is also
  * why the variant now picks the veil's shape (see `.lg[data-variant]` in
@@ -131,7 +135,7 @@ export interface MaterialVariant {
  * `opacity` or `saturation` explicitly and the variant leaves that prop alone.
  */
 export const MATERIAL_VARIANTS: Record<GlassVariant, MaterialVariant> = {
-	regular: { blur: 6, opacity: 0.27, saturation: 1.05 },
+	regular: { blur: 5, opacity: 0.27, saturation: 1.05 },
 	clear: { blur: 1.7, opacity: 0.05, saturation: 1.3 }
 };
 
