@@ -1079,10 +1079,22 @@ export const TABS_BUBBLE = {
  * inherited figures (blur 12, tint 0.24 ≈ a 34% effective veil) had that
  * exactly backwards: colours bled into each other while the backdrop behind
  * them stayed dark and saturated, which reads as wet glass rather than the
- * milky bar. Hence blur 2.75, and tint 0.38 — the effective veil once
- * `--lg-tint-boost` and the edge layers stack on top is *measured*, not
- * derived, because the stack is nonlinear in the alpha: 0.24 landed at 34%,
- * 0.44 overshot to 71%, 0.38 is the interpolation onto the native ~61%.
+ * milky bar. Hence blur 2.75, and a tint measured — not derived — against the
+ * native ~61%, because the stack of `--lg-tint-boost` and the edge layers is
+ * nonlinear in the alpha: 0.24 landed at 34%, 0.44 overshot to 71%, and 0.38
+ * was the interpolation onto 61%.
+ *
+ * That whole sweep of measurements was taken while `regular` still wore the
+ * lit-from-the-corner veil, so the 61% is what the *centre* of the rail read at,
+ * under `--lg-tint-grad-mid: 0.6`. The material carries a flat veil now (see
+ * `.lg[data-variant]` in liquidGlass.css), and 0.38 under a flat sheet is an
+ * opaque bar: 0.99 effective in dark, with the corner clamped long before that.
+ * 0.228 is the same measurement in the new shape rather than a fresh guess —
+ * the tint layer's alpha is strictly multiplicative in the gradient stop, so
+ * 0.38 × 0.6 reposes exactly the alpha that was measured at 61%, in both
+ * schemes. What it drops is the saturated corner, which is the flattening doing
+ * its job. Anything past this wants re-measuring on /compare-ios/tabs.
+ *
  * Saturation stays at ~1: the reference's saturation collapse is the veil
  * doing the crushing, not a desaturating filter, and it comes along for free.
  *
@@ -1105,7 +1117,7 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 	regular: {
 		rest: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
-			opacity: 0.38,
+			opacity: 0.228,
 			saturation: 1.05,
 			blur: 2.75,
 			specularIntensity: 0.35,
@@ -1113,7 +1125,7 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 		},
 		active: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
-			opacity: 0.38,
+			opacity: 0.228,
 			saturation: 1.05,
 			blur: 2.75,
 			specularIntensity: 1,
