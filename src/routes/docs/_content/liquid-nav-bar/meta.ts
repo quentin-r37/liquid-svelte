@@ -12,7 +12,7 @@ const meta: DocMeta = {
 			title: 'Large title handover',
 			note: 'Scroll inside the panel. The edge materialises as the large title closes on the bar, and the inline title arrives exactly as the large one goes under — nothing is sprung, the scroll position is the animation. The scroll container must carry no mask, filter, opacity or transform, or the band has nothing left to blur.',
 			component: Basic,
-			stage: { height: '24rem', kind: 'grid', switchable: true }
+			stage: { height: '24rem', kind: 'grid', switchable: true, padded: false }
 		}
 	],
 	props: [

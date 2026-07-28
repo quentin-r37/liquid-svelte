@@ -157,6 +157,8 @@
 	.page {
 		min-height: 100dvh;
 		color: #f4f6fa;
+		/* Native form controls (select popups) follow the toggle, not the OS. */
+		color-scheme: dark;
 		font-family:
 			'Inter Variable',
 			system-ui,
@@ -168,6 +170,7 @@
 
 	.page[data-scheme='light'] {
 		color: #0c0e16;
+		color-scheme: light;
 	}
 
 	.chrome {

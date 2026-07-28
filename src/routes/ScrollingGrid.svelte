@@ -6,13 +6,13 @@
 	 * the displacement obvious in space, and scrolling makes it obvious in time — a
 	 * line visibly bends as it enters the bezel, snaps back as it leaves.
 	 *
-	 * Deliberately restrained: one fine grid, two desaturated colour fields, and a
-	 * single hard-edged marker crossing the frame. The loud version read as the subject
-	 * of the page instead of the thing the glass sits on top of — and a backdrop that
-	 * competes makes it *harder* to judge the optics, not easier. What is left is the
-	 * minimum each effect needs: two hues so chromatic aberration has opposing edges to
-	 * split, straight lines so displacement is measurable, and one moving hard edge so
-	 * the lateral shift stays visible.
+	 * Deliberately restrained, styled after the WWDC25 key art: a sheet of brushed
+	 * silver ruled by large-cell hairlines and two near-grey colour fields — nothing
+	 * else. The loud version read as the subject of the page instead of the thing the
+	 * glass sits on top of — and a backdrop that competes makes it *harder* to judge
+	 * the optics, not easier. What is left is the minimum each effect needs: two hues
+	 * so chromatic aberration has opposing edges to split, and straight lines in
+	 * motion so displacement is measurable in space and in time alike.
 	 *
 	 * The coarse second grid is gone with it. It existed for parallax — two layers
 	 * disagreeing so the flat centre and the refracting rim never line up — but at this
@@ -44,19 +44,24 @@
 	<div class="field field-b"></div>
 
 	<div class="layer minor"></div>
-
-	<div class="markers">
-		<span class="marker bar"></span>
-	</div>
 </div>
 
 <style>
+	/*
+	 * The surface is WWDC25's sheet of brushed silver: a diagonal metallic ramp with one
+	 * broad specular highlight up and left of centre and a shadowed lower-right corner.
+	 * All three gradients are static and painted once — the sheen must never repaint
+	 * under the backdrop-filter, so only the grid layer above it moves.
+	 */
 	.backdrop {
 		position: absolute;
 		inset: 0;
 		overflow: hidden;
-		background: #08090f;
-		color: rgb(255 255 255 / 0.4);
+		background:
+			radial-gradient(140% 100% at 28% 18%, rgb(255 255 255 / 0.1), transparent 55%),
+			radial-gradient(120% 120% at 100% 100%, rgb(0 0 0 / 0.5), transparent 60%),
+			linear-gradient(115deg, #24262d 0%, #17181d 48%, #0d0e12 100%);
+		color: rgb(255 255 255 / 0.35);
 	}
 
 	.backdrop.fixed {
@@ -65,39 +70,43 @@
 	}
 
 	.backdrop[data-scheme='light'] {
-		background: #f2f1ed;
-		color: rgb(12 14 26 / 0.32);
+		background:
+			radial-gradient(140% 100% at 28% 18%, rgb(255 255 255 / 0.85), transparent 55%),
+			radial-gradient(120% 120% at 100% 100%, rgb(58 62 72 / 0.35), transparent 60%),
+			linear-gradient(115deg, #edeef1 0%, #d5d8dd 45%, #b6bac2 78%, #a0a4ad 100%);
+		color: rgb(26 30 40 / 0.55);
 	}
 
 	/*
 	 * Two fields, placed on opposing corners and kept far apart in hue. Chromatic
 	 * aberration needs a colour gradient to split, not saturation for its own sake —
-	 * a 90px blur at a third opacity still gives the filter a usable ramp while
-	 * reading as a tone on the background rather than as artwork.
+	 * and the WWDC-style silver surface must stay silver, so the hues are pulled almost
+	 * all the way to grey: steel blue against champagne is enough of a ramp for the
+	 * filter to split while both still read as lighting on metal, not as artwork.
 	 */
 	.field {
 		position: absolute;
 		border-radius: 50%;
 		filter: blur(90px);
-		opacity: 0.32;
+		opacity: 0.28;
 	}
 
 	.field-a {
 		inset: -18% auto auto -12%;
 		width: 62vw;
 		height: 62vw;
-		background: radial-gradient(circle, #4a5fc8 0%, #2c3a7a 52%, transparent 74%);
+		background: radial-gradient(circle, #7a8ab0 0%, #4a5470 52%, transparent 74%);
 	}
 
 	.field-b {
 		inset: auto -14% -22% auto;
 		width: 56vw;
 		height: 56vw;
-		background: radial-gradient(circle, #c88a4a 0%, #7a4f2c 50%, transparent 72%);
+		background: radial-gradient(circle, #b0a084 0%, #6e6250 50%, transparent 72%);
 	}
 
 	.backdrop[data-scheme='light'] .field {
-		opacity: 0.24;
+		opacity: 0.2;
 	}
 
 	/*
@@ -112,17 +121,19 @@
 
 	/*
 	 * The tile size has to match the keyframe translation exactly or the loop seams.
-	 * Opacity is up from the two-layer version: this grid used to sit under a heavier
-	 * one and only had to add texture — carrying the frame alone it needs to be
-	 * readable on its own.
+	 * Cells are WWDC-poster large — hairlines ruling a sheet of metal rather than graph
+	 * paper — which costs bezel crossings, so each line that does cross gets to be more
+	 * visible: opacity is up from the 28px version to compensate for there being far
+	 * fewer lines. ~12px/s is the sweet spot: brisk enough that a line is always mid-bezel
+	 * somewhere, slow enough that the surface still reads as calm metal.
 	 */
 	.minor {
 		background-image:
 			linear-gradient(to right, currentColor 0 1px, transparent 1px 100%),
 			linear-gradient(to bottom, currentColor 0 1px, transparent 1px 100%);
-		background-size: 28px 28px;
-		opacity: 0.2;
-		animation: drift-minor calc(4s / var(--speed)) linear infinite;
+		background-size: 120px 120px;
+		opacity: 0.5;
+		animation: drift-minor calc(10s / var(--speed)) linear infinite;
 	}
 
 	@keyframes drift-minor {
@@ -130,53 +141,12 @@
 			transform: translate3d(0, 0, 0);
 		}
 		to {
-			transform: translate3d(28px, 28px, 0);
-		}
-	}
-
-	/*
-	 * One hard-edged shape crossing the frame: the grid shows the bend, this shows the
-	 * lateral shift. A single bar on a long cycle is enough to catch — four shapes on
-	 * overlapping cycles meant something was always mid-crossing, which is exactly the
-	 * busyness that made the grid hard to read.
-	 */
-	.markers {
-		position: absolute;
-		inset: 0;
-	}
-
-	.marker {
-		position: absolute;
-		left: 0;
-		display: block;
-		will-change: transform;
-	}
-
-	.bar {
-		top: 32%;
-		width: 220px;
-		height: 14px;
-		border-radius: 7px;
-		background: rgb(255 255 255 / 0.5);
-		animation: cross-right calc(38s / var(--speed)) linear infinite;
-	}
-
-	.backdrop[data-scheme='light'] .bar {
-		background: rgb(12 14 26 / 0.4);
-	}
-
-	@keyframes cross-right {
-		from {
-			transform: translate3d(-260px, 0, 0);
-		}
-		to {
-			transform: translate3d(calc(100vw + 260px), 0, 0);
+			transform: translate3d(120px, 120px, 0);
 		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.layer,
-		.marker {
+		.layer {
 			animation: none;
 		}
 	}

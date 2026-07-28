@@ -8,6 +8,7 @@
 		kind = 'grid',
 		height = '18rem',
 		switchable = true,
+		padded = true,
 		code,
 		raw,
 		children
@@ -15,6 +16,7 @@
 		kind?: BackdropKind;
 		height?: string;
 		switchable?: boolean;
+		padded?: boolean;
 		/** Shiki-highlighted HTML of the demo's own source, from the page's server load. */
 		code?: string;
 		/** The same source as plain text, for the copy button. */
@@ -36,7 +38,7 @@
 	-->
 	<div class="stage" style:height>
 		<Backdrop kind={activeKind} scheme={ctx.scheme} />
-		<div class="content">{@render children()}</div>
+		<div class="content" class:flush={!padded}>{@render children()}</div>
 	</div>
 	<div class="bar">
 		{#if switchable}
@@ -83,6 +85,10 @@
 		width: 100%;
 		height: 100%;
 		padding: 1.5rem;
+	}
+
+	.content.flush {
+		padding: 0;
 	}
 
 	.bar {

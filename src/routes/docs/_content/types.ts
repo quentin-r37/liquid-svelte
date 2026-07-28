@@ -24,6 +24,8 @@ export type DocDemo = {
 		kind?: BackdropKind;
 		height?: string;
 		switchable?: boolean;
+		/** false removes the stage's inner padding — for demos that fill the whole box. */
+		padded?: boolean;
 	};
 };
 
