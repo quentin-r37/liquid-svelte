@@ -515,9 +515,9 @@
 			<label>
 				<span>quality</span>
 				<select bind:value={quality} disabled={busy}>
-					<option value="low">low — 0.5× map, 1 pass</option>
-					<option value="medium">medium — 0.75× map, 1 pass</option>
-					<option value="high">high — 1× map, 3 passes</option>
+					<option value="low">low — half map, no rim passes</option>
+					<option value="medium">medium — half map, specular rim</option>
+					<option value="high">high — full map, 3 passes, rim antialias</option>
 				</select>
 			</label>
 			<label>

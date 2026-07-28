@@ -141,8 +141,15 @@ export const DISPLACEMENT_PER_BEZEL = 4;
 export interface QualityPreset {
 	/**
 	 * Displacement-map resolution multiplier. The refraction field is smooth and
-	 * `feImage` stretches it, so 0.5 is visually near-identical to 1.0 while
-	 * costing 4× less to rasterise.
+	 * `feImage` stretches it, so 0.5 is visually near-identical to 1.0.
+	 *
+	 * This is *not* only a rasterisation cost, which is what this comment used to
+	 * claim. `feImage` redraws its source into the filter region on every
+	 * execution, so a larger map is paid for again on every frame the surface is
+	 * refiltered. Measured on `/bench` — 48 tiles of 132×76 over a moving backdrop,
+	 * `full` tier, identical four-primitive chains differing only in this number —
+	 * 0.5 ran at 8.0ms per frame against 0.75's 12.1ms. Half the cost of the whole
+	 * base chain, for a field the eye cannot tell apart.
 	 *
 	 * The *specular* map is always full resolution — a 2px rim cannot survive
 	 * being generated at half scale and upscaled.
@@ -163,10 +170,18 @@ export interface QualityPreset {
 	 * Four primitives out of a chain that is otherwise four long, so switching it
 	 * off roughly halves the filter graph, and it pays twice more: the pad the
 	 * refraction passes carry so the antialias can read past the border-box
-	 * (`OUTPUT_PAD`) collapses to nothing, and the rim blur's own 3σ leaves the
+	 * (`outputPad`) collapses to nothing, and the rim blur's own 3σ leaves the
 	 * filter region. On a page carrying dozens of surfaces over a moving backdrop
 	 * — every one of them refiltered every frame — that is the difference the
 	 * `low` preset is for.
+	 *
+	 * It is, measurably, the most expensive thing in the chain, and by a margin
+	 * nobody guessed: on `/bench` at 48 tiles, `medium`, `full` tier, it adds
+	 * **12.0ms per frame** against the specular pass's 4.8ms — it alone takes the
+	 * page from 82fps to 41. Two thirds of that is not its own blur but what the
+	 * pad does to the passes above it: `outputPad` at 22 doubles what the
+	 * displacement pass fills (176×120 against 132×76) and widens the source blur
+	 * by a third.
 	 *
 	 * A preset flag rather than something derived from the geometry, deliberately:
 	 * quality is fixed per surface, so the chain's *structure* never changes while
@@ -178,37 +193,47 @@ export interface QualityPreset {
 }
 
 /**
- * What the ladder buys, measured rather than assumed (A/B screenshots at all
- * three tiers, and FPS on a busy page):
+ * What the ladder buys, measured rather than assumed — A/B screenshots at all
+ * three tiers, and the `/bench` route's tables, which is where the shape of this
+ * ladder came from. Every figure below is 48 tiles of 132×76 over a moving
+ * backdrop on the `full` tier, one primitive chain at a time.
  *
- * `low` → `medium` adds the generated specular map and the rim antialias. The
- * specular hairline at control sizes is hard to see — the CSS edge layers carry
- * the rim, and it only earns its keep on larger curved surfaces, where a line
- * that follows the normal reads and a gradient border does not. The antialias
- * is the one that costs: it is four of the chain's eight primitives, and
- * without it the refraction passes stop padding their output and the filter
- * region loses the rim blur's 3σ. So `low` is not a slightly cheaper `medium`,
- * it is half the filter — which is what a surface that has forty siblings on a
- * moving backdrop needs, and what the `/bench` route exists to check.
+ * The ladder used to climb on three axes at once, and it was wrong about which
+ * of them cost anything. Isolating them turned up a 2.5× spread nobody had
+ * guessed: the rim antialias adds **12.0ms per frame**, the specular pass
+ * **4.8ms**, and the map resolution — which the comment above used to call a
+ * rasterisation cost — **4.1ms** between 0.5 and 0.75, because `feImage` redraws
+ * its source every time the filter runs. Ordered by what they cost rather than
+ * by what they are called, the ladder falls out on its own.
  *
- * What it costs to give up: `feDisplacementMap` point-samples, so the outermost
- * band of the bezel can speckle over high-frequency backdrops. The half-scale
- * map at this preset already low-passes the *field*, which softens the failure
- * without curing it — see RIM_ANTIALIAS_PER_DISPLACEMENT. Text and thin lines
- * behind the rim are where it shows.
+ * `low` → `medium` adds the generated specular map, and nothing else. At control
+ * sizes the CSS edge layers carry the rim and it is hard to see; it earns its
+ * keep on larger curved surfaces, where a line that follows the normal reads and
+ * a gradient border does not. Both presets run the map at half resolution: the
+ * refraction field is smooth and `feImage` stretches it, so 0.75 bought nothing
+ * the eye could find and cost a third of the base chain.
  *
- * `medium` → `high` adds only the chromatic aberration, at triple the
- * displacement fill — enough to halve the frame rate of a large surface being
- * refiltered every frame. The dispersion is invisible at knob scale and reads
- * only on deep-bezel showcase surfaces (a lens over contrasty detail), which
- * is why **no component defaults to `high`**: it is an opt-in for the few
- * surfaces that can actually show it. The rim antialias is part of why the
- * fringe is subtle — a crisp fringe cannot survive `feDisplacementMap`'s
- * point sampling and comes out as the coloured speckle it used to be.
+ * `medium` → `high` adds the chromatic aberration, full-resolution maps and the
+ * rim antialias. They belong together, and that is the argument for putting the
+ * antialias here rather than one rung lower. `feDisplacementMap` point-samples,
+ * so the outer band of the bezel undersamples the backdrop: at one pass that is
+ * monochrome speckle, mostly hidden inside the distortion, and at three passes
+ * running at three scales it decorrelates into the coloured sparkle the
+ * aberration is otherwise blamed for. The cure is needed exactly where the
+ * chain that causes it lives. See RIM_ANTIALIAS_PER_DISPLACEMENT.
+ *
+ * So `medium` is not a slightly cheaper `high` — it is a third of the filter,
+ * which is what a surface with forty siblings on a moving backdrop needs from a
+ * default. What it gives up is legible on a detailed backdrop: text and thin
+ * lines behind the outermost millimetre of the bezel can crawl. A surface that
+ * shows it — a lens over contrasty detail, a deep-bezel showcase tile — asks for
+ * `high`, which is what that rung is for, and why **no component defaults to
+ * it**: three displacement passes over the backdrop is enough to halve the frame
+ * rate of a large surface being refiltered every frame.
  */
 export const QUALITY_PRESETS: Record<GlassQuality, QualityPreset> = {
 	low: { resolution: 0.5, chromatic: false, specular: false, rimAntialias: false },
-	medium: { resolution: 0.75, chromatic: false, specular: true, rimAntialias: true },
+	medium: { resolution: 0.5, chromatic: false, specular: true, rimAntialias: false },
 	high: { resolution: 1, chromatic: true, specular: true, rimAntialias: true }
 };
 

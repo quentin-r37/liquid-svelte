@@ -49,7 +49,10 @@
 		// `medium`, like every other component: see the note on QUALITY_PRESETS for
 		// why `high` is opt-in everywhere. A lens is the one surface where the
 		// dispersion genuinely reads, so it is also the first place to pass
-		// `quality="high"` back in.
+		// `quality="high"` back in — and now doubly so, since the rim antialias
+		// moved up to that rung. A 30px bezel dragged over body text is the exact
+		// case where point-sampled refraction crawls, and this is the only surface
+		// in the library shaped like that.
 		quality = 'medium',
 		mode = 'auto',
 		disabled = false,
