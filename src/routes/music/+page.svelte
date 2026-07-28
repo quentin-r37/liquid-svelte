@@ -262,10 +262,34 @@
 	let tierOverride = $state<GlassMode>('auto');
 	let showPanel = $state(true);
 
+	/**
+	 * Ctrl toggles the harness chrome — dev panel and FPS pill — so the screen can be
+	 * looked at (or captured) as the application it is pretending to be.
+	 *
+	 * The `{#if}` unmounts `FpsMeter` rather than hiding it, which also stops its
+	 * `requestAnimationFrame` loop — the meter costs a frame callback it should not be
+	 * spending while nobody is reading it. The counter restarts from 0 when the chrome
+	 * comes back and needs its 500ms window to settle; that is the trade, and it is the
+	 * right way round since the number is unreadable while hidden anyway.
+	 */
+	let chromeHidden = $state(false);
+
 	$effect(() => {
 		setGlassModeOverride(tierOverride);
 	});
 </script>
+
+<!--
+	`event.repeat` is load-bearing, not a nicety. A held modifier auto-repeats its
+	`keydown` at the OS repeat rate, so without the guard resting a finger on Ctrl
+	strobes the panel several times a second — and which state it lands in depends on
+	how long the key was held, which is the worst possible answer for a toggle.
+-->
+<svelte:window
+	onkeydown={(event) => {
+		if (event.key === 'Control' && !event.repeat) chromeHidden = !chromeHidden;
+	}}
+/>
 
 {#snippet listenIcon()}<Sparkles size={17} />{/snippet}
 {#snippet browseIcon()}<Library size={17} />{/snippet}
@@ -515,9 +539,13 @@
 	</div>
 </div>
 
-<FpsMeter />
+{#if !chromeHidden}
+	<FpsMeter />
+{/if}
 
-{#if showPanel}
+{#if chromeHidden}
+	<!-- nothing: the screen stands on its own until Ctrl is pressed again -->
+{:else if showPanel}
 	<aside class="devpanel">
 		<header>
 			<strong>écran de test</strong>
@@ -558,6 +586,7 @@
 			~8 surfaces. Faire défiler la liste sous le lecteur, puis comparer
 			<code>regular</code>/<code>clear</code> et <code>medium</code>/<code>low</code>.
 		</p>
+		<p><code>Ctrl</code> masque / réaffiche ce panneau et le compteur de fps.</p>
 		<p class="links">
 			<a href={resolve('/bench')}>bench</a> · <a href={resolve('/probe')}>probe</a> ·
 			<a href={resolve('/demo')}>gallery</a>
