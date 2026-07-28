@@ -290,12 +290,27 @@
 	});
 
 	/**
-	 * The per-frame writer: corner compensation, counter-scale, unroll. The
-	 * toolbar's, with its names — see `LiquidToolbar` for the full derivation of the
-	 * radius rule (`min(drawn width, drawn height) / 2`, divided back out per axis),
-	 * which is what keeps the squeezed capsule a capsule and the collapsed patch a
-	 * perfect circle. All of it lands on CSS custom properties feeding declarations
-	 * that are already repainting; none of it touches the map cache key.
+	 * The per-frame writer: corner compensation, the full inverse transform for the
+	 * row, and the unroll. The corner rule is the toolbar's — see `LiquidToolbar`
+	 * for the derivation of `min(drawn width, drawn height) / 2`, divided back out
+	 * per axis, which is what keeps the squeezed capsule a capsule and the collapsed
+	 * patch a perfect circle.
+	 *
+	 * The row is where this component parts company with the toolbar's counter-scale,
+	 * and the difference is exact rather than stylistic. The toolbar cancels only the
+	 * *scale*, about the anchored edge, and relies on the travel and the reveal
+	 * running in lock-step to keep the content still — which they nearly do, but the
+	 * lead offsets the two springs, and on a wide bar with a text line the residue is
+	 * visible: the text appears to slide in from beyond the anchored edge. So the row
+	 * here is given the shell's full inverse — `scale 1/S` about the centre plus
+	 * `translate −X/S`, the algebraic inverse of "scale S about centre, then
+	 * translate X" — and the content is *pinned at its settled position* for the
+	 * whole flight, whatever the springs are doing relative to each other. The
+	 * unrolling patch becomes a window sliding over stationary text (the shell's
+	 * `overflow: clip` is the other half of that — see the stylesheet).
+	 *
+	 * All of it lands on CSS custom properties feeding declarations that are already
+	 * repainting; none of it touches the map cache key.
 	 */
 	$effect(() => {
 		const transform = shellTransform;
@@ -318,6 +333,8 @@
 
 			shell.style.setProperty('--lg-search-counter-x', String(1 / scaleX));
 			shell.style.setProperty('--lg-search-counter-y', String(1 / scaleY));
+			shell.style.setProperty('--lg-search-slip-x', `${-transform.x.get() / scaleX}px`);
+			shell.style.setProperty('--lg-search-slip-y', `${-transform.y.get() / scaleY}px`);
 
 			const next = clamp01((revealX - collapsedScale) / span);
 			shell.style.setProperty('--lg-search-unroll', String(next));
@@ -329,7 +346,9 @@
 			transform.revealX.on('change', write),
 			transform.revealY.on('change', write),
 			transform.stretchX.on('change', write),
-			transform.stretchY.on('change', write)
+			transform.stretchY.on('change', write),
+			transform.x.on('change', write),
+			transform.y.on('change', write)
 		];
 
 		return () => {
@@ -338,6 +357,8 @@
 			shell.style.removeProperty('--lg-radius-y');
 			shell.style.removeProperty('--lg-search-counter-x');
 			shell.style.removeProperty('--lg-search-counter-y');
+			shell.style.removeProperty('--lg-search-slip-x');
+			shell.style.removeProperty('--lg-search-slip-y');
 			shell.style.removeProperty('--lg-search-unroll');
 		};
 	});
@@ -881,12 +902,28 @@
 	 * entirely the transform's. `transform-origin: center` plus the measured
 	 * translation is what holds the anchored edge still; see `LiquidToolbar` for
 	 * the arithmetic.
+	 *
+	 * `overflow: clip` is load-bearing twice over, and it must be `clip`, not
+	 * `hidden`. The row below carries the shell's full inverse transform, so in the
+	 * shell's *local* space it is enormous — a collapsed field holds a row scaled up
+	 * by the inverse of a ~0.05 collapse, tens of thousands of pixels wide — and
+	 * although the shell's own transform maps it back onto the wrapper exactly,
+	 * engines let that local overflow leak into the page's scrollable area (a
+	 * viewport-wide horizontal scrollbar, on whichever side the row extends).
+	 * `clip` removes the box from overflow accounting entirely. It is also the
+	 * visual half of the pinned-content scheme: content sits at its settled position
+	 * throughout, so the clipped, unrolling patch is a window sliding over it.
+	 * `hidden` would clip too, but makes the shell a scroll container — and the
+	 * browser scrolling the focused input "into view" inside it mid-morph would
+	 * shear the content. Safe on a glass surface: overflow is not among the
+	 * properties that create a backdrop root.
 	 */
 	:global(.lg-search-shell) {
 		position: absolute;
 		inset: 0;
 		z-index: 30;
 		transform-origin: center;
+		overflow: clip;
 	}
 
 	/* The row does the layout the static mode's `.lg-content` does; the shell's
@@ -898,17 +935,23 @@
 	}
 
 	/*
-	 * The counter-scale: nothing inside a glass surface may be deformed by its
-	 * transform — text squeezed to a seventh of its width is the one part of this
-	 * that would read as cheap. The row cancels the shell's scale about the anchored
-	 * edge, so it sits at its settled size and position from the first frame.
+	 * The shell's full inverse, not a counter-scale: `translate −X/S` then
+	 * `scale 1/S` about the centre is the algebraic inverse of the transform Motion
+	 * is writing on the shell (scale about centre, then translate), so the row's net
+	 * position is its settled layout position on every frame — the text never
+	 * travels, whatever the springs are doing. CSS's individual properties apply
+	 * translate before scale about the shared origin, which is exactly the order
+	 * the inverse needs; both values come from the per-frame writer. One origin for
+	 * all three anchors, because the inverse is anchor-blind: the anchoring lives
+	 * entirely in the shell's own travel, which this undoes.
 	 *
-	 * The reveal is one ramp over the tail of the unroll rather than the toolbar's
-	 * per-item thresholds: the content here is a single object — a text line with
-	 * its glyph and caret — and it lands as the bar settles, which is also when the
-	 * end caps it would otherwise overlap have reached the width they were baked
-	 * for. Fallbacks describe the settled field (`unroll: 1`), the safe end: a
-	 * collapsed shell is `visibility: hidden` regardless.
+	 * The reveal is one ramp rather than the toolbar's per-item thresholds: the
+	 * content is a single object — a text line with its glyph and caret — and with
+	 * the shell clipping (see above) the unrolling edge is already doing the
+	 * spatial reveal, so the ramp only softens the glyph fragments the window
+	 * would otherwise show while it is still narrow. Fallbacks describe the settled
+	 * field (`unroll: 1`, slip `0`), the safe end: a collapsed shell is
+	 * `visibility: hidden` regardless.
 	 */
 	:global(.lg-search-row) {
 		display: flex;
@@ -918,20 +961,10 @@
 		height: 100%;
 		box-sizing: border-box;
 		padding: 0 0.9em;
-		scale: var(--lg-search-counter-x, 1) var(--lg-search-counter-y, 1);
-		opacity: clamp(0, calc((var(--lg-search-unroll, 1) - 0.55) / 0.35), 1);
-	}
-
-	:global(.lg-search-morph[data-anchor='start'] .lg-search-row) {
-		transform-origin: left center;
-	}
-
-	:global(.lg-search-morph[data-anchor='end'] .lg-search-row) {
-		transform-origin: right center;
-	}
-
-	:global(.lg-search-morph[data-anchor='center'] .lg-search-row) {
 		transform-origin: center;
+		translate: var(--lg-search-slip-x, 0px) var(--lg-search-slip-y, 0px);
+		scale: var(--lg-search-counter-x, 1) var(--lg-search-counter-y, 1);
+		opacity: clamp(0, calc((var(--lg-search-unroll, 1) - 0.35) / 0.4), 1);
 	}
 
 	/*
