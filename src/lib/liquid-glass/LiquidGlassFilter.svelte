@@ -27,6 +27,13 @@
 		saturation: number;
 		/** `feFuncA` slope applied to the specular map, `0`–`1`. */
 		specularIntensity: number;
+		/**
+		 * Run the post-refraction rim antialias. Four primitives, plus the output pad
+		 * and the region margin they need — see `QualityPreset.rimAntialias`, which is
+		 * the only thing that sets this. Must not vary while a morph is animating the
+		 * chain.
+		 */
+		rimAntialias?: boolean;
 	}
 
 	let {
@@ -39,7 +46,8 @@
 		chromaticAberration,
 		blur,
 		saturation,
-		specularIntensity
+		specularIntensity,
+		rimAntialias = true
 	}: Props = $props();
 
 	/**
@@ -73,7 +81,9 @@
 	 * chain at 0 (a passthrough) so the morph never restructures the filter.
 	 */
 	const rimBlur = $derived(
-		Math.min(RIM_ANTIALIAS_MAX, Math.max(0, displacement) * RIM_ANTIALIAS_PER_DISPLACEMENT)
+		rimAntialias
+			? Math.min(RIM_ANTIALIAS_MAX, Math.max(0, displacement) * RIM_ANTIALIAS_PER_DISPLACEMENT)
+			: 0
 	);
 
 	const sampleReach = $derived(
@@ -90,10 +100,33 @@
 	 * the whole region, which the margins make several times the element's area,
 	 * per frame. The refraction results are still read past the box by the rim
 	 * antialias blur (3σ, σ capped at {@link RIM_ANTIALIAS_MAX}), so they keep a
-	 * pad covering that; a constant, so a displacement animation never rewrites
-	 * subregion attributes.
+	 * pad covering that — and drop it entirely when that blur is not in the chain,
+	 * which on a 132×76 tile halves what the refraction pass fills. Constant per
+	 * quality preset, so a displacement animation never rewrites subregion
+	 * attributes.
 	 */
-	const OUTPUT_PAD = Math.ceil(RIM_ANTIALIAS_MAX * 3) + 4;
+	const outputPad = $derived(rimAntialias ? Math.ceil(RIM_ANTIALIAS_MAX * 3) + 4 : 0);
+
+	/**
+	 * How far past the border-box the *blurred backdrop* has to exist.
+	 *
+	 * The source blur is the one primitive with no natural bound, and it is also
+	 * the most expensive in the chain — a wide σ over an area the region margins
+	 * make several times the element's. Left subregion-less it fills the whole
+	 * region, but nothing reads it that far: its only consumers are the
+	 * displacement passes, which output box + {@link outputPad} and sample at most
+	 * `displacement × (1 + aberration)` away from each of those pixels. So that sum
+	 * is the true requirement, rounded up to 16 for the same reason `sampleReach`
+	 * is — a droplet morph rewrites the attribute a handful of times instead of
+	 * sixty times a second.
+	 *
+	 * Clamped to `sampleReach` so this can only ever *shrink* the pass: past the
+	 * region's edge there is nothing to read anyway, and a subregion larger than
+	 * the region would be a promise the filter cannot keep.
+	 */
+	const blurReach = $derived(
+		Math.min(sampleReach, Math.ceil((displacement * (1 + aberration) + outputPad) / 16) * 16)
+	);
 
 	/**
 	 * Region margins, per axis, in objectBoundingBox units.
@@ -161,8 +194,20 @@
 					smears the distortion into mush; blurring the source keeps the
 					refracted edges crisp while softening the backdrop detail. Keep the
 					radius sub-pixel-ish — this glass is clear, not frosted.
+
+					Subregion, unlike every pass below it, is *larger* than the box: the
+					displacement reads this result from far outside itself. See
+					`blurReach` for why it is nevertheless smaller than the region.
 				-->
-				<feGaussianBlur in="SourceGraphic" stdDeviation={blur} result="blurred" />
+				<feGaussianBlur
+					in="SourceGraphic"
+					stdDeviation={blur}
+					x={-blurReach}
+					y={-blurReach}
+					width={width + blurReach * 2}
+					height={height + blurReach * 2}
+					result="blurred"
+				/>
 			{/if}
 
 			<feImage
@@ -182,11 +227,11 @@
 					Three passes over the backdrop, so this is `quality: 'high'` only.
 
 					Every primitive from here on carries an explicit subregion — the
-					refraction passes at box + OUTPUT_PAD (the rim antialias reads them
+					refraction passes at box + outputPad (the rim antialias reads them
 					past the box edge), everything after the antialias at the box itself.
 					The enlarged region is for their *inputs*; producing pixels the
 					border-box clip then discards is pure fill-rate waste, several box
-					areas' worth per pass per frame. See OUTPUT_PAD.
+					areas' worth per pass per frame. See outputPad.
 				-->
 				<feDisplacementMap
 					in={refractionSource}
@@ -194,10 +239,10 @@
 					scale={scaleRed}
 					xChannelSelector="R"
 					yChannelSelector="G"
-					x={-OUTPUT_PAD}
-					y={-OUTPUT_PAD}
-					width={width + OUTPUT_PAD * 2}
-					height={height + OUTPUT_PAD * 2}
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
 					result="passRed"
 				/>
 				<feColorMatrix
@@ -207,10 +252,10 @@
 					        0 0 0 0 0
 					        0 0 0 0 0
 					        0 0 0 1 0"
-					x={-OUTPUT_PAD}
-					y={-OUTPUT_PAD}
-					width={width + OUTPUT_PAD * 2}
-					height={height + OUTPUT_PAD * 2}
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
 					result="channelRed"
 				/>
 
@@ -220,10 +265,10 @@
 					scale={baseScale}
 					xChannelSelector="R"
 					yChannelSelector="G"
-					x={-OUTPUT_PAD}
-					y={-OUTPUT_PAD}
-					width={width + OUTPUT_PAD * 2}
-					height={height + OUTPUT_PAD * 2}
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
 					result="passGreen"
 				/>
 				<feColorMatrix
@@ -233,10 +278,10 @@
 					        0 1 0 0 0
 					        0 0 0 0 0
 					        0 0 0 1 0"
-					x={-OUTPUT_PAD}
-					y={-OUTPUT_PAD}
-					width={width + OUTPUT_PAD * 2}
-					height={height + OUTPUT_PAD * 2}
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
 					result="channelGreen"
 				/>
 
@@ -246,10 +291,10 @@
 					scale={scaleBlue}
 					xChannelSelector="R"
 					yChannelSelector="G"
-					x={-OUTPUT_PAD}
-					y={-OUTPUT_PAD}
-					width={width + OUTPUT_PAD * 2}
-					height={height + OUTPUT_PAD * 2}
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
 					result="passBlue"
 				/>
 				<feColorMatrix
@@ -259,10 +304,10 @@
 					        0 0 0 0 0
 					        0 0 1 0 0
 					        0 0 0 1 0"
-					x={-OUTPUT_PAD}
-					y={-OUTPUT_PAD}
-					width={width + OUTPUT_PAD * 2}
-					height={height + OUTPUT_PAD * 2}
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
 					result="channelBlue"
 				/>
 
@@ -270,20 +315,20 @@
 					in="channelRed"
 					in2="channelGreen"
 					mode="screen"
-					x={-OUTPUT_PAD}
-					y={-OUTPUT_PAD}
-					width={width + OUTPUT_PAD * 2}
-					height={height + OUTPUT_PAD * 2}
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
 					result="channelRedGreen"
 				/>
 				<feBlend
 					in="channelRedGreen"
 					in2="channelBlue"
 					mode="screen"
-					x={-OUTPUT_PAD}
-					y={-OUTPUT_PAD}
-					width={width + OUTPUT_PAD * 2}
-					height={height + OUTPUT_PAD * 2}
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
 					result="refracted"
 				/>
 			{:else}
@@ -293,79 +338,86 @@
 					scale={baseScale}
 					xChannelSelector="R"
 					yChannelSelector="G"
-					x={-OUTPUT_PAD}
-					y={-OUTPUT_PAD}
-					width={width + OUTPUT_PAD * 2}
-					height={height + OUTPUT_PAD * 2}
+					x={-outputPad}
+					y={-outputPad}
+					width={width + outputPad * 2}
+					height={height + outputPad * 2}
 					result="refracted"
 				/>
 			{/if}
 
-			<!--
-				Rim antialiasing. `feDisplacementMap` point-samples, and near the outline
-				the field is steep enough to sample the backdrop below Nyquist — thin
-				detail behind the rim comes out as stepped speckle, and the chromatic
-				passes decorrelate it into coloured sparkle. So the refracted result is
-				low-passed and composited back *only inside the bezel band*, using the
-				magnitude the map itself carries in its blue channel as the mask. The
-				flat centre keeps the untouched refraction; see
-				RIM_ANTIALIAS_PER_DISPLACEMENT for why this is not the pre-blur's job.
+			{#if rimAntialias}
+				<!--
+					Rim antialiasing. `feDisplacementMap` point-samples, and near the outline
+					the field is steep enough to sample the backdrop below Nyquist — thin
+					detail behind the rim comes out as stepped speckle, and the chromatic
+					passes decorrelate it into coloured sparkle. So the refracted result is
+					low-passed and composited back *only inside the bezel band*, using the
+					magnitude the map itself carries in its blue channel as the mask. The
+					flat centre keeps the untouched refraction; see
+					RIM_ANTIALIAS_PER_DISPLACEMENT for why this is not the pre-blur's job.
 
-				From here down every primitive carries an explicit x/y/width/height
-				subregion pinned to the element's box. The enlarged filter region exists
-				for the *inputs* — displaced samples land well outside the element — but
-				`backdrop-filter` clips the output to the border-box, so any pixel these
-				primitives produce outside it is thrown away. Without the subregion each
-				one fills the whole region, which the margins make several times the
-				element's area, every frame. `refracted` itself stays region-sized: the
-				blur reads it past the box edge (up to 3σ), and starving that read would
-				ring the rim with a half-transparent seam.
-			-->
-			<feColorMatrix
-				in="displacementField"
-				type="matrix"
-				values="0 0 0 0 0
-				        0 0 0 0 0
-				        0 0 0 0 0
-				        0 0 1 0 0"
-				x="0"
-				y="0"
-				{width}
-				{height}
-				result="rimMask"
-			/>
-			<feGaussianBlur
-				in="refracted"
-				stdDeviation={rimBlur}
-				x="0"
-				y="0"
-				{width}
-				{height}
-				result="rimSoft"
-			/>
-			<feComposite
-				in="rimSoft"
-				in2="rimMask"
-				operator="in"
-				x="0"
-				y="0"
-				{width}
-				{height}
-				result="rimBand"
-			/>
-			<feComposite
-				in="rimBand"
-				in2="refracted"
-				operator="over"
-				x="0"
-				y="0"
-				{width}
-				{height}
-				result="antialiased"
-			/>
+					Four primitives, which on a chain that is otherwise four long is why the
+					`low` preset drops them wholesale rather than shaving a σ — and dropping
+					them takes `outputPad` and part of the region with it. `quality` is fixed
+					per surface, so this `{#if}` cannot flip while a morph is running.
+
+					From here down every primitive carries an explicit x/y/width/height
+					subregion pinned to the element's box. The enlarged filter region exists
+					for the *inputs* — displaced samples land well outside the element — but
+					`backdrop-filter` clips the output to the border-box, so any pixel these
+					primitives produce outside it is thrown away. Without the subregion each
+					one fills the whole region, which the margins make several times the
+					element's area, every frame. `refracted` itself keeps its pad: the blur
+					reads it past the box edge (up to 3σ), and starving that read would ring
+					the rim with a half-transparent seam.
+				-->
+				<feColorMatrix
+					in="displacementField"
+					type="matrix"
+					values="0 0 0 0 0
+					        0 0 0 0 0
+					        0 0 0 0 0
+					        0 0 1 0 0"
+					x="0"
+					y="0"
+					{width}
+					{height}
+					result="rimMask"
+				/>
+				<feGaussianBlur
+					in="refracted"
+					stdDeviation={rimBlur}
+					x="0"
+					y="0"
+					{width}
+					{height}
+					result="rimSoft"
+				/>
+				<feComposite
+					in="rimSoft"
+					in2="rimMask"
+					operator="in"
+					x="0"
+					y="0"
+					{width}
+					{height}
+					result="rimBand"
+				/>
+				<feComposite
+					in="rimBand"
+					in2="refracted"
+					operator="over"
+					x="0"
+					y="0"
+					{width}
+					{height}
+					result="antialiased"
+				/>
+			{/if}
 
 			<feColorMatrix
-				in="antialiased"
+				in={rimAntialias ? 'antialiased' : 'refracted'}
 				type="saturate"
 				values={String(saturation)}
 				x="0"

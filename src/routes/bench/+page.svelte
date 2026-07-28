@@ -160,6 +160,19 @@
 
 	/** Ladder for the sweep. Doubling past the point where a real page would stop. */
 	const SWEEP_COUNTS = [1, 8, 32, 64, 128];
+	/**
+	 * The other two axes, and the reason the page has a table rather than a readout.
+	 *
+	 * A slow frame rate at a high instance count says nothing on its own about
+	 * *whose* cost it is. `full` runs a nine-primitive SVG graph per surface,
+	 * `degraded` one CSS blur, `flat` nothing — so holding the count still and
+	 * stepping the tier splits the library's filter chain from the browser's
+	 * `backdrop-filter`, which no amount of tuning in here can make cheaper. If
+	 * `degraded` sits at the same figure as `full`, the chain is not the problem and
+	 * the answer is fewer glass surfaces, not a shorter filter.
+	 */
+	const SWEEP_TIERS: GlassMode[] = ['full', 'degraded', 'flat'];
+	const SWEEP_QUALITIES: GlassQuality[] = ['low', 'medium', 'high'];
 	/** Mount, layout, first paint and any initial rasterisation happen in here, unmeasured. */
 	const WARMUP_MS = 800;
 	const RUN_MS = 2500;
@@ -223,6 +236,39 @@
 		progress = '';
 	}
 
+	/** Same count, same components, one tier at a time. See {@link SWEEP_TIERS}. */
+	async function runTierSweep() {
+		busy = true;
+		cancelled = false;
+		const restore = tierOverride;
+
+		for (const step of SWEEP_TIERS) {
+			if (cancelled) break;
+			tierOverride = step;
+			await capture(count);
+		}
+
+		tierOverride = restore;
+		busy = false;
+		progress = '';
+	}
+
+	async function runQualitySweep() {
+		busy = true;
+		cancelled = false;
+		const restore = quality;
+
+		for (const step of SWEEP_QUALITIES) {
+			if (cancelled) break;
+			quality = step;
+			await capture(count);
+		}
+
+		quality = restore;
+		busy = false;
+		progress = '';
+	}
+
 	function stop() {
 		cancelled = true;
 		sampler.cancel();
@@ -278,9 +324,16 @@
 		<header>
 			<h1>Scaling benchmark</h1>
 			<p>
-				Frame timing against instance count. Sweep, then read the <strong>maps</strong> column: it should
-				stay at 0 while the count climbs, because identical surfaces share one rasterised map and every
-				animated property is a live filter attribute.
+				Frame timing against instance count. <strong>maps</strong> is the library's own claim — it should
+				stay at 0 while the count climbs, since identical surfaces share one rasterised map and everything
+				animated is a live filter attribute.
+			</p>
+			<p>
+				If the count sweep does collapse, sweep the <strong>tier</strong> next: it is the only way
+				to tell a filter chain that is too long from
+				<code>backdrop-filter</code> simply costing what it costs, and only the first is something
+				this library can fix. Then try <strong>backdrop: solid</strong> — a still backdrop means nothing
+				forces a re-filter, so what is left is the price of the surfaces merely existing.
 			</p>
 		</header>
 
@@ -398,7 +451,13 @@
 		<section class="run">
 			<div class="buttons">
 				<button type="button" onclick={runSweep} disabled={busy}>
-					Sweep {SWEEP_COUNTS.join(' → ')}
+					Sweep count {SWEEP_COUNTS.join(' → ')}
+				</button>
+				<button type="button" onclick={runTierSweep} disabled={busy}>
+					Sweep tier at {count}
+				</button>
+				<button type="button" onclick={runQualitySweep} disabled={busy}>
+					Sweep quality at {count}
 				</button>
 				<button type="button" onclick={runOnce} disabled={busy}>Measure current</button>
 				<button type="button" onclick={stop} disabled={!busy}>Stop</button>
@@ -420,9 +479,10 @@
 					<thead>
 						<tr>
 							<th>n</th>
+							<th>tier</th>
+							<th>q</th>
 							<th>fps</th>
 							<th>held</th>
-							<th>p50</th>
 							<th>p95</th>
 							<th>worst</th>
 							<th>janky</th>
@@ -433,11 +493,12 @@
 						{#each results as row, index (index)}
 							<tr class:stalled={row.stalled}>
 								<td>{row.count}</td>
+								<td>{row.tier}</td>
+								<td>{row.quality.slice(0, 3)}</td>
 								<td>{fmt(row.fps)}</td>
 								<td class:down={best > 0 && row.fps < best * 0.9}>
 									{best > 0 ? Math.round((row.fps / best) * 100) : 0}%
 								</td>
-								<td>{fmt(row.p50)}</td>
 								<td>{fmt(row.p95)}</td>
 								<td>{fmt(row.worst)}</td>
 								<td class:down={row.janky > 0}>{row.janky}</td>

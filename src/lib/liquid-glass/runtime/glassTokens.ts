@@ -156,16 +156,46 @@ export interface QualityPreset {
 	chromatic: boolean;
 	/** Generate and blend the specular rim map. */
 	specular: boolean;
+	/**
+	 * Run the post-refraction rim antialias — see
+	 * {@link RIM_ANTIALIAS_PER_DISPLACEMENT} for what it cures.
+	 *
+	 * Four primitives out of a chain that is otherwise four long, so switching it
+	 * off roughly halves the filter graph, and it pays twice more: the pad the
+	 * refraction passes carry so the antialias can read past the border-box
+	 * (`OUTPUT_PAD`) collapses to nothing, and the rim blur's own 3σ leaves the
+	 * filter region. On a page carrying dozens of surfaces over a moving backdrop
+	 * — every one of them refiltered every frame — that is the difference the
+	 * `low` preset is for.
+	 *
+	 * A preset flag rather than something derived from the geometry, deliberately:
+	 * quality is fixed per surface, so the chain's *structure* never changes while
+	 * a droplet morph is animating it. Deriving it from the displacement instead
+	 * would add and remove primitives mid-morph, which is the same trap
+	 * `DROPLET_REST.blur = 0.05` exists to avoid.
+	 */
+	rimAntialias: boolean;
 }
 
 /**
  * What the ladder buys, measured rather than assumed (A/B screenshots at all
  * three tiers, and FPS on a busy page):
  *
- * `low` → `medium` adds the generated specular map. At control sizes the CSS
- * edge layers carry the rim and the difference is hard to see; it earns its
- * keep on larger curved surfaces, where a hairline that follows the normal
- * reads and a gradient border does not.
+ * `low` → `medium` adds the generated specular map and the rim antialias. The
+ * specular hairline at control sizes is hard to see — the CSS edge layers carry
+ * the rim, and it only earns its keep on larger curved surfaces, where a line
+ * that follows the normal reads and a gradient border does not. The antialias
+ * is the one that costs: it is four of the chain's eight primitives, and
+ * without it the refraction passes stop padding their output and the filter
+ * region loses the rim blur's 3σ. So `low` is not a slightly cheaper `medium`,
+ * it is half the filter — which is what a surface that has forty siblings on a
+ * moving backdrop needs, and what the `/bench` route exists to check.
+ *
+ * What it costs to give up: `feDisplacementMap` point-samples, so the outermost
+ * band of the bezel can speckle over high-frequency backdrops. The half-scale
+ * map at this preset already low-passes the *field*, which softens the failure
+ * without curing it — see RIM_ANTIALIAS_PER_DISPLACEMENT. Text and thin lines
+ * behind the rim are where it shows.
  *
  * `medium` → `high` adds only the chromatic aberration, at triple the
  * displacement fill — enough to halve the frame rate of a large surface being
@@ -177,9 +207,9 @@ export interface QualityPreset {
  * point sampling and comes out as the coloured speckle it used to be.
  */
 export const QUALITY_PRESETS: Record<GlassQuality, QualityPreset> = {
-	low: { resolution: 0.5, chromatic: false, specular: false },
-	medium: { resolution: 0.75, chromatic: false, specular: true },
-	high: { resolution: 1, chromatic: true, specular: true }
+	low: { resolution: 0.5, chromatic: false, specular: false, rimAntialias: false },
+	medium: { resolution: 0.75, chromatic: false, specular: true, rimAntialias: true },
+	high: { resolution: 1, chromatic: true, specular: true, rimAntialias: true }
 };
 
 /**

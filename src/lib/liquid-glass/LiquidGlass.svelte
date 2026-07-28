@@ -276,6 +276,7 @@
 			blur={effectiveBlur}
 			saturation={effectiveSaturation}
 			{specularIntensity}
+			rimAntialias={preset.rimAntialias}
 		/>
 	{/if}
 
