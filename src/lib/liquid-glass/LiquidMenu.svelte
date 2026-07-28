@@ -994,6 +994,18 @@
 		--lg-chroma-boost: 1;
 	}
 
+	/*
+	 * The clear panel's morph endpoints (`MENU_GLASS.clear`) carry hand-tuned
+	 * tints from when the whole library was clear glass, and they were tuned
+	 * under `--lg-clear-veil-boost` — so, like the tabs rail, the panel keeps
+	 * that weight rather than the raw material's `--lg-clear-material-boost`,
+	 * whose dark figure was measured for a bare capsule over black and would
+	 * thin a settled panel that was never part of that measurement.
+	 */
+	.lg-menu :global(.lg-menu-panel[data-variant='clear']) {
+		--lg-veil-boost: var(--lg-clear-veil-boost);
+	}
+
 	.lg-menu :global(.lg-menu-panel > .lg-content) {
 		display: block;
 	}

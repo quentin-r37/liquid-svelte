@@ -786,6 +786,21 @@
 	}
 
 	/*
+	 * The rail's clear tint (`TABS_GLASS.clear`, 0.14) was calibrated under
+	 * `--lg-clear-veil-boost` — measured against the native rail on
+	 * /compare-ios/ab, where it matches within a point on every backdrop — so it
+	 * keeps that weight when the raw material's moved off it. Without this pin
+	 * the dark figure of `--lg-clear-material-boost` (1.9, tuned for a bare
+	 * capsule over black) drags the rail from a measured 5.9% down to 2.1%
+	 * against the reference's 6.1%. Same precedent as the menu panel pinning
+	 * `--lg-chroma-boost`: a surface whose alphas were measured under one
+	 * multiplier states that multiplier.
+	 */
+	.lg-tabs :global(.lg-tabs-rail[data-variant='clear']) {
+		--lg-veil-boost: var(--lg-clear-veil-boost);
+	}
+
+	/*
 	 * Anchored by `left`/`top` written from the placement effect — a constant offset
 	 * that accounts for the slack the bubble is laid out with. Every subsequent
 	 * movement is Motion's transform, so these stay static and nothing competes with
