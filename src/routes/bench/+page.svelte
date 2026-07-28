@@ -52,6 +52,17 @@
 	let kind = $state<BenchKind>('primitive');
 	let stress = $state<BenchStress>('idle');
 	/**
+	 * Multiplier on both tile dimensions, so a tile can be a chip or a sheet.
+	 *
+	 * Exists for {@link runAreaSweep}, which is the one question the count sweep is
+	 * structurally unable to answer: stepping the count moves total glass area and
+	 * element count together, so a frame time that doubles says only "twice as much of
+	 * something". A full-screen modal is the opposite extreme of the same total — one
+	 * enormous surface rather than a hundred small ones — and nothing in the count
+	 * ladder predicts it.
+	 */
+	let tileScale = $state(1);
+	/**
 	 * Give every tile its own size, so no two share a cache entry. With more variants
 	 * than `MAP_CACHE_LIMIT` the LRU cannot hold the working set and the tiles at the
 	 * end of the grid evict the ones at the start — the pathological case, and the
@@ -77,9 +88,22 @@
 	/** Swing of the `geometry` stress mode, in CSS px — 40 quantum steps, also over it. */
 	const GEOMETRY_SWING = 80;
 
+	const TILE_WIDTH = 132;
 	const TILE_HEIGHT = 76;
+	/**
+	 * Radius and bezel stay in absolute px as the tile grows, rather than scaling with
+	 * it. That is deliberate and it is what makes the iso-area rows comparable: the
+	 * bezel is the band the refraction is computed over, so scaling it would change the
+	 * optics at the same time as the geometry and leave two variables moving at once.
+	 * Holding it fixed is also the honest model of the case this is here to predict —
+	 * a full-screen sheet has a normal-sized rim, not a 90px one.
+	 */
 	const TILE_RADIUS = 22;
 	const TILE_BEZEL = 14;
+
+	const tileHeight = $derived(TILE_HEIGHT * tileScale);
+	/** Nominal area of one tile, for the readout. Ignores `uniqueGeometry`'s jitter. */
+	const tileArea = $derived(TILE_WIDTH * tileScale * tileHeight);
 
 	const instances = $derived(Array.from({ length: count }, (_, index) => index));
 
@@ -125,8 +149,8 @@
 	const widthSwing = $derived(activeStress === 'geometry' ? Math.round(GEOMETRY_SWING * phase) : 0);
 
 	function tileWidth(index: number): number {
-		const base = uniqueGeometry ? 104 + (index % GEOMETRY_VARIANTS) * 4 : 132;
-		return base + widthSwing;
+		const base = uniqueGeometry ? 104 + (index % GEOMETRY_VARIANTS) * 4 : TILE_WIDTH;
+		return (base + widthSwing) * tileScale;
 	}
 
 	function memberKind(index: number): Exclude<BenchKind, 'mixed'> {
@@ -221,6 +245,10 @@
 		/** Which of the preset's optional passes were in the chain. */
 		features: string;
 		unique: boolean;
+		/** Nominal tile footprint, `WxH`. */
+		size: string;
+		/** `count × tileArea`, in megapixels of CSS area. The load, in one number. */
+		megapixels: number;
 		/** Maps rasterised *during* the run — the number that must stay at 0. */
 		generations: number;
 	}
@@ -275,6 +303,8 @@
 				tier: glassSupport.tier,
 				features: featureLabel,
 				unique: uniqueGeometry,
+				size: `${TILE_WIDTH * tileScale}×${tileHeight}`,
+				megapixels: (instanceCount * tileArea) / 1e6,
 				generations: after - before
 			}
 		];
@@ -300,6 +330,47 @@
 		}
 
 		count = restore;
+		busy = false;
+		progress = '';
+	}
+
+	/**
+	 * Iso-area ladder: the same total glass, cut into fewer and bigger surfaces.
+	 *
+	 * The count sweep moves two things at once — total filtered pixels *and* number of
+	 * elements — so a frame time that doubles when the count doubles cannot say which
+	 * one bought it. They have different consequences. If the cost is per-pixel, a
+	 * design budget is an area budget and a full-screen sheet is simply expensive. If
+	 * it is per-element, the same glass is cheaper as one panel than as twelve chips,
+	 * and the advice inverts: consolidate rather than shrink.
+	 *
+	 * Each step quarters the count and doubles both dimensions, so `count × area` is
+	 * identical to the pixel across all three rows and the only variable left is how
+	 * finely that area is chopped. A flat frame-time column means per-pixel; a column
+	 * that falls as the count falls means per-element overhead is real, and the size of
+	 * the fall is what it costs.
+	 */
+	const AREA_STEPS = [
+		{ count: 32, scale: 1 },
+		{ count: 8, scale: 2 },
+		{ count: 2, scale: 4 }
+	];
+
+	async function runAreaSweep() {
+		busy = true;
+		cancelled = false;
+		const restoreCount = count;
+		const restoreScale = tileScale;
+
+		for (const step of AREA_STEPS) {
+			if (cancelled) break;
+			count = step.count;
+			tileScale = step.scale;
+			await capture(step.count);
+		}
+
+		count = restoreCount;
+		tileScale = restoreScale;
 		busy = false;
 		progress = '';
 	}
@@ -390,7 +461,7 @@
 					{#if member === 'primitive'}
 						<LiquidGlass
 							width={tileWidth(index)}
-							height={TILE_HEIGHT}
+							height={tileHeight}
 							borderRadius={TILE_RADIUS}
 							bezel={TILE_BEZEL}
 							{displacement}
@@ -482,6 +553,22 @@
 					<button type="button" onclick={() => (count = preset)} disabled={busy}>{preset}</button>
 				{/each}
 			</div>
+
+			<label>
+				<span>tile size</span>
+				<select bind:value={tileScale} disabled={busy}>
+					<option value={1}>132×76 — a chip</option>
+					<option value={2}>264×152 — a card</option>
+					<option value={4}>528×304 — a panel</option>
+					<option value={8}>1056×608 — a sheet</option>
+				</select>
+			</label>
+			<p class="cache">
+				load: <strong>{fmt((count * tileArea) / 1e6, 2)} Mpx</strong> of glass — {count} × {fmt(
+					tileArea / 1e6,
+					3
+				)}
+			</p>
 
 			<label>
 				<span>component</span>
@@ -577,6 +664,9 @@
 				<button type="button" onclick={runSweep} disabled={busy}>
 					Sweep count {SWEEP_COUNTS.join(' → ')}
 				</button>
+				<button type="button" onclick={runAreaSweep} disabled={busy}>
+					Sweep area — 32×1 → 8×2 → 2×4
+				</button>
 				<button type="button" onclick={runTierSweep} disabled={busy}>
 					Sweep tier at {count}
 				</button>
@@ -606,6 +696,8 @@
 					<thead>
 						<tr>
 							<th>n</th>
+							<th>size</th>
+							<th>Mpx</th>
 							<th>tier</th>
 							<th>q</th>
 							<th>passes</th>
@@ -622,6 +714,8 @@
 						{#each results as row, index (index)}
 							<tr class:stalled={row.stalled}>
 								<td>{row.count}</td>
+								<td>{row.size}</td>
+								<td>{fmt(row.megapixels, 2)}</td>
 								<td>{row.tier}</td>
 								<td>{row.quality.slice(0, 3)}</td>
 								<td>{row.features}</td>
