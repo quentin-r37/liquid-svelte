@@ -31,6 +31,7 @@
 		LiquidGlass,
 		LiquidSlider,
 		LiquidSwitch,
+		QUALITY_PRESETS,
 		clearGlassMapCaches,
 		getGlassMapStats,
 		glassSupport,
@@ -133,6 +134,56 @@
 		return (['primitive', 'button', 'switch', 'slider'] as const)[index % 4];
 	}
 
+	// ---------------------------------------------------- feature isolation ---
+
+	/**
+	 * `medium` is `low` plus two unrelated things — the specular `feImage` and the
+	 * rim antialias — and a quality sweep prices them as one lump. These two toggles
+	 * take them apart, which is the only way to know which primitive to go after.
+	 *
+	 * They patch the library's own preset table rather than going through props,
+	 * because there are no props: `quality` is a bundle by design, and adding
+	 * per-primitive flags to the public API to satisfy a dev harness would be the
+	 * tail wagging the dog. So the harness reaches into `QUALITY_PRESETS`, and three
+	 * things keep that honest — the patch can only ever *subtract* from the pristine
+	 * table (a toggle cannot switch on what a preset does not have), the pristine
+	 * values are restored when the page unmounts, and the field is wrapped in a
+	 * `{#key}` so every surface remounts and re-reads the table.
+	 *
+	 * The patch is applied synchronously by the handler, never from an `$effect`:
+	 * Svelte flushes render effects before user effects, so an effect would remount
+	 * the tiles against the *old* table and measure the configuration you just left.
+	 */
+	const PRISTINE_PRESETS = structuredClone(QUALITY_PRESETS);
+
+	let withSpecular = $state(true);
+	let withRimAntialias = $state(true);
+
+	const featureKey = $derived(`${withSpecular}-${withRimAntialias}`);
+	const featureLabel = $derived(
+		[withRimAntialias ? 'rim' : null, withSpecular ? 'spec' : null].filter(Boolean).join('+') || '—'
+	);
+
+	function applyFeatures(): void {
+		for (const [name, preset] of Object.entries(PRISTINE_PRESETS)) {
+			const live = QUALITY_PRESETS[name as GlassQuality];
+			live.specular = preset.specular && withSpecular;
+			live.rimAntialias = preset.rimAntialias && withRimAntialias;
+		}
+	}
+
+	function setFeatures(specular: boolean, rim: boolean): void {
+		withSpecular = specular;
+		withRimAntialias = rim;
+		applyFeatures();
+	}
+
+	$effect(() => () => {
+		withSpecular = true;
+		withRimAntialias = true;
+		applyFeatures();
+	});
+
 	// ------------------------------------------------------------ measuring ---
 
 	const sampler = new FrameSampler();
@@ -153,6 +204,8 @@
 		stress: BenchStress;
 		quality: GlassQuality;
 		tier: string;
+		/** Which of the preset's optional passes were in the chain. */
+		features: string;
 		unique: boolean;
 		/** Maps rasterised *during* the run — the number that must stay at 0. */
 		generations: number;
@@ -206,6 +259,7 @@
 				stress: activeStress,
 				quality,
 				tier: glassSupport.tier,
+				features: featureLabel,
 				unique: uniqueGeometry,
 				generations: after - before
 			}
@@ -253,6 +307,31 @@
 		progress = '';
 	}
 
+	/**
+	 * The four combinations of the two optional passes, at whatever quality is
+	 * selected. `low` has neither, so run this at `medium` or `high`.
+	 */
+	async function runFeatureSweep() {
+		busy = true;
+		cancelled = false;
+		const restore: [boolean, boolean] = [withSpecular, withRimAntialias];
+
+		for (const [specular, rim] of [
+			[false, false],
+			[false, true],
+			[true, false],
+			[true, true]
+		] as const) {
+			if (cancelled) break;
+			setFeatures(specular, rim);
+			await capture(count);
+		}
+
+		setFeatures(...restore);
+		busy = false;
+		progress = '';
+	}
+
 	async function runQualitySweep() {
 		busy = true;
 		cancelled = false;
@@ -285,35 +364,42 @@
 
 <div class="bench" data-scheme={scheme}>
 	<div class="stage">
-		<div class="field">
-			{#each instances as index (index)}
-				{@const member = memberKind(index)}
-				{#if member === 'primitive'}
-					<LiquidGlass
-						width={tileWidth(index)}
-						height={TILE_HEIGHT}
-						borderRadius={TILE_RADIUS}
-						bezel={TILE_BEZEL}
-						{displacement}
-						{blur}
-						{specularIntensity}
-						{quality}
-						{variant}
-						{interactive}
-					>
-						<span class="tile-label">{index + 1}</span>
-					</LiquidGlass>
-				{:else if member === 'button'}
-					<LiquidButton {quality} {variant}>Surface {index + 1}</LiquidButton>
-				{:else if member === 'switch'}
-					<LiquidSwitch checked={index % 2 === 0} {quality} label="Instance {index + 1}" />
-				{:else}
-					<div class="slider-slot">
-						<LiquidSlider value={(index * 7) % 100} {quality} label="Instance {index + 1}" />
-					</div>
-				{/if}
-			{/each}
-		</div>
+		<!--
+			Remounts every surface when a feature toggle flips: the preset table is a
+			plain object, so mutating it invalidates nothing on its own. See
+			`applyFeatures`.
+		-->
+		{#key featureKey}
+			<div class="field">
+				{#each instances as index (index)}
+					{@const member = memberKind(index)}
+					{#if member === 'primitive'}
+						<LiquidGlass
+							width={tileWidth(index)}
+							height={TILE_HEIGHT}
+							borderRadius={TILE_RADIUS}
+							bezel={TILE_BEZEL}
+							{displacement}
+							{blur}
+							{specularIntensity}
+							{quality}
+							{variant}
+							{interactive}
+						>
+							<span class="tile-label">{index + 1}</span>
+						</LiquidGlass>
+					{:else if member === 'button'}
+						<LiquidButton {quality} {variant}>Surface {index + 1}</LiquidButton>
+					{:else if member === 'switch'}
+						<LiquidSwitch checked={index % 2 === 0} {quality} label="Instance {index + 1}" />
+					{:else}
+						<div class="slider-slot">
+							<LiquidSlider value={(index * 7) % 100} {quality} label="Instance {index + 1}" />
+						</div>
+					{/if}
+				{/each}
+			</div>
+		{/key}
 
 		{#if count === 0}
 			<p class="empty">No instances — this is the baseline the backdrop alone costs.</p>
@@ -399,6 +485,25 @@
 			</label>
 
 			<label class="check">
+				<input
+					type="checkbox"
+					checked={withRimAntialias}
+					disabled={busy}
+					onchange={(event) => setFeatures(withSpecular, event.currentTarget.checked)}
+				/>
+				<span>rim antialias — 4 primitives + the output pad</span>
+			</label>
+			<label class="check">
+				<input
+					type="checkbox"
+					checked={withSpecular}
+					disabled={busy}
+					onchange={(event) => setFeatures(event.currentTarget.checked, withRimAntialias)}
+				/>
+				<span>specular rim — a second feImage, blended</span>
+			</label>
+
+			<label class="check">
 				<input type="checkbox" bind:checked={uniqueGeometry} disabled={busy} />
 				<span>unique geometry per tile — defeats the map cache</span>
 			</label>
@@ -459,6 +564,9 @@
 				<button type="button" onclick={runQualitySweep} disabled={busy}>
 					Sweep quality at {count}
 				</button>
+				<button type="button" onclick={runFeatureSweep} disabled={busy}>
+					Sweep passes at {quality}
+				</button>
 				<button type="button" onclick={runOnce} disabled={busy}>Measure current</button>
 				<button type="button" onclick={stop} disabled={!busy}>Stop</button>
 				<button type="button" onclick={() => (results = [])} disabled={busy || !results.length}>
@@ -481,6 +589,7 @@
 							<th>n</th>
 							<th>tier</th>
 							<th>q</th>
+							<th>passes</th>
 							<th>fps</th>
 							<th>held</th>
 							<th>p95</th>
@@ -495,6 +604,7 @@
 								<td>{row.count}</td>
 								<td>{row.tier}</td>
 								<td>{row.quality.slice(0, 3)}</td>
+								<td>{row.features}</td>
 								<td>{fmt(row.fps)}</td>
 								<td class:down={best > 0 && row.fps < best * 0.9}>
 									{best > 0 ? Math.round((row.fps / best) * 100) : 0}%
