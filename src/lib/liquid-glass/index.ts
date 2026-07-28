@@ -34,6 +34,11 @@ export { default as LiquidNavBar } from './LiquidNavBar.svelte';
 export type { NavBarPosition } from './LiquidNavBar.svelte';
 export { default as LiquidScrollEdge } from './LiquidScrollEdge.svelte';
 export type { ScrollEdgeSide } from './LiquidScrollEdge.svelte';
+export { default as LiquidCard } from './LiquidCard.svelte';
+export { default as LiquidPopover } from './LiquidPopover.svelte';
+export type { PopoverPlacement } from './LiquidPopover.svelte';
+export { default as LiquidDialog } from './LiquidDialog.svelte';
+export type { DialogPresentation } from './LiquidDialog.svelte';
 
 export type {
 	CornerShape,
@@ -76,8 +81,13 @@ export {
 	GLASS_DEFAULTS,
 	BUTTON_CIRCLE_BEZEL_RATIO,
 	BUTTON_CIRCLE_SIZES,
+	CARD_GEOMETRY,
+	DIALOG_GEOMETRY,
+	DIALOG_SURFACE,
 	MATERIAL_VARIANTS,
 	MENU_GLASS,
+	POPOVER_GEOMETRY,
+	POPOVER_GLASS,
 	NAVBAR_GEOMETRY,
 	QUALITY_PRESETS,
 	SCROLL_EDGE,
@@ -130,11 +140,18 @@ export {
 	REDUCED_MOTION_TRANSITION,
 	SPRINGS,
 	springFor,
+	DIALOG_COLLAPSE,
+	DIALOG_ENTER,
 	MAX_STRETCH,
+	POPOVER_COLLAPSE,
+	POPOVER_PUDDLE,
+	POPOVER_PUDDLE_ROUNDNESS,
+	POPOVER_RISE_DELAY,
 	SEARCH_COLLAPSE,
 	SEARCH_MORPH_GATHER,
 	SEARCH_MORPH_LEAD,
 	SEARCH_MORPH_VOLUME,
+	SHEET_COLLAPSE,
 	TOOLBAR_COLLAPSE,
 	TOOLBAR_ITEM_FADE,
 	TOOLBAR_ITEM_RISE,

@@ -423,6 +423,145 @@ export const MENU_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 };
 
 /**
+ * The popover panel's morph endpoints, keyed by the trigger's material variant.
+ *
+ * {@link MENU_GLASS}'s figures restated, per the rule on TOOLBAR_MORPH_LEAD:
+ * the popover plays the menu's puddle opening — a shallow spill with no
+ * thickness to refract with, deepening into a settled panel — so the endpoints
+ * are the same *figures*, but a panel of arbitrary consumer content could well
+ * come to want a quieter rim or a denser rest tint than a list of menu items,
+ * and the moment either is retuned the sharing would have been a bug.
+ */
+export const POPOVER_GLASS: Record<GlassVariant, { rest: DropletVisual; active: DropletVisual }> = {
+	regular: {
+		rest: {
+			displacementRatio: 0,
+			opacity: MATERIAL_VARIANTS.regular.opacity,
+			saturation: MATERIAL_VARIANTS.regular.saturation,
+			blur: MATERIAL_VARIANTS.regular.blur,
+			specularIntensity: 0.2,
+			scale: 1
+		},
+		active: {
+			displacementRatio: DISPLACEMENT_PER_BEZEL,
+			opacity: MATERIAL_VARIANTS.regular.opacity,
+			saturation: MATERIAL_VARIANTS.regular.saturation,
+			blur: MATERIAL_VARIANTS.regular.blur,
+			specularIntensity: 0.5,
+			scale: 1
+		}
+	},
+	clear: {
+		rest: {
+			displacementRatio: 0,
+			opacity: 0.3,
+			saturation: 1,
+			blur: MATERIAL_VARIANTS.clear.blur,
+			specularIntensity: 0.2,
+			scale: 1
+		},
+		active: {
+			displacementRatio: DISPLACEMENT_PER_BEZEL,
+			opacity: 0.12,
+			saturation: 1.7,
+			blur: MATERIAL_VARIANTS.clear.blur,
+			specularIntensity: 0.5,
+			scale: 1
+		}
+	}
+};
+
+/**
+ * Card geometry, in CSS pixels.
+ *
+ * The bezel is shallower than {@link GLASS_DEFAULTS.bezel}, for the menu panel's
+ * reason: a card is a container, so the refraction belongs in a rim around a flat
+ * clear centre the content sits on. It is slightly *deeper* than the menu's 16
+ * because a card is typically the largest resting surface on a page and a rim
+ * proportioned for a 208px panel starts reading as a hairline on a 360px card.
+ *
+ * The radius restates {@link GLASS_DEFAULTS.borderRadius} rather than importing
+ * it, per the rule on TOOLBAR_MORPH_LEAD: the default radius is "a glass
+ * surface's corner" and this is "a card's corner" — the same figure today, not
+ * the same quantity. A card is exactly the surface the `continuous` corner
+ * convention exists for, so the shape needs no stating here at all.
+ */
+export const CARD_GEOMETRY = {
+	radius: 28,
+	bezel: 18,
+	/** Inner padding of the content box. Mirrored in `LiquidCard.svelte`'s CSS. */
+	padding: 20
+} as const;
+
+/**
+ * Popover panel geometry, in CSS pixels.
+ *
+ * The menu's figures restated, not imported — the rule on TOOLBAR_MORPH_LEAD.
+ * A popover is the same *class* of surface as a menu panel (a panel spilling
+ * out of a trigger, sized by its content) but not the same surface: a menu is a
+ * list with known row metrics, a popover holds arbitrary content, and the
+ * moment one of them wants a different rim or resting radius the sharing would
+ * have been a bug.
+ */
+export const POPOVER_GEOMETRY = {
+	/** Radius of the *round* panel — matched through `matchedRadius` for other corners. */
+	radius: 22,
+	bezel: 16,
+	gap: 10,
+	minWidth: 208,
+	/** Inner padding of the content box, mirrored in the component's CSS. Smaller
+	 *  than the card's: popovers are dense. */
+	padding: 14
+} as const;
+
+/**
+ * Dialog geometry, in CSS pixels.
+ *
+ * `radius` runs past every other surface's because a dialog is the largest
+ * discrete object the library draws, and iOS scales its continuous corners with
+ * the sheet — a 22px corner on a 400px panel reads as a rounded rectangle, not
+ * as the platform's sheet silhouette. `bezel` follows the card's argument at
+ * dialog scale.
+ *
+ * `inset` is the floating margin: the sheet presentation floats clear of the
+ * viewport edges rather than docking flush, which is what keeps all four
+ * corners — and therefore one uniform radius the displacement map can be built
+ * for — instead of the docked sheet's two, which would need per-corner radii
+ * the primitive deliberately does not have.
+ *
+ * The pixel figures are mirrored in `LiquidDialog.svelte`'s CSS, the way
+ * {@link BUTTON_CIRCLE_SIZES} is mirrored in its component: the layout has to
+ * exist in the server render.
+ */
+export const DIALOG_GEOMETRY = {
+	radius: 34,
+	bezel: 20,
+	/** Width ceiling of the centered presentation. */
+	maxWidth: 400,
+	/** Width ceiling of the sheet presentation. */
+	sheetMaxWidth: 560,
+	/** Margin between any panel edge and the viewport. */
+	inset: 16,
+	padding: 20
+} as const;
+
+/**
+ * The dialog panel's resting optics.
+ *
+ * No morph endpoints, deliberately — see the entrance note in
+ * `LiquidDialog.svelte`: the panel enters at ~94% of its size, not from a
+ * puddle, so there is no "not yet glass" state for a `DropletMorph` to animate
+ * out of. The rim sits at the settled-panel 0.5 every settled panel in the
+ * library wears ({@link MENU_GLASS}), and the shadow runs above the default 0.5
+ * because a modal floats above everything on the page and its elevation is most
+ * of what says so.
+ */
+export const DIALOG_SURFACE = {
+	specularIntensity: 0.5,
+	shadowIntensity: 0.85
+} as const;
+
+/**
  * Diameter of a circular button per size, in CSS pixels.
  *
  * Mirrored by width/height rules in `LiquidButton.svelte`, and that duplication is

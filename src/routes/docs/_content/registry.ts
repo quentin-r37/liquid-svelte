@@ -1,5 +1,8 @@
 import type { DocMeta } from './types.js';
 import liquidButton from './liquid-button/meta.js';
+import liquidCard from './liquid-card/meta.js';
+import liquidDialog from './liquid-dialog/meta.js';
+import liquidPopover from './liquid-popover/meta.js';
 import liquidSwitch from './liquid-switch/meta.js';
 import liquidSlider from './liquid-slider/meta.js';
 import liquidTabs from './liquid-tabs/meta.js';
@@ -24,6 +27,9 @@ export const groups: DocGroup[] = [
 			'liquid-slider',
 			'liquid-tabs',
 			'liquid-menu',
+			'liquid-popover',
+			'liquid-dialog',
+			'liquid-card',
 			'liquid-search-field',
 			'liquid-toolbar',
 			'liquid-nav-bar',
@@ -41,6 +47,9 @@ export const docs: Record<string, DocMeta> = Object.fromEntries(
 		liquidSlider,
 		liquidTabs,
 		liquidMenu,
+		liquidPopover,
+		liquidDialog,
+		liquidCard,
 		liquidSearchField,
 		liquidToolbar,
 		liquidNavBar,
