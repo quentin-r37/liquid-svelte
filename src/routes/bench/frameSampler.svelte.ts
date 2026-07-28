@@ -104,6 +104,18 @@ export class FrameSampler {
 	p95 = $state(0);
 	worst = $state(0);
 	janky = $state(0);
+	/**
+	 * Shortest frame in the window — in practice the display's vsync interval, since
+	 * no frame can beat it and at least one usually hits it.
+	 *
+	 * Worth surfacing because it is what makes a frame-rate figure readable. Frames
+	 * are delivered on vsync boundaries, so the cost of a change does not show up
+	 * smoothly: work that crosses one boundary halves the frame rate, and work that
+	 * doubles *within* a boundary shows up as nothing at all. On a 165Hz panel a
+	 * page sitting at 82.5fps is a page missing every other vsync by any margin
+	 * whatsoever — which is why p50 next to this number says more than fps does.
+	 */
+	fastest = $state(0);
 	/** True while a {@link measure} run is collecting. */
 	recording = $state(false);
 
@@ -192,6 +204,7 @@ export class FrameSampler {
 		this.p95 = summary.p95;
 		this.worst = summary.worst;
 		this.janky = summary.janky;
+		this.fastest = Math.min(...trace);
 	}
 }
 

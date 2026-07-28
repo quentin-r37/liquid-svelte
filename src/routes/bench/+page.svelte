@@ -160,9 +160,23 @@
 	let withRimAntialias = $state(true);
 
 	const featureKey = $derived(`${withSpecular}-${withRimAntialias}`);
-	const featureLabel = $derived(
-		[withRimAntialias ? 'rim' : null, withSpecular ? 'spec' : null].filter(Boolean).join('+') || '—'
-	);
+
+	/**
+	 * What is actually in the chain, read back off the live preset rather than off
+	 * the toggles. The two differ whenever the preset does not have the pass to
+	 * begin with — `low` has neither, so reporting the toggle state labelled its
+	 * rows `rim+spec` and made the table lie about the very thing it exists to
+	 * separate.
+	 */
+	const featureLabel = $derived.by(() => {
+		const preset = QUALITY_PRESETS[quality];
+		void featureKey; // the patch is invisible to the reactivity graph; this is the signal
+		return (
+			[preset.rimAntialias ? 'rim' : null, preset.specular ? 'spec' : null]
+				.filter(Boolean)
+				.join('+') || '—'
+		);
+	});
 
 	function applyFeatures(): void {
 		for (const [name, preset] of Object.entries(PRISTINE_PRESETS)) {
@@ -444,6 +458,11 @@
 				</div>
 			</dl>
 			<p class="cache">
+				vsync: <strong>{fmt(sampler.fastest, 2)} ms</strong>
+				(≈{sampler.fastest > 0 ? Math.round(1000 / sampler.fastest) : 0} Hz) — every frame time below
+				lands on a multiple of it, so read p50 in vsyncs, not fps
+			</p>
+			<p class="cache">
 				maps: <strong>{mapStats.generations}</strong> generated ·
 				<strong>{mapStats.hits}</strong>
 				hits · <strong>{mapStats.cacheSize}</strong> cached
@@ -592,6 +611,7 @@
 							<th>passes</th>
 							<th>fps</th>
 							<th>held</th>
+							<th>p50</th>
 							<th>p95</th>
 							<th>worst</th>
 							<th>janky</th>
@@ -609,6 +629,7 @@
 								<td class:down={best > 0 && row.fps < best * 0.9}>
 									{best > 0 ? Math.round((row.fps / best) * 100) : 0}%
 								</td>
+								<td>{fmt(row.p50)}</td>
 								<td>{fmt(row.p95)}</td>
 								<td>{fmt(row.worst)}</td>
 								<td class:down={row.janky > 0}>{row.janky}</td>
@@ -618,9 +639,12 @@
 					</tbody>
 				</table>
 				<p class="legend">
+					<strong>p50</strong> before <strong>fps</strong>: frames land on vsync boundaries, so a
+					change that pushes the typical frame from just under one to just over halves the frame
+					rate, while a change twice that size landing inside a boundary reads as nothing at all.
 					<strong>held</strong> is the row's frame rate as a share of the best row in the table —
-					the column that answers whether the count is what costs you.
-					<strong>maps</strong>
+					the column that answers whether the count is what costs you, once p50 says the two rows
+					differ at all. <strong>maps</strong>
 					counts rasterisations during the run: anything above zero at a steady instance count means something
 					animated crossed into a cache key.
 					{#if results.some((row) => row.stalled)}
