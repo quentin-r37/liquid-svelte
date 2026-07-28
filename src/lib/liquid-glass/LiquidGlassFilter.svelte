@@ -124,7 +124,7 @@
 	 * it is the most expensive thing in the chain — a wide σ over an area the pads
 	 * make several times the element's, on every frame the surface is refiltered.
 	 * It is also most of what the `regular` variant is inside this chain: `clear`
-	 * runs the same pass at σ 1.7 and `regular` at 6, and nothing else in the
+	 * runs the same pass at σ 1.7 and `regular` at 5, and nothing else in the
 	 * filter distinguishes them — the rest of the difference between the two
 	 * materials is the veil, which is CSS and costs nothing here. So this number
 	 * is most of the material's price.

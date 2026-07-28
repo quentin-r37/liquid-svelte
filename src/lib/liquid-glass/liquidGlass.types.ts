@@ -61,7 +61,7 @@ export type GlassQuality = 'low' | 'medium' | 'high';
  * the flat sheet measured off the platform, `clear` the lit-from-the-corner
  * sweep (see `.lg[data-variant]` in liquidGlass.css). That is what makes the
  * two materials differ in colour rather than in frost, which is what they do on
- * iOS — the blur between them moves by ×3.5, the veil by more than ten.
+ * iOS — the blur between them moves by ×3, the veil by more than ten.
  */
 export type GlassVariant = 'regular' | 'clear';
 
@@ -166,7 +166,7 @@ export interface LiquidGlassProps extends Omit<HTMLAttributes<HTMLElement>, 'sty
 	displacement?: number;
 	/**
 	 * Backdrop blur radius in pixels, applied *before* refraction. Defaults from
-	 * the `variant` — 6 for `regular`, the platform's 1.7 for `clear`. On a
+	 * the `variant` — 5 for `regular`, the platform's 1.7 for `clear`. On a
 	 * `clear` surface the material's own figure is near the ceiling: past a
 	 * couple of pixels the frost starts swallowing the distortion that makes it
 	 * read as liquid, which is the whole of what a clear surface has.

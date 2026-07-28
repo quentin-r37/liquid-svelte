@@ -150,6 +150,12 @@ export const MATERIAL_VARIANTS: Record<GlassVariant, MaterialVariant> = {
  * 20px of fog, which is not a clear material by any reading. A floor states what
  * was meant all along: never less than this, never more than the material asked
  * for.
+ *
+ * It sits a pixel above `regular`'s own frost and therefore raises that too, on
+ * this tier only. Deliberate rather than an oversight to be tidied by tracking
+ * the material: the figure `regular` wears is a *refracting* surface's, and here
+ * there is no refraction to carry the material — the same argument that raises
+ * `clear`, applied to a σ that happens to be close to the floor already.
  */
 export const DEGRADED_BLUR_FLOOR = 6;
 
