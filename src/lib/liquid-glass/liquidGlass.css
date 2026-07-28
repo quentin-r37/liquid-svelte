@@ -45,7 +45,8 @@
  *   --lg-shadow, --lg-backdrop, --lg-elevation
  * Set only by this stylesheet, per colour scheme (never inline — see the notes
  * on --lg-tint-boost and --lg-shadow-boost):
- *   --lg-tint-boost, --lg-shadow-boost, --lg-veil-boost, --lg-veil-color, --lg-accent
+ *   --lg-tint-boost, --lg-shadow-boost, --lg-veil-boost, --lg-veil-color,
+ *   --lg-clear-veil-boost, --lg-chroma-boost, --lg-accent
  * Set by a surface that is being scaled non-uniformly (see LiquidMenu):
  *   --lg-radius-x, --lg-radius-y, --lg-corner-shape-live
  * Set by the material variant, and overridable by a surface that wants another
@@ -158,8 +159,21 @@
 	--lg-specular-band: calc(var(--lg-border-width) * 1.25);
 	--lg-light-angle: 145deg;
 
-	/* Scheme-agnostic base: a very low-alpha white sheet plus soft inner shading
-	   reads correctly on light and dark backdrops alike. */
+	/*
+	 * Scheme-agnostic base: a very low-alpha white sheet plus soft inner shading
+	 * reads correctly on light and dark backdrops alike.
+	 *
+	 * Dark runs at 0.65, and the direction of that figure is the surprise. It was
+	 * 1.3 — the dark veil *denser* than the light one — until it was measured
+	 * against the platform rather than judged by eye. On /compare-ios/ab in the
+	 * iOS 26.5 simulator, a native dark `regular` button darkens its backdrop by
+	 * 43% and a tab rail by 33%; ours darkened them by 80% and 66%, which is not a
+	 * smoked material but an opaque one. Halving the multiplier lands both within
+	 * a point. The eye asks for more veil in dark because a dark veil hides so
+	 * little — it multiplies the backdrop instead of washing it out, so contrast
+	 * and colour both survive it — and answering that with alpha is what turns a
+	 * dark control into a black tile.
+	 */
 	--lg-tint-boost: 1;
 	/*
 	 * Light-scheme luminance lift, applied to the material's own veil (`.lg-tint`)
@@ -192,6 +206,38 @@
 	 * this layer — the default veil here is only ever the material's face.
 	 */
 	--lg-veil-color: var(--lg-rim);
+	/*
+	 * `clear`'s veil weight, which is the light one in both schemes (see the
+	 * `.lg[data-variant='clear']` rule). Stated per scheme rather than pinned in
+	 * that rule because `--lg-tint-boost` — which multiplies it, and which the
+	 * recoloured fills need at their own scheme figure — differs: 2.4 under a
+	 * boost of 1 and 4.45 under 0.65 are, near enough, the same veil. Near enough
+	 * rather than exactly, because the layers stacked above it are scheme-owned
+	 * too; the figure is the one that measures back to the light lift on
+	 * /compare-ios/ab, not the one arithmetic predicts.
+	 */
+	--lg-clear-veil-boost: 2.4;
+	/*
+	 * Chroma the veil is about to destroy, handed back to the backdrop before it
+	 * gets there — an extra `saturate()` appended to the backdrop filter (see
+	 * `LiquidGlass.svelte`), so it lands on the refracted backdrop and never on
+	 * the veil, the fills or the rim.
+	 *
+	 * It belongs here, beside `--lg-veil-color`, because it compensates *that*
+	 * property and nothing else, and because the amount depends on the scheme in
+	 * a way a token cannot see. Compositing toward white destroys saturation;
+	 * compositing toward near-black is a multiplication and preserves it. So the
+	 * same material needs the compensation in light and none of it in dark, which
+	 * is why the material's own `saturation` stays the mild figure a blur
+	 * warrants (~1.05) and the scheme-side correction lives in CSS.
+	 *
+	 * Measured on /compare-ios/ab against the iOS 26.5 simulator: under a ~67%
+	 * white veil the platform returns ~44% of the backdrop's chroma where an
+	 * uncompensated composite returns ~30%, and 1.5 is what closes that. `clear`
+	 * runs lower because it veils far less, and — following the platform — keeps
+	 * its white veil in dark, so its figure is scheme-independent too.
+	 */
+	--lg-chroma-boost: 1.5;
 	--lg-rim: 255 255 255;
 	--lg-shade: 0 0 0;
 	/*
@@ -270,10 +316,12 @@
 
 @media (prefers-color-scheme: dark) {
 	.lg {
-		--lg-tint-boost: 1.3;
+		--lg-tint-boost: 0.65;
 		--lg-shadow-boost: 1;
 		--lg-veil-boost: 2;
 		--lg-veil-color: 15 12 22;
+		--lg-clear-veil-boost: 4.45;
+		--lg-chroma-boost: 0.85;
 		--lg-accent: 10 132 255;
 	}
 }
@@ -290,13 +338,17 @@
 	--lg-shadow-boost: 0.35;
 	--lg-veil-boost: 2.4;
 	--lg-veil-color: var(--lg-rim);
+	--lg-clear-veil-boost: 2.4;
+	--lg-chroma-boost: 1.5;
 	--lg-accent: 0 122 255;
 }
 [data-scheme='dark'] .lg {
-	--lg-tint-boost: 1.3;
+	--lg-tint-boost: 0.65;
 	--lg-shadow-boost: 1;
 	--lg-veil-boost: 2;
 	--lg-veil-color: 15 12 22;
+	--lg-clear-veil-boost: 4.45;
+	--lg-chroma-boost: 0.85;
 	--lg-accent: 10 132 255;
 }
 .lg[data-scheme='light'] {
@@ -304,13 +356,17 @@
 	--lg-shadow-boost: 0.35;
 	--lg-veil-boost: 2.4;
 	--lg-veil-color: var(--lg-rim);
+	--lg-clear-veil-boost: 2.4;
+	--lg-chroma-boost: 1.5;
 	--lg-accent: 0 122 255;
 }
 .lg[data-scheme='dark'] {
-	--lg-tint-boost: 1.3;
+	--lg-tint-boost: 0.65;
 	--lg-shadow-boost: 1;
 	--lg-veil-boost: 2;
 	--lg-veil-color: 15 12 22;
+	--lg-clear-veil-boost: 4.45;
+	--lg-chroma-boost: 0.85;
 	--lg-accent: 10 132 255;
 }
 
@@ -339,6 +395,30 @@
  * surface that genuinely wants the sweep under a heavy veil can take it back
  * with any rule of its own.
  */
+/*
+ * `clear` does not flip with the scheme, and that is the platform's behaviour
+ * rather than an omission here.
+ *
+ * `regular` is a veil and a veil has a polarity: in light it lifts the backdrop
+ * toward white, in dark it pulls it under. Measured on /compare-ios/ab in the
+ * iOS 26.5 simulator, `.glassEffect(.clear)` does neither — it lifts luminance
+ * by 16% and hands the backdrop's saturation back untouched, and it does so in
+ * *both* schemes, to the tenth of a percent. It is a lens, not a tint, and a
+ * lens has no scheme. Ours darkened by 18% in dark, which is the one behaviour
+ * that makes a clear material read as a smoked one.
+ *
+ * So the veil colour and weight are pinned to their light figures here, and the
+ * chroma compensation with them — a white veil destroys saturation whatever the
+ * page around it is doing. Only what sits *on* the surface still follows the
+ * scheme: the label colours, the rim, and every recoloured fill, all of which
+ * come from properties this rule leaves alone.
+ */
+.lg[data-variant='clear'] {
+	--lg-veil-color: var(--lg-rim);
+	--lg-veil-boost: var(--lg-clear-veil-boost);
+	--lg-chroma-boost: 1.3;
+}
+
 .lg[data-variant='regular'] {
 	--lg-tint-grad-hi: 1.12;
 	--lg-tint-grad-mid: 1;

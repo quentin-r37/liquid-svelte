@@ -982,6 +982,16 @@
 		min-width: var(--lg-menu-min-width);
 		max-width: min(20rem, 80vw);
 		padding: 6px;
+		/*
+		 * No chroma compensation, which is the other half of PANEL_FROST: a control
+		 * hands back ~44% of the backdrop's saturation under the platform's veil, a
+		 * menu panel only ~27% from the same 0.64. The material's own figure already
+		 * measures right for a panel (0.19 against the reference's 0.17), so what a
+		 * panel wants is the veil compensation *off*, not a token of its own. Costs a
+		 * small chroma step at the instant the puddle takes the trigger's place —
+		 * the one place this panel is deliberately not the button it replaces.
+		 */
+		--lg-chroma-boost: 1;
 	}
 
 	.lg-menu :global(.lg-menu-panel > .lg-content) {
