@@ -121,6 +121,15 @@
 		width: 100%;
 		height: 100%;
 		padding: 1.5rem;
+		/*
+		 * Without this the padding rides on top of `height: 100%` and the box
+		 * overflows the stage by 3rem on each axis — silently, because the stage
+		 * clips. Everything centred in it sat 1.5rem off-centre, and anything
+		 * positioned against it (a `contained` LiquidDialog fills this box, being
+		 * the nearest positioned ancestor) anchored to edges 3rem past the stage's
+		 * visible ones — which is where a contained sheet lost its bottom third.
+		 */
+		box-sizing: border-box;
 	}
 
 	.content.flush {
