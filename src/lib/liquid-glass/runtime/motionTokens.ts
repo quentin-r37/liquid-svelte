@@ -354,6 +354,47 @@ export const MENU_MORPH_VOLUME = { swell: 1.1, flatten: 0.84, dip: 0.06, release
 export const MENU_COLLAPSE = { duration: 0.17, ease: 'easeIn' } as const;
 
 /**
+ * The popover's opening and closing: the menu's puddle figures restated, per the
+ * rule on {@link TOOLBAR_MORPH_LEAD} — same figures, not the same quantity. The
+ * popover plays only the puddle-beside-the-trigger opening (no trigger morph:
+ * a popover's trigger stays on screen, pointing at the panel it opened), so of
+ * the menu's choreography it takes the spill, the rise, the roundness and the
+ * monotone collapse, and nothing else.
+ */
+export const POPOVER_PUDDLE = { scaleX: 0.44, scaleY: 0.06 } as const;
+export const POPOVER_RISE_DELAY = 0.05;
+export const POPOVER_PUDDLE_ROUNDNESS = 3.2;
+export const POPOVER_COLLAPSE = { duration: 0.17, ease: 'easeIn' } as const;
+
+/**
+ * The dialog's entrance: where the centered panel starts, as a scale and a
+ * downward offset in CSS pixels.
+ *
+ * Deliberately *not* a puddle. A popover grows out of a trigger, so liquid
+ * spilling from that point is the honest reading; a modal has no on-screen
+ * origin — it is summoned, not poured — and iOS presents its alerts exactly
+ * this way: nearly at size, arriving from slightly below, settled within a
+ * quarter second. The scale is close enough to 1 that the corner-radius
+ * distortion a transform inflicts (see LiquidMenu's radius compensation) stays
+ * under a pixel, which is what lets the dialog skip that whole mechanism.
+ */
+export const DIALOG_ENTER = { scale: 0.94, y: 12 } as const;
+
+/**
+ * The dialog's exit — a duration, not a spring, for {@link MENU_COLLAPSE}'s
+ * reason: the retreated state is hidden the instant it is reached, so an
+ * overshoot has nothing to justify it and a spring's tail delays the hiding.
+ */
+export const DIALOG_COLLAPSE = { duration: 0.15, ease: 'easeIn' } as const;
+
+/**
+ * The sheet's exit, same argument. Longer than the dialog's because the travel
+ * is the panel's whole height rather than a 6% scale step — the same 150ms over
+ * several hundred pixels reads as the sheet being snatched off screen.
+ */
+export const SHEET_COLLAPSE = { duration: 0.24, ease: 'easeIn' } as const;
+
+/**
  * How long a toolbar's *travel* has to itself before the bar starts unrolling, in
  * seconds.
  *
