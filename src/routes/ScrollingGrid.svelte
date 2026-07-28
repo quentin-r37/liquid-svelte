@@ -61,7 +61,13 @@
 			radial-gradient(140% 100% at 28% 18%, rgb(255 255 255 / 0.1), transparent 55%),
 			radial-gradient(120% 120% at 100% 100%, rgb(0 0 0 / 0.5), transparent 60%),
 			linear-gradient(115deg, #24262d 0%, #17181d 48%, #0d0e12 100%);
-		color: rgb(255 255 255 / 0.35);
+		/*
+		 * The hairline ink. Bolder than a background ruling normally would be (composited
+		 * with `.minor`'s 0.5 this lands at ~0.25 white on dark): the lines are the entire
+		 * displacement read, and at hairline width a timid line vanishes inside the bezel
+		 * exactly where the bend should be most visible.
+		 */
+		color: rgb(255 255 255 / 0.5);
 	}
 
 	.backdrop.fixed {
@@ -79,34 +85,37 @@
 
 	/*
 	 * Two fields, placed on opposing corners and kept far apart in hue. Chromatic
-	 * aberration needs a colour gradient to split, not saturation for its own sake —
-	 * and the WWDC-style silver surface must stay silver, so the hues are pulled almost
-	 * all the way to grey: steel blue against champagne is enough of a ramp for the
-	 * filter to split while both still read as lighting on metal, not as artwork.
+	 * aberration needs a colour gradient to split, not saturation for its own sake.
+	 * An earlier pass pulled both hues almost all the way to grey to keep the silver
+	 * sheet reading as metal — which was honest but left the glass with nothing to
+	 * refract *in colour*: the tint went muddy and the aberration split greys into
+	 * greys. These are the warmed versions: a franker blue against a copper-amber,
+	 * saturated enough that the bezel visibly bends colour, while the 90px blur and
+	 * sub-0.5 opacity keep them reading as coloured light on the sheet, not artwork.
 	 */
 	.field {
 		position: absolute;
 		border-radius: 50%;
 		filter: blur(90px);
-		opacity: 0.28;
+		opacity: 0.45;
 	}
 
 	.field-a {
 		inset: -18% auto auto -12%;
 		width: 62vw;
 		height: 62vw;
-		background: radial-gradient(circle, #7a8ab0 0%, #4a5470 52%, transparent 74%);
+		background: radial-gradient(circle, #6d84e8 0%, #3d4fa8 52%, transparent 74%);
 	}
 
 	.field-b {
 		inset: auto -14% -22% auto;
 		width: 56vw;
 		height: 56vw;
-		background: radial-gradient(circle, #b0a084 0%, #6e6250 50%, transparent 72%);
+		background: radial-gradient(circle, #e89a5f 0%, #a05a3c 50%, transparent 72%);
 	}
 
 	.backdrop[data-scheme='light'] .field {
-		opacity: 0.2;
+		opacity: 0.3;
 	}
 
 	/*
@@ -121,19 +130,22 @@
 
 	/*
 	 * The tile size has to match the keyframe translation exactly or the loop seams.
-	 * Cells are WWDC-poster large — hairlines ruling a sheet of metal rather than graph
-	 * paper — which costs bezel crossings, so each line that does cross gets to be more
-	 * visible: opacity is up from the 28px version to compensate for there being far
-	 * fewer lines. ~12px/s is the sweet spot: brisk enough that a line is always mid-bezel
-	 * somewhere, slow enough that the surface still reads as calm metal.
+	 * 80px cells: still hairlines ruling a sheet of metal, not graph paper, but tighter
+	 * than the 120px WWDC-poster pass so a typical bezel always has a line mid-bend —
+	 * at 120px a small control could sit a whole cell away from the nearest crossing
+	 * and show no displacement at all. Opacity stays at the 120px value; the extra
+	 * lines make the field slightly busier, which here is the point.
+	 * ~12px/s is the sweet spot: brisk enough that a line is always mid-bezel
+	 * somewhere, slow enough that the surface still reads as calm metal — hence the
+	 * duration drops with the tile so the drift speed is unchanged.
 	 */
 	.minor {
 		background-image:
 			linear-gradient(to right, currentColor 0 1px, transparent 1px 100%),
 			linear-gradient(to bottom, currentColor 0 1px, transparent 1px 100%);
-		background-size: 120px 120px;
+		background-size: 80px 80px;
 		opacity: 0.5;
-		animation: drift-minor calc(10s / var(--speed)) linear infinite;
+		animation: drift-minor calc(6.7s / var(--speed)) linear infinite;
 	}
 
 	@keyframes drift-minor {
@@ -141,7 +153,7 @@
 			transform: translate3d(0, 0, 0);
 		}
 		to {
-			transform: translate3d(120px, 120px, 0);
+			transform: translate3d(80px, 80px, 0);
 		}
 	}
 
