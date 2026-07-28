@@ -45,9 +45,9 @@
  *   --lg-shadow, --lg-backdrop, --lg-elevation
  * Set only by this stylesheet, per colour scheme (never inline — see the notes
  * on --lg-tint-boost and --lg-shadow-boost):
- *   --lg-tint-boost, --lg-shadow-boost, --lg-veil-boost, --lg-veil-color,
- *   --lg-clear-veil-boost, --lg-clear-material-boost, --lg-chroma-boost,
- *   --lg-accent
+ *   --lg-tint-boost, --lg-shadow-boost, --lg-veil-boost, --lg-panel-veil-boost,
+ *   --lg-veil-color, --lg-clear-veil-boost, --lg-clear-material-boost,
+ *   --lg-chroma-boost, --lg-accent
  * Set by a surface that is being scaled non-uniformly (see LiquidMenu):
  *   --lg-radius-x, --lg-radius-y, --lg-corner-shape-live
  * Set by the material variant, and overridable by a surface that wants another
@@ -195,6 +195,27 @@
 	 * instead of up.
 	 */
 	--lg-veil-boost: 2.4;
+	/*
+	 * The *panel* veil weight — what the settled menu, popover and dialog panels
+	 * read instead of `--lg-veil-boost` (each states so next to its
+	 * `--lg-chroma-boost: 1` pin; the two are halves of the same split).
+	 *
+	 * Light needs no split: one white veil measured 67% on both a button capsule
+	 * and the settled menu panel against the platform's 67–68%, so the figure is
+	 * the control's. Dark does. Measured against a dark `UIMenu` over the rainbow
+	 * stripes (/compare-ios/menu, iOS 26.5 simulator), the platform multiplies
+	 * what a *panel* covers down to ~0.42–0.47 of its luminance while a control's
+	 * backdrop keeps ~0.57 — the same panel-versus-control split PANEL_FROST
+	 * carries in σ and the chroma pin carries in saturation, showing up a third
+	 * time in the veil. At the control weight (2) ours kept the backdrop at
+	 * 0.67–0.70: a near-black veil is a multiplication, it darkens without ever
+	 * greying, so the stripes came through the smoked panel as stained glass —
+	 * plainly more colourful than the reference. 3.5 lands green and teal within
+	 * a couple of 8-bit units and blue within seven; the residual per-hue spread
+	 * is the known contrast-mix gap (the platform blends a blurred copy of the
+	 * backdrop under its tint, which no alpha wash reproduces).
+	 */
+	--lg-panel-veil-boost: 2.4;
 	/*
 	 * The veil's own colour, and the property that flips the material's polarity
 	 * per scheme. macOS 26's regular material is not "a white sheet, denser in
@@ -372,6 +393,7 @@
 		--lg-tint-boost: 0.65;
 		--lg-shadow-boost: 1;
 		--lg-veil-boost: 2;
+		--lg-panel-veil-boost: 3.5;
 		--lg-veil-color: 18 18 19;
 		--lg-clear-veil-boost: 4.45;
 		--lg-clear-material-boost: 1.9;
@@ -391,6 +413,7 @@
 	--lg-tint-boost: 1;
 	--lg-shadow-boost: 0.35;
 	--lg-veil-boost: 2.4;
+	--lg-panel-veil-boost: 2.4;
 	--lg-veil-color: var(--lg-rim);
 	--lg-clear-veil-boost: 2.4;
 	--lg-clear-material-boost: 2.4;
@@ -401,6 +424,7 @@
 	--lg-tint-boost: 0.65;
 	--lg-shadow-boost: 1;
 	--lg-veil-boost: 2;
+	--lg-panel-veil-boost: 3.5;
 	--lg-veil-color: 18 18 19;
 	--lg-clear-veil-boost: 4.45;
 	--lg-clear-material-boost: 1.9;
@@ -411,6 +435,7 @@
 	--lg-tint-boost: 1;
 	--lg-shadow-boost: 0.35;
 	--lg-veil-boost: 2.4;
+	--lg-panel-veil-boost: 2.4;
 	--lg-veil-color: var(--lg-rim);
 	--lg-clear-veil-boost: 2.4;
 	--lg-clear-material-boost: 2.4;
@@ -421,6 +446,7 @@
 	--lg-tint-boost: 0.65;
 	--lg-shadow-boost: 1;
 	--lg-veil-boost: 2;
+	--lg-panel-veil-boost: 3.5;
 	--lg-veil-color: 18 18 19;
 	--lg-clear-veil-boost: 4.45;
 	--lg-clear-material-boost: 1.9;

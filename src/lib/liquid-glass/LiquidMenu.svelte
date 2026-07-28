@@ -995,15 +995,23 @@
 	}
 
 	/*
-	 * The clear panel's morph endpoints (`MENU_GLASS.clear`) carry hand-tuned
-	 * tints from when the whole library was clear glass, and they were tuned
-	 * under `--lg-clear-veil-boost` — so, like the tabs rail, the panel keeps
-	 * that weight rather than the raw material's `--lg-clear-material-boost`,
-	 * whose dark figure was measured for a bare capsule over black and would
-	 * thin a settled panel that was never part of that measurement.
+	 * The panel veil, third face of the same split (σ in PANEL_FROST, chroma
+	 * above, weight here — see `--lg-panel-veil-boost`). Like the chroma pin it
+	 * rides the whole morph, costing a small veil step at the grab and buying
+	 * the settled panel the platform's dark density.
+	 *
+	 * Scoped to `regular`, and the scoping is load-bearing: unscoped, this rule
+	 * outranks `.lg[data-variant='clear']` and would put the frosted panel's
+	 * weight under the clear panel's white veil. The clear panel briefly pinned
+	 * `--lg-clear-veil-boost` instead (its `MENU_GLASS.clear` tints are
+	 * hand-tuned relics of the all-clear era), and that preserved exactly the
+	 * wrong thing: at 4.45 in dark the settled panel is a ~30% white sheet —
+	 * a milky slab over any dark backdrop, where the platform's clear residual
+	 * stays near-black. So clear falls through to the variant rule and the
+	 * scheme-flipped `--lg-clear-material-boost`, like every raw clear surface.
 	 */
-	.lg-menu :global(.lg-menu-panel[data-variant='clear']) {
-		--lg-veil-boost: var(--lg-clear-veil-boost);
+	.lg-menu :global(.lg-menu-panel[data-variant='regular']) {
+		--lg-veil-boost: var(--lg-panel-veil-boost);
 	}
 
 	.lg-menu :global(.lg-menu-panel > .lg-content) {

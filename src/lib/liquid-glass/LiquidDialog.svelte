@@ -443,6 +443,17 @@
 		--lg-chroma-boost: 1;
 	}
 
+	/*
+	 * Third face of the split — the panel's dark veil density (see
+	 * `--lg-panel-veil-boost` and `.lg-menu-panel`). Scoped to `regular`, unlike
+	 * the menu's and popover's, because a clear dialog is the raw clear material
+	 * (`DIALOG_SURFACE` only overrides blur and saturation for `regular`) and has
+	 * no hand-tuned tint asking for a pin of its own.
+	 */
+	.lg-dialog :global(.lg-dialog-panel[data-variant='regular']) {
+		--lg-veil-boost: var(--lg-panel-veil-boost);
+	}
+
 	.lg-dialog[data-presentation='sheet'] :global(.lg-dialog-panel) {
 		width: min(560px, 100%);
 	}

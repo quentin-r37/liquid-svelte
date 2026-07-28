@@ -414,6 +414,14 @@
 		--lg-chroma-boost: 1;
 	}
 
+	/* Third face of the split — the panel's dark veil density. Same terms as the
+	   chroma pin above, and scoped to `regular` for the same load-bearing reason
+	   as the menu's: unscoped it would outrank the clear variant rule and lay the
+	   frosted panel's weight under clear's white veil. See `.lg-menu-panel`. */
+	.lg-popover :global(.lg-popover-panel[data-variant='regular']) {
+		--lg-veil-boost: var(--lg-panel-veil-boost);
+	}
+
 	.lg-popover :global(.lg-popover-panel > .lg-content) {
 		display: block;
 	}
