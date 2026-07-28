@@ -198,9 +198,15 @@
 	 * The veil's own colour, and the property that flips the material's polarity
 	 * per scheme. macOS 26's regular material is not "a white sheet, denser in
 	 * dark" — in light it lifts the backdrop toward white, and in dark it pulls
-	 * it *below* the backdrop, a near-black plum that reads as smoked glass.
-	 * One white veil cannot do both, whatever its alpha, so the colour itself is
-	 * scheme-owned. Kept separate from `--lg-tint-color` deliberately: that
+	 * it *below* the backdrop, smoked glass rather than frosted. One white veil
+	 * cannot do both, whatever its alpha, so the colour itself is scheme-owned.
+	 *
+	 * The dark figure is *neutral*, and it took a black backdrop to show why. It
+	 * was a near-black plum, which is invisible against anything with colour of
+	 * its own and unmissable against nothing: on a pure black stage in the
+	 * simulator the plum showed up as a 0.23 saturation cast under a surface where
+	 * iOS reads exactly 0.00. A veil with a hue is a veil that tints a greyscale
+	 * app. Kept separate from `--lg-tint-color` deliberately: that
 	 * property is the *recolouring* mechanism (selection fills, the prominent
 	 * button), and every surface that uses it paints its own `background` over
 	 * this layer — the default veil here is only ever the material's face.
@@ -340,7 +346,7 @@
 		--lg-tint-boost: 0.65;
 		--lg-shadow-boost: 1;
 		--lg-veil-boost: 2;
-		--lg-veil-color: 15 12 22;
+		--lg-veil-color: 18 18 19;
 		--lg-clear-veil-boost: 4.45;
 		--lg-chroma-boost: 0.85;
 		--lg-accent: 10 132 255;
@@ -367,7 +373,7 @@
 	--lg-tint-boost: 0.65;
 	--lg-shadow-boost: 1;
 	--lg-veil-boost: 2;
-	--lg-veil-color: 15 12 22;
+	--lg-veil-color: 18 18 19;
 	--lg-clear-veil-boost: 4.45;
 	--lg-chroma-boost: 0.85;
 	--lg-accent: 10 132 255;
@@ -385,7 +391,7 @@
 	--lg-tint-boost: 0.65;
 	--lg-shadow-boost: 1;
 	--lg-veil-boost: 2;
-	--lg-veil-color: 15 12 22;
+	--lg-veil-color: 18 18 19;
 	--lg-clear-veil-boost: 4.45;
 	--lg-chroma-boost: 0.85;
 	--lg-accent: 10 132 255;

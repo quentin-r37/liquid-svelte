@@ -58,7 +58,18 @@
 		'#590f1f'
 	];
 
-	const stripes = $derived(page.url.searchParams.get('bg') === 'dark' ? darkStripes : lightStripes);
+	/*
+	 * `?bg=black` is the limit case: a gain has nothing to multiply on pure black,
+	 * so whatever the surface lifts there is its residual tint alone.
+	 */
+	const bg = $derived(page.url.searchParams.get('bg'));
+	const stripes = $derived(
+		bg === 'black'
+			? Array.from({ length: 8 }, () => '#000000')
+			: bg === 'dark'
+				? darkStripes
+				: lightStripes
+	);
 
 	let stage = $state<HTMLElement | null>(null);
 	let rects = $state('');
@@ -90,13 +101,14 @@
 
 <div class="stage" data-scheme={scheme} bind:this={stage}>
 	<div class="bg">
-		{#each stripes as colour (colour)}
+		<!-- Keyed by index, not colour: `?bg=black` repeats one colour eight times. -->
+		{#each stripes as colour, i (i)}
 			<div class="stripe" style:background={colour}></div>
 		{/each}
 	</div>
 	<div class="rows">
 		{#each Array(40), row}
-			<div class="row" class:alt={row % 2 === 1}>
+			<div class="row" class:alt={row % 2 === 1} class:onblack={bg === 'black'}>
 				<span class="dot"></span>
 				<span>Ligne de texte fin {row} — abcdefg 0123456789</span>
 			</div>
@@ -171,6 +183,15 @@
 	}
 
 	.row.alt {
+		color: #fff;
+	}
+
+	/* Black text on black is not content — dark-mode content is light text. */
+	.row.onblack {
+		color: #8c8c8c;
+	}
+
+	.row.onblack.alt {
 		color: #fff;
 	}
 
