@@ -8,6 +8,11 @@ node_modules
 /.svelte-kit
 /build
 
+# Licensed stock audio for the /music harness — dev-only, not part of the package.
+# The route falls back to a synthetic progress tick when the file is absent, so a
+# fresh clone still exercises everything the screen exists to test.
+/static/audio
+
 # OS
 .DS_Store
 Thumbs.db

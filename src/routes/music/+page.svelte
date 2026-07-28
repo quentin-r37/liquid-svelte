@@ -134,25 +134,90 @@
 
 	// ------------------------------------------------------------ playback state ---
 
-	let playing = $state(true);
-	/** 0–1 through the current track. Drives the plain progress line in the player. */
-	let progress = $state(0.31);
-	let nowPlaying = $state(ALBUMS[0]);
+	/**
+	 * The real track, kept out of the fictional catalogue: clicking a card changes
+	 * what the player is *labelled* with, and there is only ever one audio file, so
+	 * conflating the two would put a stock title on every shelf.
+	 */
+	const NOW_PLAYING: Album = {
+		id: 'now',
+		title: 'In That Future Bass',
+		artist: 'AudioJungle',
+		hue: 288,
+		spin: 52
+	};
+
+	let playing = $state(false);
+	let nowPlaying = $state(NOW_PLAYING);
 	let liked = $state(false);
 
+	let audio = $state<HTMLAudioElement | null>(null);
+	let elapsed = $state(0);
+	let duration = $state(0);
 	/**
-	 * A slow tick rather than a `requestAnimationFrame` loop, deliberately: the point
+	 * The audio lives in `static/audio`, which is gitignored — it is licensed stock,
+	 * dev-only, and no part of the package. A fresh clone therefore has no file, and
+	 * the screen has to keep working: everything it exists to test is about glass over
+	 * scrolling content, none of which needs sound. So a failed load falls back to a
+	 * synthetic tick and the player behaves identically apart from being silent.
+	 */
+	let hasAudio = $state(true);
+	/** Synthetic 0–1 position, used only when there is no file to read one from. */
+	let syntheticProgress = $state(0.31);
+
+	const progress = $derived(
+		hasAudio && duration > 0 ? Math.min(1, elapsed / duration) : syntheticProgress
+	);
+
+	/**
+	 * A quarter-second tick rather than a `requestAnimationFrame` loop, deliberately,
+	 * and the same reason `timeupdate` is left at its native cadence below: the point
 	 * of this screen is to measure what the *glass* costs while the user scrolls, and
-	 * a harness that drives its own rAF every frame puts its own work in the same
-	 * number. A progress line moving four times a second is what a player does.
+	 * a harness driving its own rAF every frame puts its own work in that number.
 	 */
 	$effect(() => {
-		if (!playing) return;
+		if (!playing || hasAudio) return;
 		const id = setInterval(() => {
-			progress = progress >= 1 ? 0 : progress + 0.0025;
+			syntheticProgress = syntheticProgress >= 1 ? 0 : syntheticProgress + 0.0025;
 		}, 250);
 		return () => clearInterval(id);
 	});
+
+	function toggle(): void {
+		if (!audio || !hasAudio) {
+			playing = !playing;
+			return;
+		}
+
+		if (playing) {
+			audio.pause();
+			playing = false;
+			return;
+		}
+
+		// Autoplay policy rejects until the page has been interacted with, and a
+		// rejected promise here is unhandled otherwise.
+		audio.play().then(
+			() => (playing = true),
+			() => (playing = false)
+		);
+	}
+
+	/** Click anywhere on the track to seek, which is the least a real player does. */
+	function seek(event: MouseEvent): void {
+		const bar = event.currentTarget as HTMLElement;
+		const ratio = (event.clientX - bar.getBoundingClientRect().left) / bar.offsetWidth;
+		const clamped = Math.min(1, Math.max(0, ratio));
+
+		if (audio && hasAudio && duration > 0) audio.currentTime = clamped * duration;
+		else syntheticProgress = clamped;
+	}
+
+	function clock(seconds: number): string {
+		if (!Number.isFinite(seconds)) return '--:--';
+		const whole = Math.floor(seconds);
+		return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+	}
 
 	// ------------------------------------------------------------------- chrome ---
 
@@ -357,6 +422,21 @@
 		artwork, and reads as a dead patch. iOS does the same thing for the same
 		reason.
 	-->
+	<!--
+		Outside the glass, and not merely for tidiness: an `<audio>` element inside a
+		`.lg` would be one more child the content flex has to size around, and the
+		player's layout is already the thing this screen is most sensitive about.
+	-->
+	<audio
+		bind:this={audio}
+		src="/audio/in-that-future-bass.mp3"
+		preload="metadata"
+		ontimeupdate={() => (elapsed = audio?.currentTime ?? 0)}
+		onloadedmetadata={() => (duration = audio?.duration ?? 0)}
+		onended={() => (playing = false)}
+		onerror={() => (hasAudio = false)}
+	></audio>
+
 	<div class="player">
 		<LiquidGlass
 			height={72}
@@ -370,8 +450,42 @@
 			<div class="player-inner">
 				<span class="player-art" style={coverStyle(nowPlaying)} aria-hidden="true"></span>
 				<span class="player-meta">
-					<span class="player-title">{nowPlaying.title}</span>
-					<span class="player-artist">{nowPlaying.artist}</span>
+					<span class="player-line">
+						<span class="player-title">{nowPlaying.title}</span>
+						<span class="player-artist">{nowPlaying.artist}</span>
+					</span>
+					<!--
+						In flow rather than absolutely positioned against the slab. An
+						absolute line has to be inset past a 26px corner and a 16px bezel to
+						avoid sitting *inside* the refraction band, and what is left is a
+						line that looks mispositioned because it is — it clears the geometry
+						instead of belonging to the layout. A row in the metadata column
+						cannot collide with either.
+					-->
+					<span class="player-scrub">
+						<span class="player-time">{clock(hasAudio ? elapsed : progress * 214)}</span>
+						<span
+							class="player-track"
+							role="slider"
+							tabindex="0"
+							aria-label="Position de lecture"
+							aria-valuemin={0}
+							aria-valuemax={100}
+							aria-valuenow={Math.round(progress * 100)}
+							onclick={seek}
+							onkeydown={(event) => {
+								if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+								event.preventDefault();
+								const step = event.key === 'ArrowLeft' ? -5 : 5;
+								if (audio && hasAudio && duration > 0)
+									audio.currentTime = Math.min(duration, Math.max(0, audio.currentTime + step));
+								else syntheticProgress = Math.min(1, Math.max(0, syntheticProgress + step / 214));
+							}}
+						>
+							<span class="player-fill" style="width: {progress * 100}%"></span>
+						</span>
+						<span class="player-time">{clock(hasAudio ? duration : 214)}</span>
+					</span>
 				</span>
 				<span class="player-controls">
 					<button type="button" aria-label="Titre précédent"><SkipBack size={18} /></button>
@@ -379,21 +493,25 @@
 						type="button"
 						class="play"
 						aria-label={playing ? 'Pause' : 'Lecture'}
-						onclick={() => (playing = !playing)}
+						onclick={toggle}
 					>
 						{#if playing}<Pause size={20} />{:else}<Play size={20} />{/if}
 					</button>
 					<button type="button" aria-label="Titre suivant"><SkipForward size={18} /></button>
 				</span>
 			</div>
-			<span class="player-progress" aria-hidden="true">
-				<span class="player-progress-fill" style="width: {progress * 100}%"></span>
-			</span>
 		</LiquidGlass>
 	</div>
 
 	<div class="tabbar">
-		<LiquidTabs tabs={TABS} bind:value={tab} label="Sections" {quality} {variant} />
+		<LiquidTabs
+			tabs={TABS}
+			bind:value={tab}
+			label="Sections"
+			{quality}
+			{variant}
+			iconPlacement="top"
+		/>
 	</div>
 </div>
 
@@ -697,6 +815,22 @@
 		pointer-events: auto;
 	}
 
+	/*
+	 * `.lg-content` is `display: flex` and sized by its children, so a `width: 100%`
+	 * child inside it resolves against a box that is only as wide as itself — the
+	 * layout collapses to its intrinsic width and centres, and anything positioned
+	 * against it lands somewhere that looks arbitrary. That was the real cause of the
+	 * misplaced progress line, not the line's own rules.
+	 *
+	 * Reaching into a library class from a consumer is a liberty, and it is taken
+	 * deliberately rather than by passing `width` as a prop: the slab tracks the
+	 * viewport, and a measured pixel width handed back in would defeat the
+	 * `ResizeObserver` path that quantises sizes into cached maps.
+	 */
+	.player :global(.player-glass > .lg-content) {
+		width: 100%;
+	}
+
 	.player-inner {
 		display: grid;
 		grid-template-columns: 44px minmax(0, 1fr) auto;
@@ -715,6 +849,16 @@
 		display: flex;
 		min-width: 0;
 		flex-direction: column;
+		gap: 0.28rem;
+	}
+
+	.player-line {
+		display: flex;
+		overflow: hidden;
+		min-width: 0;
+		gap: 0.45rem;
+		align-items: baseline;
+		white-space: nowrap;
 	}
 
 	.player-title {
@@ -722,12 +866,56 @@
 		font-size: 0.88rem;
 		font-weight: 650;
 		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 
 	.player-artist {
+		overflow: hidden;
 		font-size: 0.78rem;
+		text-overflow: ellipsis;
 		opacity: 0.62;
+	}
+
+	.player-scrub {
+		display: flex;
+		gap: 0.55rem;
+		align-items: center;
+	}
+
+	.player-time {
+		min-width: 2.4em;
+		font-size: 0.68rem;
+		font-variant-numeric: tabular-nums;
+		opacity: 0.55;
+	}
+
+	.player-time:last-child {
+		text-align: right;
+	}
+
+	/*
+	 * The hit area is taller than the line: a 3px target is unusable, and padding the
+	 * box while keeping the visible rule thin is what a real scrubber does. The rule
+	 * itself is drawn by the child, so the padding never shows.
+	 */
+	.player-track {
+		flex: 1;
+		min-width: 0;
+		height: 3px;
+		border-radius: 999px;
+		background: rgb(128 128 128 / 0.38);
+		cursor: pointer;
+	}
+
+	.player-track:focus-visible {
+		outline: 2px solid currentColor;
+		outline-offset: 4px;
+	}
+
+	.player-fill {
+		display: block;
+		height: 100%;
+		border-radius: inherit;
+		background: currentColor;
 	}
 
 	.player-controls {
@@ -755,23 +943,6 @@
 	.player-controls .play {
 		width: 40px;
 		height: 40px;
-	}
-
-	.player-progress {
-		position: absolute;
-		right: 1.1rem;
-		bottom: 9px;
-		left: 1.1rem;
-		height: 2px;
-		border-radius: 999px;
-		background: rgb(128 128 128 / 0.35);
-	}
-
-	.player-progress-fill {
-		display: block;
-		height: 100%;
-		border-radius: inherit;
-		background: currentColor;
 	}
 
 	.tabbar {
