@@ -213,6 +213,22 @@
 		else syntheticProgress = clamped;
 	}
 
+	/**
+	 * `durationchange` as well as `loadedmetadata`, because Safari on iOS treats
+	 * `preload="metadata"` as a hint and frequently reports `duration` as `NaN` from
+	 * the load event, filling it in only once playback starts. Reading it from one
+	 * event left the readout at `0:00` while the elapsed time counted up — and worse,
+	 * silently sent `progress` down its no-file fallback, so the bar tracked a
+	 * synthetic position while real audio played underneath it.
+	 *
+	 * `NaN` is rejected rather than coerced: `Number.isFinite` is what keeps a
+	 * half-loaded stream showing `--:--` instead of a confident wrong number.
+	 */
+	function readDuration(): void {
+		const value = audio?.duration ?? 0;
+		duration = Number.isFinite(value) ? value : 0;
+	}
+
 	function clock(seconds: number): string {
 		if (!Number.isFinite(seconds)) return '--:--';
 		const whole = Math.floor(seconds);
@@ -456,7 +472,8 @@
 		src="/audio/in-that-future-bass.mp3"
 		preload="metadata"
 		ontimeupdate={() => (elapsed = audio?.currentTime ?? 0)}
-		onloadedmetadata={() => (duration = audio?.duration ?? 0)}
+		ondurationchange={readDuration}
+		onloadedmetadata={readDuration}
 		onended={() => (playing = false)}
 		onerror={() => (hasAudio = false)}
 	></audio>
@@ -1078,6 +1095,60 @@
 
 		.hero-art {
 			max-width: 200px;
+		}
+	}
+
+	/*
+	 * Phone width, where the mini player stops being a wide slab and becomes the
+	 * cramped one — and where this screen earns its keep, because it is the width at
+	 * which a real product ships and the one none of the other harnesses render at.
+	 *
+	 * Everything below removes rather than reflows. A 72px bar has room for the
+	 * artwork, the title and one primary action; the elapsed/remaining pair and the
+	 * skip buttons are the first things iOS drops at this size too, and keeping them
+	 * is what truncated the title *and* the artist to four characters each.
+	 */
+	@media (max-width: 34rem) {
+		.scroller {
+			padding: 5rem 1rem 12rem;
+		}
+
+		.hero {
+			padding: 1rem;
+		}
+
+		/*
+		 * `nowrap` with a shrinkable row: wrapping put the `…` trigger alone on a
+		 * second line, which reads as a layout accident rather than a third action.
+		 */
+		.hero-actions {
+			flex-wrap: nowrap;
+		}
+
+		.player,
+		.tabbar {
+			padding: 0 0.75rem;
+		}
+
+		.player-inner {
+			grid-template-columns: 40px minmax(0, 1fr) auto;
+			gap: 0.7rem;
+			padding: 0 0.75rem;
+		}
+
+		/* Title over artist, so neither is cut to an ellipsis after four glyphs. */
+		.player-line {
+			flex-direction: column;
+			gap: 0;
+			align-items: flex-start;
+		}
+
+		.player-time {
+			display: none;
+		}
+
+		.player-controls button:not(.play) {
+			display: none;
 		}
 	}
 </style>
