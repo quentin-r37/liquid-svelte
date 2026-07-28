@@ -1,12 +1,14 @@
 <script lang="ts">
-	import { LiquidGlass } from '$lib/liquid-glass/index.js';
+	import { LiquidGlass, type GlassMode } from '$lib/liquid-glass/index.js';
+
+	let { mode = 'auto' }: { mode?: GlassMode } = $props();
 </script>
 
 <div class="row">
-	<LiquidGlass width={220} height={120} interactive>
+	<LiquidGlass width={220} height={120} {mode} interactive>
 		<span class="label">regular</span>
 	</LiquidGlass>
-	<LiquidGlass width={220} height={120} variant="clear" interactive>
+	<LiquidGlass width={220} height={120} variant="clear" {mode} interactive>
 		<span class="label">clear</span>
 	</LiquidGlass>
 </div>

@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { LiquidScrollEdge } from '$lib/liquid-glass/index.js';
+	import { LiquidScrollEdge, type GlassMode } from '$lib/liquid-glass/index.js';
+
+	let { mode = 'auto' }: { mode?: GlassMode } = $props();
 </script>
 
 <div class="scroller">
 	<!-- The band is absolutely positioned and sized by its box, so the caller decides
 	     its depth: a sticky slot pins it to the top and takes no space in the flow. -->
-	<div class="edge-slot"><LiquidScrollEdge side="top" /></div>
+	<div class="edge-slot"><LiquidScrollEdge side="top" {mode} /></div>
 
 	<div class="copy">
 		<p>

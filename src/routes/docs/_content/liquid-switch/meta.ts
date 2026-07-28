@@ -11,7 +11,8 @@ const meta: DocMeta = {
 			id: 'basic',
 			title: 'Sizes and states',
 			note: 'Drag the droplet, not just tap it — grabbing melts the knob into glass that swells and deforms as it crosses, and a flick beats position. The visible label goes in as children.',
-			component: Basic
+			component: Basic,
+			stage: { variantToggle: false }
 		}
 	],
 	props: [

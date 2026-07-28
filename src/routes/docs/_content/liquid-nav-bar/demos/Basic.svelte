@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { LiquidNavBar, LiquidButton } from '$lib/liquid-glass/index.js';
+	import { LiquidNavBar, LiquidButton, type GlassMode } from '$lib/liquid-glass/index.js';
 	import { ChevronLeft, Search } from '@lucide/svelte';
+
+	let { mode = 'auto' }: { mode?: GlassMode } = $props();
 
 	let scroller = $state<HTMLElement | null>(null);
 	let largeTitle = $state<HTMLElement | null>(null);
@@ -18,12 +20,12 @@
 <!-- The scroll container must carry no mask, filter, opacity or transform — any of
      them would make it a backdrop root and leave the band nothing to blur. -->
 <div class="scroller" bind:this={scroller}>
-	<LiquidNavBar title="Listen Now" titleTarget={largeTitle} {scroller}>
+	<LiquidNavBar title="Listen Now" titleTarget={largeTitle} {scroller} {mode}>
 		{#snippet leading()}
-			<LiquidButton shape="circle" aria-label="Back"><ChevronLeft /></LiquidButton>
+			<LiquidButton shape="circle" {mode} aria-label="Back"><ChevronLeft /></LiquidButton>
 		{/snippet}
 		{#snippet trailing()}
-			<LiquidButton shape="circle" aria-label="Search"><Search /></LiquidButton>
+			<LiquidButton shape="circle" {mode} aria-label="Search"><Search /></LiquidButton>
 		{/snippet}
 	</LiquidNavBar>
 

@@ -11,7 +11,8 @@ const meta: DocMeta = {
 			id: 'basic',
 			title: 'Values, ranges and formatting',
 			note: 'showValue renders the formatted readout beside the track; format also feeds aria-valuetext. Keyboard steps melt the droplet exactly like a grab does.',
-			component: Basic
+			component: Basic,
+			stage: { variantToggle: false }
 		}
 	],
 	props: [

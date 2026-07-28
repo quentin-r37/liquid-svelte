@@ -1,6 +1,14 @@
 <script lang="ts">
-	import { LiquidTabs, type LiquidTab } from '$lib/liquid-glass/index.js';
+	import {
+		LiquidTabs,
+		type GlassMode,
+		type GlassVariant,
+		type LiquidTab
+	} from '$lib/liquid-glass/index.js';
 	import { Play, Search, Shuffle } from '@lucide/svelte';
+
+	let { variant = 'regular', mode = 'auto' }: { variant?: GlassVariant; mode?: GlassMode } =
+		$props();
 
 	// $derived because the snippets these reference are declared in the template.
 	const tabs: LiquidTab[] = $derived([
@@ -20,9 +28,22 @@
 {#snippet searchIcon()}<Search />{/snippet}
 
 <div class="col">
-	<LiquidTabs {tabs} bind:value={inline} label="Playback source" />
-	<LiquidTabs tabs={glyphTabs} bind:value={glyphs} label="Playback source, icons only" />
-	<LiquidTabs {tabs} bind:value={stacked} iconPlacement="top" label="Playback source, stacked" />
+	<LiquidTabs {tabs} bind:value={inline} {variant} {mode} label="Playback source" />
+	<LiquidTabs
+		tabs={glyphTabs}
+		bind:value={glyphs}
+		{variant}
+		{mode}
+		label="Playback source, icons only"
+	/>
+	<LiquidTabs
+		{tabs}
+		bind:value={stacked}
+		iconPlacement="top"
+		{variant}
+		{mode}
+		label="Playback source, stacked"
+	/>
 </div>
 
 <style>

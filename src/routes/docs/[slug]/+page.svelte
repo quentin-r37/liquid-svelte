@@ -25,15 +25,17 @@
 	{/each}
 
 	{#each meta.demos as demo (demo.id)}
-		{@const Demo = demo.component}
 		<section>
 			<h2>{demo.title}</h2>
 			{#if demo.note}
 				<p class="note">{demo.note}</p>
 			{/if}
-			<ExampleStage {...demo.stage} code={data.code[demo.id].html} raw={data.code[demo.id].raw}>
-				<Demo />
-			</ExampleStage>
+			<ExampleStage
+				{...demo.stage}
+				component={demo.component}
+				code={data.code[demo.id].html}
+				raw={data.code[demo.id].raw}
+			/>
 		</section>
 	{/each}
 

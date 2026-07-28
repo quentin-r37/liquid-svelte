@@ -12,7 +12,7 @@ const meta: DocMeta = {
 			title: 'Drag it across the text',
 			note: 'The container must be the lens’s offsetParent — a positioned ancestor — which is what the bounds calculation reads on each drag start. The lens stretches along the direction of travel, capped at 12%.',
 			component: Basic,
-			stage: { height: '22rem' }
+			stage: { height: '22rem', variantToggle: false }
 		}
 	],
 	props: [

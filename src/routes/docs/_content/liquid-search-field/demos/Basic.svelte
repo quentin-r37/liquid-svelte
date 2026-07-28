@@ -1,13 +1,22 @@
 <script lang="ts">
-	import { LiquidSearchField } from '$lib/liquid-glass/index.js';
+	import { LiquidSearchField, type GlassMode, type GlassVariant } from '$lib/liquid-glass/index.js';
+
+	let { variant = 'regular', mode = 'auto' }: { variant?: GlassVariant; mode?: GlassMode } =
+		$props();
 
 	let query = $state('');
 	let submitted = $state('');
 </script>
 
 <div class="col">
-	<LiquidSearchField bind:value={query} placeholder="Search" onsubmit={(v) => (submitted = v)} />
-	<LiquidSearchField size="lg" placeholder="Search library" />
+	<LiquidSearchField
+		bind:value={query}
+		placeholder="Search"
+		{variant}
+		{mode}
+		onsubmit={(v) => (submitted = v)}
+	/>
+	<LiquidSearchField size="lg" placeholder="Search library" {variant} {mode} />
 </div>
 <p class="readout">query: {query || '—'} · submitted: {submitted || '—'}</p>
 

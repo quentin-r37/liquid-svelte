@@ -1,15 +1,36 @@
 <script lang="ts">
-	import { LiquidGlass } from '$lib/liquid-glass/index.js';
+	import { LiquidGlass, type GlassMode, type GlassVariant } from '$lib/liquid-glass/index.js';
+
+	let { variant = 'regular', mode = 'auto' }: { variant?: GlassVariant; mode?: GlassMode } =
+		$props();
 </script>
 
 <div class="row">
-	<LiquidGlass width={150} height={150} borderRadius={75} bezel={40} interactive>
+	<LiquidGlass width={150} height={150} borderRadius={75} bezel={40} {variant} {mode} interactive>
 		<span class="label">squircle profile</span>
 	</LiquidGlass>
-	<LiquidGlass width={150} height={150} borderRadius={28} bezel={30} profile="concave" interactive>
+	<LiquidGlass
+		width={150}
+		height={150}
+		borderRadius={28}
+		bezel={30}
+		profile="concave"
+		{variant}
+		{mode}
+		interactive
+	>
 		<span class="label">concave profile</span>
 	</LiquidGlass>
-	<LiquidGlass width={150} height={150} borderRadius={40} bezel={34} profile="lip" interactive>
+	<LiquidGlass
+		width={150}
+		height={150}
+		borderRadius={40}
+		bezel={34}
+		profile="lip"
+		{variant}
+		{mode}
+		interactive
+	>
 		<span class="label">lip profile</span>
 	</LiquidGlass>
 	<LiquidGlass
@@ -18,6 +39,8 @@
 		borderRadius={20}
 		bezel={26}
 		chromaticAberration={0.16}
+		{variant}
+		{mode}
 		interactive
 	>
 		<span class="label">aberration</span>

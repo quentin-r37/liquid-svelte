@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { LiquidLens } from '$lib/liquid-glass/index.js';
+	import { LiquidLens, type GlassMode } from '$lib/liquid-glass/index.js';
+
+	let { mode = 'auto' }: { mode?: GlassMode } = $props();
 
 	let stage = $state<HTMLElement | null>(null);
 </script>
@@ -23,7 +25,7 @@
 		</p>
 	</div>
 
-	<LiquidLens container={stage} label="Magnifier" style="left: 8%; top: 22%;" />
+	<LiquidLens container={stage} {mode} label="Magnifier" style="left: 8%; top: 22%;" />
 </div>
 
 <style>

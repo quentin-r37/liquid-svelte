@@ -1,15 +1,20 @@
 <script lang="ts">
-	import { LiquidButton } from '$lib/liquid-glass/index.js';
+	import { LiquidButton, type GlassMode, type GlassVariant } from '$lib/liquid-glass/index.js';
 	import { Play, SkipBack, SkipForward } from '@lucide/svelte';
+
+	let { variant = 'regular', mode = 'auto' }: { variant?: GlassVariant; mode?: GlassMode } =
+		$props();
 </script>
 
 <div class="row">
-	<LiquidButton shape="circle" size="sm" aria-label="Previous"><SkipBack /></LiquidButton>
-	<LiquidButton shape="circle" aria-label="Play"><Play /></LiquidButton>
-	<LiquidButton shape="circle" size="lg" tone="prominent" aria-label="Next">
+	<LiquidButton shape="circle" size="sm" {variant} {mode} aria-label="Previous">
+		<SkipBack />
+	</LiquidButton>
+	<LiquidButton shape="circle" {variant} {mode} aria-label="Play"><Play /></LiquidButton>
+	<LiquidButton shape="circle" size="lg" tone="prominent" {variant} {mode} aria-label="Next">
 		<SkipForward />
 	</LiquidButton>
-	<LiquidButton><Play />Play all</LiquidButton>
+	<LiquidButton {variant} {mode}><Play />Play all</LiquidButton>
 </div>
 
 <style>

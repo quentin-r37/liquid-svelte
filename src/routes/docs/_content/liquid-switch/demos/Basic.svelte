@@ -1,14 +1,16 @@
 <script lang="ts">
-	import { LiquidSwitch } from '$lib/liquid-glass/index.js';
+	import { LiquidSwitch, type GlassMode } from '$lib/liquid-glass/index.js';
+
+	let { mode = 'auto' }: { mode?: GlassMode } = $props();
 
 	let notifications = $state(true);
 	let telemetry = $state(false);
 </script>
 
 <div class="col">
-	<LiquidSwitch bind:checked={notifications}>Notifications</LiquidSwitch>
-	<LiquidSwitch bind:checked={telemetry} size="sm">Anonymous telemetry</LiquidSwitch>
-	<LiquidSwitch checked disabled>Locked setting</LiquidSwitch>
+	<LiquidSwitch bind:checked={notifications} {mode}>Notifications</LiquidSwitch>
+	<LiquidSwitch bind:checked={telemetry} size="sm" {mode}>Anonymous telemetry</LiquidSwitch>
+	<LiquidSwitch checked disabled {mode}>Locked setting</LiquidSwitch>
 </div>
 
 <style>

@@ -1,12 +1,14 @@
 <script lang="ts">
-	import { LiquidSlider } from '$lib/liquid-glass/index.js';
+	import { LiquidSlider, type GlassMode } from '$lib/liquid-glass/index.js';
+
+	let { mode = 'auto' }: { mode?: GlassMode } = $props();
 
 	let volume = $state(65);
 	let temperature = $state(21);
 </script>
 
 <div class="col">
-	<LiquidSlider bind:value={volume} label="Volume" showValue />
+	<LiquidSlider bind:value={volume} label="Volume" {mode} showValue />
 	<LiquidSlider
 		bind:value={temperature}
 		min={16}
@@ -14,9 +16,10 @@
 		step={0.5}
 		label="Target temperature"
 		format={(v) => `${v.toFixed(1)}°C`}
+		{mode}
 		showValue
 	/>
-	<LiquidSlider value={30} label="Disabled slider" disabled showValue />
+	<LiquidSlider value={30} label="Disabled slider" disabled {mode} showValue />
 </div>
 
 <style>

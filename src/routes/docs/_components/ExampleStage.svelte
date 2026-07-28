@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import type { Component, Snippet } from 'svelte';
+	import type { GlassMode, GlassVariant } from '$lib/liquid-glass/index.js';
 	import Backdrop, { BACKDROP_KINDS, type BackdropKind } from '../../Backdrop.svelte';
 	import { getDocsContext } from '../_lib/docsContext.js';
 	import CodeBlock from './CodeBlock.svelte';
@@ -9,6 +10,8 @@
 		height = '18rem',
 		switchable = true,
 		padded = true,
+		variantToggle = true,
+		component,
 		code,
 		raw,
 		children
@@ -17,16 +20,22 @@
 		height?: string;
 		switchable?: boolean;
 		padded?: boolean;
+		/** false hides the variant select — for demos of components without the prop. */
+		variantToggle?: boolean;
+		/** Demo component; receives the stage's live variant/mode selections as props. */
+		component?: Component<{ variant?: GlassVariant; mode?: GlassMode }>;
 		/** Shiki-highlighted HTML of the demo's own source, from the page's server load. */
 		code?: string;
 		/** The same source as plain text, for the copy button. */
 		raw?: string;
-		children: Snippet;
+		children?: Snippet;
 	} = $props();
 
 	const ctx = getDocsContext();
 	// Writable derived: follows the meta-declared kind, overridable from the select.
 	let activeKind = $derived(kind);
+	let variant = $state<GlassVariant>('regular');
+	let mode = $state<GlassMode>('auto');
 	let showCode = $state(false);
 </script>
 
@@ -38,9 +47,36 @@
 	-->
 	<div class="stage" style:height>
 		<Backdrop kind={activeKind} scheme={ctx.scheme} />
-		<div class="content" class:flush={!padded}>{@render children()}</div>
+		<div class="content" class:flush={!padded}>
+			{#if component}
+				{@const Demo = component}
+				<Demo {variant} {mode} />
+			{:else if children}
+				{@render children()}
+			{/if}
+		</div>
 	</div>
 	<div class="bar">
+		{#if component && variantToggle}
+			<label>
+				<span>variant</span>
+				<select bind:value={variant}>
+					<option value="regular">regular</option>
+					<option value="clear">clear</option>
+				</select>
+			</label>
+		{/if}
+		{#if component}
+			<label>
+				<span>tier</span>
+				<select bind:value={mode}>
+					<option value="auto">auto</option>
+					<option value="full">full</option>
+					<option value="degraded">degraded</option>
+					<option value="flat">flat</option>
+				</select>
+			</label>
+		{/if}
 		{#if switchable}
 			<label>
 				<span>backdrop</span>

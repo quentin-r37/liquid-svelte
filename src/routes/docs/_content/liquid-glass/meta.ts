@@ -24,7 +24,8 @@ const meta: DocMeta = {
 			id: 'variants',
 			title: 'Material variants',
 			note: 'regular is the frosted control material; clear keeps the backdrop legible and lets the distortion do the visual work.',
-			component: Variants
+			component: Variants,
+			stage: { variantToggle: false }
 		}
 	],
 	props: [

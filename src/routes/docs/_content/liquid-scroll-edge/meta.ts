@@ -12,7 +12,7 @@ const meta: DocMeta = {
 			title: 'Pinned top edge',
 			note: 'The band fills whatever box the caller puts it in — here a sticky, zero-flow slot at the top of the scroller. Content loses definition as it approaches the edge; nothing is laid over it. Never nest a glass surface inside the band: its masks make it a backdrop root.',
 			component: Basic,
-			stage: { height: '20rem', padded: false }
+			stage: { height: '20rem', padded: false, variantToggle: false }
 		}
 	],
 	props: [

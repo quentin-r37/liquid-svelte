@@ -26,6 +26,8 @@ export type DocDemo = {
 		switchable?: boolean;
 		/** false removes the stage's inner padding — for demos that fill the whole box. */
 		padded?: boolean;
+		/** false hides the variant select — for components without a variant prop. */
+		variantToggle?: boolean;
 	};
 };
 

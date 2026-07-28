@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { LiquidMenu, type LiquidMenuItem } from '$lib/liquid-glass/index.js';
+	import {
+		LiquidMenu,
+		type GlassMode,
+		type GlassVariant,
+		type LiquidMenuItem
+	} from '$lib/liquid-glass/index.js';
+
+	let { variant = 'regular', mode = 'auto' }: { variant?: GlassVariant; mode?: GlassMode } =
+		$props();
 
 	const items: LiquidMenuItem[] = [
 		{ id: 'duplicate', label: 'Duplicate', hint: 'Copy with the same optics' },
@@ -12,8 +20,8 @@
 </script>
 
 <div class="row">
-	<LiquidMenu {items} onselect={(id) => (choice = id)}>Actions</LiquidMenu>
-	<LiquidMenu {items} placement="bottom-end" onselect={(id) => (choice = id)}>
+	<LiquidMenu {items} {variant} {mode} onselect={(id) => (choice = id)}>Actions</LiquidMenu>
+	<LiquidMenu {items} placement="bottom-end" {variant} {mode} onselect={(id) => (choice = id)}>
 		End-aligned
 	</LiquidMenu>
 </div>

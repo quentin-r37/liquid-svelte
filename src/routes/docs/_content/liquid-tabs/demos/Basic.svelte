@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { LiquidTabs, type LiquidTab } from '$lib/liquid-glass/index.js';
+	import {
+		LiquidTabs,
+		type GlassMode,
+		type GlassVariant,
+		type LiquidTab
+	} from '$lib/liquid-glass/index.js';
+
+	let { variant = 'regular', mode = 'auto' }: { variant?: GlassVariant; mode?: GlassMode } =
+		$props();
 
 	const tabs: LiquidTab[] = [
 		{ id: 'optics', label: 'Optics' },
@@ -17,7 +25,7 @@
 </script>
 
 <div class="center">
-	<LiquidTabs {tabs} bind:value={active} label="Documentation sections">
+	<LiquidTabs {tabs} bind:value={active} {variant} {mode} label="Documentation sections">
 		{#snippet panel(id)}
 			<p class="panel">{copy[id]}</p>
 		{/snippet}

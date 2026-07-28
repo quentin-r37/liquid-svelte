@@ -1,6 +1,14 @@
 <script lang="ts">
-	import { LiquidToolbar, type LiquidToolbarItem } from '$lib/liquid-glass/index.js';
+	import {
+		LiquidToolbar,
+		type GlassMode,
+		type GlassVariant,
+		type LiquidToolbarItem
+	} from '$lib/liquid-glass/index.js';
 	import { Copy, Ellipsis, Share2, Star, Trash2 } from '@lucide/svelte';
+
+	let { variant = 'regular', mode = 'auto' }: { variant?: GlassVariant; mode?: GlassMode } =
+		$props();
 
 	let starred = $state(false);
 	let last = $state('—');
@@ -24,7 +32,7 @@
 {#snippet trashIcon()}<Trash2 />{/snippet}
 
 <div class="row">
-	<LiquidToolbar {items} label="Document actions" {onaction}>
+	<LiquidToolbar {items} {variant} {mode} label="Document actions" {onaction}>
 		<Ellipsis />
 	</LiquidToolbar>
 </div>

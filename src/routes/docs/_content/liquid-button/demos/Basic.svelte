@@ -1,14 +1,19 @@
 <script lang="ts">
-	import { LiquidButton } from '$lib/liquid-glass/index.js';
+	import { LiquidButton, type GlassMode, type GlassVariant } from '$lib/liquid-glass/index.js';
+
+	let { variant = 'regular', mode = 'auto' }: { variant?: GlassVariant; mode?: GlassMode } =
+		$props();
 
 	let presses = $state(0);
 </script>
 
 <div class="row">
-	<LiquidButton size="sm" onclick={() => (presses += 1)}>Small</LiquidButton>
-	<LiquidButton onclick={() => (presses += 1)}>Medium</LiquidButton>
-	<LiquidButton size="lg" tone="prominent" onclick={() => (presses += 1)}>Prominent</LiquidButton>
-	<LiquidButton disabled>Disabled</LiquidButton>
+	<LiquidButton size="sm" {variant} {mode} onclick={() => (presses += 1)}>Small</LiquidButton>
+	<LiquidButton {variant} {mode} onclick={() => (presses += 1)}>Medium</LiquidButton>
+	<LiquidButton size="lg" tone="prominent" {variant} {mode} onclick={() => (presses += 1)}>
+		Prominent
+	</LiquidButton>
+	<LiquidButton {variant} {mode} disabled>Disabled</LiquidButton>
 </div>
 <p class="readout">presses: {presses}</p>
 
