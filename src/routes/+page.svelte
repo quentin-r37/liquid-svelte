@@ -29,6 +29,10 @@
 			<a href={resolve('/bench')}>Scaling benchmark</a> — frame timing against instance count, so “a page
 			full of glass stays at 60fps” is a measurement rather than an impression.
 		</li>
+		<li>
+			<a href={resolve('/music')}>Application screen</a> — one plausible product, with the surface mix
+			and the scrolling text under a large slab that none of the isolating harnesses can reproduce.
+		</li>
 	</ul>
 </main>
 
