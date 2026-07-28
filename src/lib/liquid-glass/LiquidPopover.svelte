@@ -265,7 +265,9 @@
 		tick().then(() => {
 			if (cancelled) return;
 			const body = bodyElement;
-			if (body && !body.contains(document.activeElement)) body.focus();
+			// `preventScroll` for LiquidDialog's reason: the panel is a 6%-height
+			// puddle at this instant, and a scroll to reveal it shifts the page.
+			if (body && !body.contains(document.activeElement)) body.focus({ preventScroll: true });
 		});
 		return () => {
 			cancelled = true;

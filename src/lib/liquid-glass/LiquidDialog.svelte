@@ -222,12 +222,18 @@
 		tick().then(() => {
 			if (cancelled) return;
 			const body = bodyElement;
-			if (body && !body.contains(document.activeElement)) body.focus();
+			// `preventScroll`, and it is not optional: at this instant the sheet is
+			// still parked below the edge — the spring has barely left — so a plain
+			// `focus()` makes the browser scroll the page to reveal the focused
+			// element. The page visibly jumps a few dozen pixels on open and never
+			// comes back; the panel is on its way regardless.
+			if (body && !body.contains(document.activeElement)) body.focus({ preventScroll: true });
 		});
 		return () => {
 			cancelled = true;
 			const inside = bodyElement?.contains(document.activeElement);
-			if (inside && previous instanceof HTMLElement && previous.isConnected) previous.focus();
+			if (inside && previous instanceof HTMLElement && previous.isConnected)
+				previous.focus({ preventScroll: true });
 		};
 	});
 
@@ -240,9 +246,18 @@
 		if (!open || contained) return;
 		const root = document.documentElement;
 		const previous = root.style.overflow;
+		const previousPadding = root.style.paddingRight;
+		// Removing the scrollbar widens the viewport and reflows the whole page a
+		// scrollbar's width to the right — the classic modal background jump, and
+		// on Windows (classic scrollbars) it is a very visible ~17px. Padding the
+		// root by exactly the width the scrollbar occupied holds the layout still;
+		// on overlay-scrollbar platforms the measured width is 0 and this is inert.
+		const scrollbar = window.innerWidth - root.clientWidth;
 		root.style.overflow = 'hidden';
+		if (scrollbar > 0) root.style.paddingRight = `${scrollbar}px`;
 		return () => {
 			root.style.overflow = previous;
+			root.style.paddingRight = previousPadding;
 		};
 	});
 
@@ -354,6 +369,17 @@
 		box-sizing: border-box;
 		/* Mirrors DIALOG_GEOMETRY.inset — the floating margin at every edge. */
 		padding: 16px;
+		/*
+		 * The parked sheet lives a full panel-height below the overlay's bottom
+		 * edge, laid out (it must stay measurable) and merely invisible — and a
+		 * laid-out box past the edge extends the scrollable overflow of whatever
+		 * ancestor scrolls, which under `contained` grows the page by a sheet's
+		 * worth of blank scroll. Clipping at the overlay's own bounds costs
+		 * nothing (everything past them is off screen by definition) and is safe
+		 * on an ancestor of glass: `overflow` is not one of the backdrop-root
+		 * properties, unlike the `clip-path` it must never be traded for.
+		 */
+		overflow: clip;
 	}
 
 	.lg-dialog[data-presentation='sheet'] {
