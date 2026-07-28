@@ -28,7 +28,7 @@
 		{ id: 'trois', label: 'Trois' }
 	];
 
-	const stripes = [
+	const lightStripes = [
 		'#ff3b30',
 		'#ff9500',
 		'#ffcc00',
@@ -38,6 +38,27 @@
 		'#af52de',
 		'#ff2d55'
 	];
+
+	/*
+	 * The same hues at ~35% luminance, mirroring the native harness exactly.
+	 *
+	 * `?scheme=dark` alone only flips the *material*; the backdrop stays the bright
+	 * stripes, which is not what a dark-mode app looks like. This is the case that
+	 * matters for `clear`, whose veil is white in both schemes: over a bright
+	 * backdrop a white lift is invisible, over a dark one it is the whole reading.
+	 */
+	const darkStripes = [
+		'#591412',
+		'#593300',
+		'#594700',
+		'#12451f',
+		'#123d45',
+		'#002b59',
+		'#3d1c4f',
+		'#590f1f'
+	];
+
+	const stripes = $derived(page.url.searchParams.get('bg') === 'dark' ? darkStripes : lightStripes);
 
 	let stage = $state<HTMLElement | null>(null);
 	let rects = $state('');

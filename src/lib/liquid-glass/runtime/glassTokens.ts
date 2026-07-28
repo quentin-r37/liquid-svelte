@@ -150,27 +150,35 @@ export interface MaterialVariant {
  * the content; anything with small text sitting directly on busy content wants
  * `regular`.
  *
- * `clear`'s veil and saturation come from the same /compare-ios/ab pass. Native
- * `.glassEffect(.clear)` on a button capsule lifts luminance by 16% and hands
- * the backdrop's saturation back essentially untouched (0.65→0.66) — it is a
- * lens, not a tint. At 0.05 the tint lifted only 6% and, with saturation at 1.3,
- * *raised* chroma to 0.76: a juicier backdrop than the one behind it, which is
- * the one thing a clear material must never do. 0.105 is the 16% lift measured
- * back (the same nonlinear stack as `regular`'s, so measured rather than
- * scaled). Saturation stays at the same mild 1.05 and, as with `regular`, the
- * veil's own compensation lives in CSS — ×1.3 rather than ×1.5, a fraction of
- * the correction because there is a fraction of the veil to correct for, and
- * scheme-independent because `clear`'s veil is (see the
- * `.lg[data-variant='clear']` rule). The settled pair measures a 16.2% lift and
- * 0.62→0.67 against the platform's 16.2% and 0.65→0.66, and 15.1% / 0.62→0.64 in
- * dark against a platform that measures the same figures in both schemes.
+ * `clear` barely tints at all, and that is the point: its lift is a *gain* on
+ * the backdrop (`--lg-lift` in liquidGlass.css), not a sheet laid over it.
+ *
+ * Two measurements forced that, and the second is the one that matters. On a
+ * bright backdrop native `.glassEffect(.clear)` lifts luminance by 16% and hands
+ * saturation back essentially untouched (0.65→0.66); on a *dark* backdrop — the
+ * ordinary dark-mode case, which the first pass never tested because it only
+ * flipped the material and left the stripes bright — it lifts by 6%. A
+ * fixed-alpha white sheet does the opposite: it lifts a dark backdrop *hardest*,
+ * which is exactly how a clear button over dark content ended up reading as a
+ * pale pill where the platform's stays dark. At 0.105 it measured an 18.6% lift
+ * over that backdrop against the reference's 6.3%.
+ *
+ * A gain lifts by a fraction of what is already there, which reproduces both
+ * ends at once, and it preserves saturation for free — multiplying three
+ * channels leaves their ratios alone, which is the property the platform's clear
+ * material has and no veil can imitate. So the tint drops to 0.04, enough to
+ * keep the surface visible over pure black where a gain has nothing to multiply,
+ * and the material measures 17.1% / 0.69 on a bright backdrop and 7.8% / 0.53 on
+ * a dark one, against the platform's 16.2% / 0.66 and 6.3% / 0.54. Saturation
+ * stays the mild 1.05 every material carries; `clear`'s CSS chroma compensation
+ * came down to ×1.05 with the veil that justified it.
  *
  * These are *default sources*, not clamps: any surface may set `blur`,
  * `opacity` or `saturation` explicitly and the variant leaves that prop alone.
  */
 export const MATERIAL_VARIANTS: Record<GlassVariant, MaterialVariant> = {
 	regular: { blur: 2, opacity: 0.27, saturation: 1.05 },
-	clear: { blur: 1.7, opacity: 0.105, saturation: 1.05 }
+	clear: { blur: 1.7, opacity: 0.04, saturation: 1.05 }
 };
 
 /**
@@ -1342,12 +1350,15 @@ export const TABS_BUBBLE = {
  * session: native `.glassEffect(.clear)` measures σ≈1pt, a ~17% luminance lift,
  * and a backdrop saturation it *preserves* (0.80→0.77) — where the old 1.5
  * resting boost pushed it up to 0.80 from a lower base, visibly juicier than the
- * platform. So rest tints at 0.09 (measured: 0.14 lifted 24%, 0.09 lands on
- * 17.7% against the reference's 17.4%) and saturates at 1.2, which under
- * `clear`'s ×1.3 veil compensation measures 0.80 against the platform's 0.77.
- * The melt keeps the shape it had around the new resting level: the tint thins
- * by the same third and the saturation spikes by the same half again, so the
- * gesture reads as it did.
+ * platform. The rail's tint then went the same way the material's did, and on
+ * the same measurement: with `clear`'s lift moved onto a backdrop gain
+ * (`--lg-lift`), a tint still sized to do the lifting itself double-counts —
+ * 0.09 measured 26.4% on a bright backdrop and 21.5% on a dark one, against a
+ * reference that lifts 17.4% and 9.6%. 0.03 lands on 14.9% and 8.4%, and
+ * saturation comes back to the mild 1.05, the rail's 1.2 having been part of the
+ * same compensation. The melt keeps the shape it had around the new resting
+ * level: the tint thins by the same third and the saturation spikes by the same
+ * half again, so the gesture reads as it did.
  *
  * `scale` is pinned at 1 in every endpoint and never read: the rail is the
  * component's layout box, and scaling it would move the segments the bubble is
@@ -1375,15 +1386,15 @@ export const TABS_GLASS: Record<GlassVariant, { rest: DropletVisual; active: Dro
 	clear: {
 		rest: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL,
-			opacity: 0.09,
-			saturation: 1.2,
+			opacity: 0.03,
+			saturation: 1.05,
 			blur: 0.4,
 			specularIntensity: 0.35,
 			scale: 1
 		},
 		active: {
 			displacementRatio: DISPLACEMENT_PER_BEZEL * 1.3,
-			opacity: 0.06,
+			opacity: 0.02,
 			saturation: 1.9,
 			blur: 0.6,
 			specularIntensity: 1,

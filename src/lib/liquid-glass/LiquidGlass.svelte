@@ -227,7 +227,8 @@
 		 * filter list is free on both tiers: filter functions compose in order, and
 		 * the `flat` tier has no list to append to.
 		 */
-		if (tier === 'full') return `url(#${filterId}) saturate(var(--lg-chroma-boost))`;
+		if (tier === 'full')
+			return `url(#${filterId}) saturate(var(--lg-chroma-boost)) brightness(var(--lg-lift))`;
 		// The SVG chain carries blur and saturation for the full tier; the degraded
 		// tier has to express them as CSS filter functions. Both materials now blur
 		// below the floor and are raised to it — the platform's own control frost is
@@ -237,7 +238,7 @@
 		// the multiplier it used to be.
 		if (tier === 'degraded') {
 			const radius = Math.max(DEGRADED_BLUR_FLOOR, effectiveBlur);
-			return `blur(${radius}px) saturate(${effectiveSaturation}) saturate(var(--lg-chroma-boost))`;
+			return `blur(${radius}px) saturate(${effectiveSaturation}) saturate(var(--lg-chroma-boost)) brightness(var(--lg-lift))`;
 		}
 		return 'none';
 	});

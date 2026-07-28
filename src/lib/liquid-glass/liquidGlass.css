@@ -234,9 +234,30 @@
 	 * Measured on /compare-ios/ab against the iOS 26.5 simulator: under a ~67%
 	 * white veil the platform returns ~44% of the backdrop's chroma where an
 	 * uncompensated composite returns ~30%, and 1.5 is what closes that. `clear`
-	 * runs lower because it veils far less, and — following the platform — keeps
-	 * its white veil in dark, so its figure is scheme-independent too.
+	 * runs at almost nothing (1.05) because it barely veils at all any more — its
+	 * lift is a gain now, see `--lg-lift`, and a gain destroys no chroma to
+	 * compensate for — and its figure is scheme-independent because its material
+	 * is.
 	 */
+	/*
+	 * Backdrop gain, as a `brightness()` on the same filter list the chroma
+	 * compensation rides — 1 for `regular`, which lifts with a veil instead.
+	 *
+	 * `clear` used to lift with a veil too, and the measurement that killed that
+	 * is the one worth keeping: on /compare-ios/ab in the iOS 26.5 simulator,
+	 * native `.glassEffect(.clear)` lifts a *bright* backdrop by 16% and a dark
+	 * one by only 6%. A fixed-alpha white sheet cannot do that — it lifts a dark
+	 * backdrop hardest, which is why ours read as a pale pill over dark content
+	 * where the platform's stays dark. A gain does exactly that: it moves every
+	 * channel by a fraction of what is already there, so it lifts a bright
+	 * backdrop and barely touches a black one. It is also why the platform's
+	 * clear material preserves saturation — multiplying all three channels leaves
+	 * the ratio between them alone, where compositing toward white does not.
+	 *
+	 * The residual tint that remains on `clear` is what keeps a surface visible
+	 * over pure black, where a gain has nothing to multiply.
+	 */
+	--lg-lift: 1;
 	--lg-chroma-boost: 1.5;
 	--lg-rim: 255 255 255;
 	--lg-shade: 0 0 0;
@@ -407,16 +428,17 @@
  * lens has no scheme. Ours darkened by 18% in dark, which is the one behaviour
  * that makes a clear material read as a smoked one.
  *
- * So the veil colour and weight are pinned to their light figures here, and the
- * chroma compensation with them — a white veil destroys saturation whatever the
- * page around it is doing. Only what sits *on* the surface still follows the
+ * So the veil colour and weight are pinned to their light figures here, along
+ * with the gain that does most of the lifting (`--lg-lift`) and the small chroma
+ * compensation left over. Only what sits *on* the surface still follows the
  * scheme: the label colours, the rim, and every recoloured fill, all of which
  * come from properties this rule leaves alone.
  */
 .lg[data-variant='clear'] {
 	--lg-veil-color: var(--lg-rim);
 	--lg-veil-boost: var(--lg-clear-veil-boost);
-	--lg-chroma-boost: 1.3;
+	--lg-chroma-boost: 1.05;
+	--lg-lift: 1.12;
 }
 
 .lg[data-variant='regular'] {
@@ -496,6 +518,15 @@
 .lg[data-tier='degraded'] .lg-tint {
 	--lg-tint-boost: 1.8;
 	--lg-veil-boost: 1;
+}
+
+/*
+ * `clear`'s lift is a backdrop gain, and this tier has no backdrop filter to put
+ * it on — so the tint has to be the whole material here, at roughly the alpha it
+ * carried before the gain took the job over on the filtering tiers.
+ */
+.lg[data-tier='flat'][data-variant='clear'] .lg-tint {
+	--lg-tint-boost: 10;
 }
 
 .lg[data-tier='flat'] .lg-tint {
