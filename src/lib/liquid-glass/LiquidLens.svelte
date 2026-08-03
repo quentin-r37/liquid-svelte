@@ -167,8 +167,8 @@
 	:global(.lg-lens) {
 		position: absolute;
 		touch-action: none;
-		user-select: none;
 		-webkit-user-select: none;
+		user-select: none;
 		cursor: grab;
 	}
 

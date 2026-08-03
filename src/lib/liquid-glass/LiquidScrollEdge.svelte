@@ -180,19 +180,21 @@
 	.lg-scroll-edge-layer {
 		position: absolute;
 		inset: 0;
-		backdrop-filter: blur(var(--lg-scroll-edge-blur));
+		/* Prefixed first, standard last — see liquidGlass.css for why the order is
+		   load-bearing under minification. */
 		-webkit-backdrop-filter: blur(var(--lg-scroll-edge-blur));
+		backdrop-filter: blur(var(--lg-scroll-edge-blur));
 		/*
 		 * Opaque from the pinned edge to `hold`, then out by `end`. The two stops are
 		 * what stagger the layers into a radius ramp; see the component script.
 		 */
-		mask-image: linear-gradient(
+		-webkit-mask-image: linear-gradient(
 			var(--lg-scroll-edge-dir),
 			#000 0%,
 			#000 var(--lg-scroll-edge-hold),
 			transparent var(--lg-scroll-edge-end)
 		);
-		-webkit-mask-image: linear-gradient(
+		mask-image: linear-gradient(
 			var(--lg-scroll-edge-dir),
 			#000 0%,
 			#000 var(--lg-scroll-edge-hold),
@@ -201,9 +203,9 @@
 	}
 
 	.lg-scroll-edge-widest {
-		backdrop-filter: blur(var(--lg-scroll-edge-blur)) saturate(var(--lg-scroll-edge-saturation));
 		-webkit-backdrop-filter: blur(var(--lg-scroll-edge-blur))
 			saturate(var(--lg-scroll-edge-saturation));
+		backdrop-filter: blur(var(--lg-scroll-edge-blur)) saturate(var(--lg-scroll-edge-saturation));
 	}
 
 	/*

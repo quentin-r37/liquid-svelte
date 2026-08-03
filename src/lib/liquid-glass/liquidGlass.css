@@ -370,9 +370,20 @@
 	 *
 	 * It paints beneath the host's own background and every child, which is exactly
 	 * where the child layer used to sit — so the stack below is unchanged.
+	 *
+	 * The prefixed declaration comes *first*, and that order is load-bearing rather
+	 * than stylistic. Lightning CSS — the minifier behind `vite build` — treats a
+	 * prefixed property and its standard form as one property and keeps only the
+	 * last one written. With the standard form first, a production build shipped
+	 * `-webkit-backdrop-filter` alone; current Chromium has dropped that alias
+	 * (`CSS.supports('-webkit-backdrop-filter', 'blur(2px)')` is now false), so the
+	 * declaration parsed as garbage and every surface lost its backdrop — refraction
+	 * on `full`, blur on `degraded` — in the built app only, never in dev, where the
+	 * CSS is served unminified. Prefix first, standard last: the standard form
+	 * survives minification and wins the cascade wherever both parse.
 	 */
-	backdrop-filter: var(--lg-backdrop);
 	-webkit-backdrop-filter: var(--lg-backdrop);
+	backdrop-filter: var(--lg-backdrop);
 
 	/*
 	 * Matched against iOS 26, which floats glass on a wide, faint plume rather than
