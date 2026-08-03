@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-auto';
+import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
 import mkcert from 'vite-plugin-mkcert';
 import { defineConfig } from 'vite';
@@ -21,9 +21,10 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
 
-			// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
-			// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
-			// See https://svelte.dev/docs/kit/adapters for more information about adapters.
+			// La démo est déployée sur Coolify, qui construit et lance le Dockerfile à la racine :
+			// un serveur Node autonome (`node build`), pas une plateforme serverless. adapter-node
+			// est donc le seul adapter qui produise la bonne sortie — adapter-auto ne détecte rien
+			// dans un conteneur et se contente d'un avertissement, laissant `build/` sans serveur.
 			adapter: adapter()
 		})
 	]
