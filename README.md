@@ -3,6 +3,8 @@
 Liquid Glass components for Svelte 5 — real SVG displacement refraction, specular highlights and
 Motion-driven springs, modelled on iOS 26's glass material.
 
+![liquid-svelte demo — glass surfaces refracting the backdrop](.github/readme/home.jpg)
+
 Where most "glassmorphism" libraries stop at `blur() saturate()`, this one builds an actual optical
 pipeline: a signed-distance field of the element's silhouette, full vector Snell refraction across a
 configurable bezel, and a per-instance SVG displacement filter applied through
@@ -10,6 +12,8 @@ configurable bezel, and a per-instance SVG displacement filter applied through
 backdrop like glass does.
 
 ## Components
+
+![Component gallery — buttons, switches, menus on the glass material](.github/readme/gallery.jpg)
 
 | Component | What it is |
 | --- | --- |
