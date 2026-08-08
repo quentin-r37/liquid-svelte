@@ -12,7 +12,7 @@
 		type GlassMode
 	} from '$lib/liquid-glass/index.js';
 	import { ArrowRight, Moon, Sun } from '@lucide/svelte';
-	import Backdrop from './Backdrop.svelte';
+	import Aurora from './Aurora.svelte';
 
 	let scheme = $state<'light' | 'dark'>('dark');
 	let tierOverride = $state<GlassMode>('auto');
@@ -68,7 +68,7 @@
 	/>
 </svelte:head>
 
-<Backdrop kind="grid" {scheme} fixed />
+<Aurora {scheme} fixed />
 
 <div class="page" data-scheme={scheme}>
 	<div class="chrome">
